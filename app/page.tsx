@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useAccount, useConnect, useReadContract, useReadContracts } from 'wagmi'
-import sdk from '@farcaster/frame-sdk'
+import sdk from '@farcaster/miniapp-sdk'
 import { frameConnector } from '@/lib/frameConnector'
 
 // CCat collection address — update once re-registered on new factory
