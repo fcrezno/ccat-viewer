@@ -1,17 +1,20 @@
 {
+  "frame": {
+    "name": "Clanker Cats",
+    "version": "1",
+    "iconUrl": "https://ccat-viewer.vercel.app/icon.png",
+    "homeUrl": "https://ccat-viewer.vercel.app",
+    "imageUrl": "https://ccat-viewer.vercel.app/image.png",
+    "splashImageUrl": "https://ccat-viewer.vercel.app/splash.png",
+    "splashBackgroundColor": "#0a0a14",
+    "webhookUrl": "https://ccat-viewer.vercel.app/api/webhook",
+    "primaryCategory": "art-creativity",
+    "subtitle": "clank your cat!",
+    "description": "Clanker Cats"
+  },
   "accountAssociation": {
     "header": "eyJmaWQiOjM0OTIyOCwidHlwZSI6ImF1dGgiLCJrZXkiOiIweGQ4NjE2MDJmY0I1NTU3MzE0ZkNGMGRDQTU3NjQxNEQyYjNmNjg1OTIifQ",
-    "payload": "eyJkb21haW4iOiJtaXJhZ2UuZ2FyZGVuIn0",
-    "signature": "Wui/Su4haN68cx8MBUOFh8PcvtqoaWNjukRcgkgI/4sF0ptykzgJgN33rSDOJ7F5CBwaXeM1gIYp2kBJfSBehxw="
-  },
-  "frame": {
-    "name": "ClankerCats",
-    "version": "1",
-    "iconUrl": "https://mirage.garden/icon.png",
-    "homeUrl": "https://ccat-viewer.vercel.app",
-    "imageUrl": "https://mirage.garden/image.png",
-    "buttonTitle": "View My CCats",
-    "splashImageUrl": "https://mirage.garden/splash.png",
-    "splashBackgroundColor": "#0a0a14"
+    "payload": "eyJkb21haW4iOiJjY2F0LXZpZXdlci52ZXJjZWwuYXBwIn0",
+    "signature": "OtH1bu+dNDlVPk+hEaj6kcVJA3QZ+95oHNy78RxPeQEKYYIOLwWirZI1QVEqQ+5YGn8PbDxxl2+1OLc0eKH3XRw="
   }
 }
