@@ -80,7 +80,7 @@ export default function Home() {
   const [selected, setSelected]  = useState<bigint | null>(null)
 
   useEffect(() => {
-    sdk.actions.ready()
+    try { sdk.actions.ready() } catch {}
     setReady(true)
     const fc = connectors.find(c => c.id === 'farcaster-frame')
     if (fc) connect({ connector: fc })
@@ -116,7 +116,13 @@ export default function Home() {
 
       {!isConnected ? (
         <div style={s.center}>
-          <div style={{ color: '#555', fontSize: 14 }}>Connecting wallet…</div>
+          <div style={{ color: '#888', fontSize: 14, marginBottom: 16 }}>Open in Warpcast to view your CCats</div>
+          <div style={{ color: '#555', fontSize: 12 }}>or connect a wallet below</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+            {connectors.filter(c => c.id !== 'farcaster-frame').map(c => (
+              <button key={c.id} style={s.connectBtn} onClick={() => connect({ connector: c })}>{c.name}</button>
+            ))}
+          </div>
         </div>
       ) : count === 0 ? (
         <div style={s.center}>
@@ -157,4 +163,5 @@ const s: Record<string, React.CSSProperties> = {
   traitVal:   { fontSize: 13, color: '#ccc', fontWeight: 'bold' },
   shareBtn:   { padding: 12, background: '#7c3aed', color: 'white', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 'bold' },
   back:       { background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 13, padding: '0 0 8px 0', textAlign: 'left' as const },
+  connectBtn: { padding: '10px 20px', background: '#1e1e2e', border: '1px solid #2a2a3e', borderRadius: 8, color: 'white', cursor: 'pointer', fontSize: 13 },
 }
