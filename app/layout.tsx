@@ -13,7 +13,7 @@ export const metadata: Metadata = {
         title: 'View My CCats',
         action: {
           type: 'launch_frame',
-          url: 'https://mirage.garden/cats',
+          url: 'https://ccat-viewer.vercel.app',
           name: 'ClankerCats',
           splashImageUrl: 'https://mirage.garden/splash.png',
           splashBackgroundColor: '#0a0a14',
