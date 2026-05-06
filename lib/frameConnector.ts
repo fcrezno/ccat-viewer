@@ -7,7 +7,8 @@ export function frameConnector() {
     name: 'Farcaster Frame',
     type: 'farcaster-frame',
 
-    async connect() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async connect(): Promise<any> {
       const provider = await this.getProvider()
       const accounts = await provider.request({ method: 'eth_requestAccounts' }) as `0x${string}`[]
       return { accounts, chainId: 8453 }
@@ -15,9 +16,10 @@ export function frameConnector() {
 
     async disconnect() {},
 
-    async getAccounts() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async getAccounts(): Promise<any> {
       const provider = await this.getProvider()
-      return provider.request({ method: 'eth_accounts' }) as Promise<`0x${string}`[]>
+      return provider.request({ method: 'eth_accounts' })
     },
 
     async getChainId() { return 8453 },
