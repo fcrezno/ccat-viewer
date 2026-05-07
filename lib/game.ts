@@ -33,7 +33,7 @@ export type GameState = {
 }
 
 export const ZONE_NAMES = [
-  'Moon Surface', 'Crater Field', 'Asteroid Belt',
+  'The Lake', 'Crater Field', 'Asteroid Belt',
   'Deep Space', 'Nebula', 'Black Hole Rim',
 ]
 

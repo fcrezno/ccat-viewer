@@ -24,11 +24,17 @@ function ResourceBar({ state }: { state: GameState }) {
 function CombatPanel({ state, onToggle }: { state: GameState; onToggle: () => void }) {
   const { enemy, zone, kills, cats, catHealth, catMaxHealth, fighting } = state
   const zoneName = ZONE_NAMES[Math.min(zone, ZONE_NAMES.length - 1)]
+  const zoneImg  = `/zones/zone-${Math.min(zone, ZONE_NAMES.length - 1)}.png`
   const hpPct    = enemy ? Math.max(0, (enemy.hp / enemy.maxHp) * 100) : 0
   const catHpPct = catMaxHealth > 0 ? (catHealth / catMaxHealth) * 100 : 100
 
   return (
     <div style={g.panel}>
+      <img
+        src={zoneImg}
+        onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+        style={{ width: '100%', borderRadius: 8, display: 'block', objectFit: 'cover', height: 120, marginBottom: 4 }}
+      />
       <div style={g.panelHeader}>
         <span>⚔️ {zoneName}</span>
         <span style={{ fontSize: 11, color: '#555' }}>Zone {zone + 1} · {kills} kills</span>
