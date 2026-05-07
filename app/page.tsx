@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useAccount, useConnect, useReadContract, useReadContracts } from 'wagmi'
+import { useAccount, useConnect, useReadContract } from 'wagmi'
 import sdk from '@farcaster/miniapp-sdk'
 
 const CCAT     = '0xD7800C338228a6eeb37cF74133732Fb6aE05915F' as `0x${string}`
@@ -79,8 +79,12 @@ function CatDetail({ upeg, onBack }: { upeg: Upeg; onBack: () => void }) {
   const meta = uri ? decodeMeta(uri as string) : null
 
   async function share() {
-    try { await sdk.actions.openUrl(`https://warpcast.com/~/compose?text=Check out my ClankerCat %23${upeg.id} 🐱%0Aclankercats.com`) }
-    catch { window.open(`https://warpcast.com/~/compose?text=ClankerCat %23${upeg.id}`, '_blank') }
+    const imageUrl = `https://ccat-viewer.vercel.app/api/cat?id=${upeg.id}&seed=${upeg.seed}`
+    const text = encodeURIComponent(`Check out my ClankerCat #${upeg.id} 🐱`)
+    const embed = encodeURIComponent(imageUrl)
+    const url = `https://warpcast.com/~/compose?text=${text}&embeds[]=${embed}`
+    try { await sdk.actions.openUrl(url) }
+    catch { window.open(url, '_blank') }
   }
 
   async function viewOnSite() {
