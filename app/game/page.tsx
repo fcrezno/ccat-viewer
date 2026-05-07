@@ -519,7 +519,7 @@ export default function GamePage() {
   const [showMini, setShowMini] = useState(false)
   const stateRef              = useRef<GameState | null>(null)
   const lastTickRef           = useRef<number>(Date.now())
-  const lastMiniKills         = useRef<number>(0)
+  const nextMiniAt            = useRef<number>(Date.now() + (10 + Math.random() * 20) * 60_000)
   const { address }           = useAccount()
 
   const { writeContract: claimMini } = useWriteContract()
@@ -535,11 +535,9 @@ export default function GamePage() {
       lastTickRef.current = now
       stateRef.current = tick(stateRef.current!, dt)
       setState({ ...stateRef.current })
-      // Trigger mini-game randomly ~every 20-30 kills
-      const kills = stateRef.current!.kills
-      const threshold = lastMiniKills.current + 20 + Math.floor(Math.random() * 10)
-      if (kills > 0 && kills >= threshold && kills !== lastMiniKills.current) {
-        lastMiniKills.current = kills
+      // Trigger mini-game on a random 10-30 min timer
+      if (Date.now() >= nextMiniAt.current) {
+        nextMiniAt.current = Date.now() + (10 + Math.random() * 20) * 60_000
         setShowMini(true)
       }
     }, TICK_MS)
