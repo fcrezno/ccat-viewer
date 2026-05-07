@@ -13,7 +13,7 @@ export type Building = {
   unlockAt?: Partial<Resources>
 }
 
-export type Enemy = { name: string; emoji: string; hp: number; maxHp: number; attack: number }
+export type Enemy = { name: string; emoji: string; hp: number; maxHp: number; attack: number; sprite?: string }
 
 export type GameState = {
   resources:   Resources
