@@ -636,7 +636,7 @@ const g: Record<string, React.CSSProperties> = {
   panel:       { background: 'white', border: '1.5px solid #111', borderRadius: 12, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 },
   panelHeader: { fontSize: 13, fontWeight: 'bold', color: '#111', display: 'flex', justifyContent: 'space-between' },
   buildingRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f5f5f0', border: '1.5px solid #111', borderRadius: 8, padding: '10px 12px', cursor: 'pointer', width: '100%', color: '#111' },
-  actionBtn:   { padding: '10px', borderRadius: 10, border: '1.5px solid #111', cursor: 'pointer', fontSize: 13, fontWeight: 'bold', color: 'white', background: '#111', color: 'white' },
+  actionBtn:   { padding: '10px', borderRadius: 10, border: '1.5px solid #111', cursor: 'pointer', fontSize: 13, fontWeight: 'bold', color: 'white', background: '#111' },
   hpTrack:     { background: '#ddd', borderRadius: 4, height: 6, overflow: 'hidden' },
   hpFill:      { height: '100%', borderRadius: 4, transition: 'width 0.25s linear' },
   dbgBtn:      { padding: '6px 10px', background: 'white', border: '1.5px solid #ef4444', borderRadius: 8, color: '#ef4444', cursor: 'pointer', fontSize: 11 },
