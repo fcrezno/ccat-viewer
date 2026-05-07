@@ -61,12 +61,19 @@ contract IdleAutoRun {
 
     mapping(address => Session) public sessions;
 
+    // ── Mini-game rewards ────────────────────────────────────────────────────
+
+    uint256 public miniRewardAmount = 500 ether;        // 500 $CLKCAT per win
+    uint256 public miniRewardCooldown = 24 hours;
+    mapping(address => uint256) public lastMiniClaim;
+
     // ── Events ───────────────────────────────────────────────────────────────
 
     event AutoRunStarted(address indexed player, uint8 tier, uint64 expiresAt, uint256 season);
     event SeasonStarted(uint256 indexed season, uint256 endsAt);
     event ScoresSubmitted(uint256 indexed season, address[] players, uint256[] scores);
     event Claimed(address indexed player, uint256 indexed season, uint256 amount);
+    event MiniRewardClaimed(address indexed player, uint256 amount);
 
     // ── Constructor ──────────────────────────────────────────────────────────
 
@@ -130,6 +137,24 @@ contract IdleAutoRun {
         emit Claimed(msg.sender, _season, share);
     }
 
+    /**
+     * Claim mini-game reward — once per 24h per player.
+     * Contract must hold $CLKCAT to pay out (funded via owner deposit).
+     */
+    function claimMiniReward() external {
+        require(block.timestamp >= lastMiniClaim[msg.sender] + miniRewardCooldown, "cooldown active");
+        require(CLKCAT.balanceOf(address(this)) >= prizePool + miniRewardAmount, "insufficient reward balance");
+        lastMiniClaim[msg.sender] = block.timestamp;
+        require(CLKCAT.transfer(msg.sender, miniRewardAmount), "transfer failed");
+        emit MiniRewardClaimed(msg.sender, miniRewardAmount);
+    }
+
+    function miniRewardCooldownRemaining(address player) external view returns (uint256) {
+        uint256 next = lastMiniClaim[player] + miniRewardCooldown;
+        if (block.timestamp >= next) return 0;
+        return next - block.timestamp;
+    }
+
     // ── Read helpers ─────────────────────────────────────────────────────────
 
     function isActive(address player) external view returns (bool) {
@@ -182,6 +207,16 @@ contract IdleAutoRun {
 
     function setTierCosts(uint256[3] calldata costs) external onlyOwner {
         tierCosts = costs;
+    }
+
+    function setMiniReward(uint256 amount, uint256 cooldown) external onlyOwner {
+        miniRewardAmount   = amount;
+        miniRewardCooldown = cooldown;
+    }
+
+    // Fund the mini-game reward pool — send $CLKCAT to this contract
+    function fundRewards(uint256 amount) external onlyOwner {
+        require(CLKCAT.transferFrom(msg.sender, address(this), amount), "transfer failed");
     }
 
     function transferOwnership(address newOwner) external onlyOwner {

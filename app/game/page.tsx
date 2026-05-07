@@ -52,6 +52,96 @@ function fmtSecs(s: number): string {
   return `${sec}s`
 }
 
+const MINI_GRID_SIZE = 12
+const FISH_COUNT     = 5
+const DECOYS         = ['🐻', '🤖', '🧶', '🎰', '📉', '🌀', '👮', '🐋']
+
+function MiniGame({ onWin, onClose }: { onWin: () => void; onClose: () => void }) {
+  const [phase, setPhase]     = useState<'intro' | 'play' | 'win' | 'lose'>('intro')
+  const [timeLeft, setTimeLeft] = useState(5)
+  const [grid, setGrid]       = useState<string[]>([])
+  const [tapped, setTapped]   = useState<Set<number>>(new Set())
+  const [fishIdx, setFishIdx] = useState<Set<number>>(new Set())
+
+  function startGame() {
+    const positions = Array.from({ length: MINI_GRID_SIZE }, (_, i) => i)
+    const shuffled  = positions.sort(() => Math.random() - 0.5)
+    const fish      = new Set(shuffled.slice(0, FISH_COUNT))
+    const items     = positions.map(i =>
+      fish.has(i) ? '🐟' : DECOYS[Math.floor(Math.random() * DECOYS.length)]
+    )
+    setFishIdx(fish)
+    setGrid(items)
+    setTapped(new Set())
+    setTimeLeft(5)
+    setPhase('play')
+  }
+
+  useEffect(() => {
+    if (phase !== 'play') return
+    if (timeLeft <= 0) { setPhase('lose'); return }
+    const id = setTimeout(() => setTimeLeft(t => t - 1), 1000)
+    return () => clearTimeout(id)
+  }, [phase, timeLeft])
+
+  function tap(i: number) {
+    if (phase !== 'play') return
+    if (!fishIdx.has(i)) { setPhase('lose'); return }
+    const next = new Set(tapped).add(i)
+    setTapped(next)
+    if (next.size === FISH_COUNT) { setPhase('win'); onWin() }
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{ background: '#0a0a14', border: '2px solid #7c3aed', borderRadius: 16, padding: 24, width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center' }}>
+
+        {phase === 'intro' && <>
+          <div style={{ fontSize: 32, fontWeight: 'bold', color: '#7c3aed', textAlign: 'center' as const, lineHeight: 1.2 }}>🎮 MINI GAME TIME!</div>
+          <div style={{ fontSize: 14, color: '#aaa', textAlign: 'center' as const }}>Tap all the 🐟 fish before time runs out!</div>
+          <div style={{ fontSize: 13, color: '#555', textAlign: 'center' as const }}>Win → earn 500 $CLKCAT + bonus fish</div>
+          <button style={{ ...g.actionBtn, background: '#7c3aed', width: '100%', fontSize: 16 }} onClick={startGame}>Let's GO! 🚀</button>
+          <button style={{ background: 'none', border: 'none', color: '#333', cursor: 'pointer', fontSize: 12 }} onClick={onClose}>skip</button>
+        </>}
+
+        {phase === 'play' && <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+            <span style={{ fontSize: 13, color: '#aaa' }}>Tap the 🐟 fish!</span>
+            <span style={{ fontSize: 20, fontWeight: 'bold', color: timeLeft <= 2 ? '#ef4444' : '#7c3aed' }}>⏱ {timeLeft}s</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, width: '100%' }}>
+            {grid.map((emoji, i) => (
+              <button key={i} onClick={() => tap(i)}
+                style={{ fontSize: 28, padding: 10, borderRadius: 10, border: '1px solid #1a1a2e',
+                  background: tapped.has(i) ? '#1a3a1a' : '#12122a', cursor: 'pointer',
+                  opacity: tapped.has(i) ? 0.4 : 1, transition: 'all 0.1s' }}>
+                {emoji}
+              </button>
+            ))}
+          </div>
+          <div style={{ fontSize: 12, color: '#555' }}>{tapped.size}/{FISH_COUNT} caught</div>
+        </>}
+
+        {phase === 'win' && <>
+          <div style={{ fontSize: 48 }}>🎉</div>
+          <div style={{ fontSize: 22, fontWeight: 'bold', color: '#10b981' }}>You got them all!</div>
+          <div style={{ fontSize: 14, color: '#aaa', textAlign: 'center' as const }}>+500 $CLKCAT incoming<br />+50 bonus fish added!</div>
+          <button style={{ ...g.actionBtn, background: '#10b981', width: '100%' }} onClick={onClose}>Claim & Continue</button>
+        </>}
+
+        {phase === 'lose' && <>
+          <div style={{ fontSize: 48 }}>😿</div>
+          <div style={{ fontSize: 22, fontWeight: 'bold', color: '#ef4444' }}>Wrong one!</div>
+          <div style={{ fontSize: 14, color: '#555', textAlign: 'center' as const }}>The fish got away...</div>
+          <button style={{ ...g.actionBtn, background: '#7c3aed', width: '100%' }} onClick={startGame}>Try Again!</button>
+          <button style={{ background: 'none', border: 'none', color: '#333', cursor: 'pointer', fontSize: 12 }} onClick={onClose}>skip</button>
+        </>}
+
+      </div>
+    </div>
+  )
+}
+
 function PrizePoolBanner() {
   const { data: prizePool } = useReadContract({
     address: AUTO_RUN_ADDRESS, abi: AUTO_RUN_ABI, functionName: 'prizePool',
@@ -418,10 +508,21 @@ function UpgradesPanel({ state, onBuy }: { state: GameState; onBuy: (id: string)
   )
 }
 
+const MINI_GAME_ABI = [
+  { name: 'claimMiniReward', type: 'function', stateMutability: 'nonpayable', inputs: [], outputs: [] },
+  { name: 'miniRewardCooldownRemaining', type: 'function', stateMutability: 'view',
+    inputs: [{ name: 'player', type: 'address' }], outputs: [{ type: 'uint256' }] },
+] as const
+
 export default function GamePage() {
-  const [state, setState]   = useState<GameState | null>(null)
-  const stateRef            = useRef<GameState | null>(null)
-  const lastTickRef         = useRef<number>(Date.now())
+  const [state, setState]     = useState<GameState | null>(null)
+  const [showMini, setShowMini] = useState(false)
+  const stateRef              = useRef<GameState | null>(null)
+  const lastTickRef           = useRef<number>(Date.now())
+  const lastMiniKills         = useRef<number>(0)
+  const { address }           = useAccount()
+
+  const { writeContract: claimMini } = useWriteContract()
 
   useEffect(() => {
     const s = loadGame()
@@ -434,6 +535,13 @@ export default function GamePage() {
       lastTickRef.current = now
       stateRef.current = tick(stateRef.current!, dt)
       setState({ ...stateRef.current })
+      // Trigger mini-game randomly ~every 20-30 kills
+      const kills = stateRef.current!.kills
+      const threshold = lastMiniKills.current + 20 + Math.floor(Math.random() * 10)
+      if (kills > 0 && kills >= threshold && kills !== lastMiniKills.current) {
+        lastMiniKills.current = kills
+        setShowMini(true)
+      }
     }, TICK_MS)
 
     const save = setInterval(() => {
@@ -452,10 +560,20 @@ export default function GamePage() {
     update(s => ({ ...s, fighting: !s.fighting, enemy: s.fighting ? null : s.enemy }))
   }
 
+  function onMiniWin() {
+    // Bonus fish in game
+    update(s => ({ ...s, resources: { ...s.resources, fish: s.resources.fish + 50 } }))
+    // Claim $CLKCAT on-chain
+    if (address) {
+      claimMini({ address: AUTO_RUN_ADDRESS, abi: MINI_GAME_ABI, functionName: 'claimMiniReward' })
+    }
+  }
+
   if (!state) return null
 
   return (
     <div style={g.root}>
+      {showMini && <MiniGame onWin={onMiniWin} onClose={() => setShowMini(false)} />}
       <div style={g.header}>
         <a href="/" style={g.backLink}>← Cats</a>
         <span style={g.title}>🐱 Idle Clank</span>
