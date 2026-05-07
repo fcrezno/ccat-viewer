@@ -11,12 +11,40 @@ const TICK_MS = 250
 
 function ResourceBar({ state }: { state: GameState }) {
   const { fish, moondust, clank } = state.resources
+  const speed = 1 + state.upgrades.speed * 0.5
+  const rates = { fish: 0, moondust: 0, clank: 0 }
+  for (const b of state.buildings) {
+    for (const [r, v] of Object.entries(b.prod) as [keyof typeof rates, number][]) {
+      rates[r] += v * b.count * speed
+    }
+  }
+
+  function RateLabel({ rate }: { rate: number }) {
+    if (rate <= 0) return null
+    return <span style={{ fontSize: 9, color: '#7c3aed' }}>+{rate < 1 ? rate.toFixed(1) : fmt(rate)}/s</span>
+  }
+
   return (
     <div style={g.resBar}>
-      <div style={g.resItem}><span style={g.resEmoji}>🐟</span><span>{fmt(fish)}</span></div>
-      <div style={g.resItem}><span style={g.resEmoji}>🌙</span><span>{fmt(moondust)}</span></div>
-      <div style={g.resItem}><span style={g.resEmoji}>⚡</span><span>{fmt(clank)}</span></div>
-      <div style={g.resItem}><span style={g.resEmoji}>🐱</span><span>{state.cats}/{state.maxCats}</span></div>
+      <div style={g.resItem}>
+        <span style={g.resEmoji}>🐟</span>
+        <span>{fmt(fish)}</span>
+        <RateLabel rate={rates.fish} />
+      </div>
+      <div style={g.resItem}>
+        <span style={g.resEmoji}>🌙</span>
+        <span>{fmt(moondust)}</span>
+        <RateLabel rate={rates.moondust} />
+      </div>
+      <div style={g.resItem}>
+        <span style={g.resEmoji}>⚡</span>
+        <span>{fmt(clank)}</span>
+        <RateLabel rate={rates.clank} />
+      </div>
+      <div style={g.resItem}>
+        <span style={g.resEmoji}>🐱</span>
+        <span>{state.cats}/{state.maxCats}</span>
+      </div>
     </div>
   )
 }
@@ -144,6 +172,24 @@ function BuildingsPanel({ state, onBuy }: { state: GameState; onBuy: (id: string
         const cost       = buildingCost(b)
         const affordable = canAfford(state.resources, cost)
         const prodRate   = b.count > 0 ? Object.values(b.prod).reduce((s, v) => s + (v ?? 0), 0) * b.count : 0
+
+        // ETA: seconds until affordable based on current production rates
+        const res = state.resources
+        const rates = { fish: 0, moondust: 0, clank: 0 }
+        for (const ob of state.buildings) {
+          for (const [r, v] of Object.entries(ob.prod) as [keyof typeof rates, number][]) {
+            rates[r] += v * ob.count * speed
+          }
+        }
+        const etaSecs = !affordable ? Math.max(
+          cost.fish     > res.fish     && rates.fish     > 0 ? (cost.fish     - res.fish)     / rates.fish     : 0,
+          cost.moondust > res.moondust && rates.moondust > 0 ? (cost.moondust - res.moondust) / rates.moondust : 0,
+          cost.clank    > res.clank    && rates.clank    > 0 ? (cost.clank    - res.clank)    / rates.clank    : 0,
+        ) : 0
+        const etaLabel = !affordable && etaSecs > 0
+          ? etaSecs < 60 ? `~${Math.ceil(etaSecs)}s` : `~${Math.ceil(etaSecs / 60)}m`
+          : null
+
         return (
           <button
             key={b.id}
@@ -165,6 +211,7 @@ function BuildingsPanel({ state, onBuy }: { state: GameState; onBuy: (id: string
               {cost.fish     > 0 && <div>🐟 {fmt(cost.fish)}</div>}
               {cost.moondust > 0 && <div>🌙 {fmt(cost.moondust)}</div>}
               {cost.clank    > 0 && <div>⚡ {fmt(cost.clank)}</div>}
+              {etaLabel && <div style={{ color: '#7c3aed', marginTop: 4 }}>{etaLabel}</div>}
             </div>
           </button>
         )
