@@ -43,7 +43,10 @@ export async function GET(req: NextRequest) {
 
     const json = JSON.parse(Buffer.from(uri.split(',')[1], 'base64').toString('utf8'))
     const svg  = Buffer.from((json.image as string).split(',')[1], 'base64')
-    const png  = await sharp(svg).resize(600, 600, { kernel: 'nearest' }).png().toBuffer()
+    const png  = await sharp(svg)
+      .resize(1200, 630, { kernel: 'nearest', fit: 'contain', background: { r: 10, g: 10, b: 20, alpha: 1 } })
+      .png()
+      .toBuffer()
 
     return new NextResponse(png, {
       headers: {
