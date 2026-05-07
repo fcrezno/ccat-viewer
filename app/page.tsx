@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useAccount, useConnect, useReadContract, useReadContracts } from 'wagmi'
+import { useAccount, useConnect, useReadContract, usePublicClient } from 'wagmi'
+import { parseAbiItem } from 'viem'
 import sdk from '@farcaster/miniapp-sdk'
 
 const CCAT_COLLECTION = '0x7b429e994873A9f7b50484Ce6c80c25040C7Ee26' as `0x${string}`
@@ -9,11 +10,12 @@ const CCAT_COLLECTION = '0x7b429e994873A9f7b50484Ce6c80c25040C7Ee26' as `0x${str
 const CCAT_DEXSCREENER = 'https://dexscreener.com/base/0x88b2debaed47d530ec3442bc28ce8073422180e6f2acdb6b1ff75cee12c9806f'
 
 const COLLECTION_ABI = [
-  { type: 'function', name: 'balanceOf',           inputs: [{ name: 'owner', type: 'address' }],                                          outputs: [{ type: 'uint256' }], stateMutability: 'view' },
-  { type: 'function', name: 'tokenOfOwnerByIndex', inputs: [{ name: 'owner', type: 'address' }, { name: 'index', type: 'uint256' }],       outputs: [{ type: 'uint256' }], stateMutability: 'view' },
-  { type: 'function', name: 'tokenURI',            inputs: [{ name: 'tokenId', type: 'uint256' }],                                         outputs: [{ type: 'string'  }], stateMutability: 'view' },
-  { type: 'function', name: 'totalSupply',         inputs: [],                                                                              outputs: [{ type: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'balanceOf',   inputs: [{ name: 'owner', type: 'address' }],          outputs: [{ type: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'tokenURI',    inputs: [{ name: 'tokenId', type: 'uint256' }],         outputs: [{ type: 'string'  }], stateMutability: 'view' },
+  { type: 'function', name: 'totalSupply', inputs: [],                                              outputs: [{ type: 'uint256' }], stateMutability: 'view' },
 ] as const
+
+const TRANSFER_EVENT = parseAbiItem('event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)')
 
 type CatMeta = { name: string; image: string; attributes: { trait_type: string; value: string }[] }
 
@@ -120,8 +122,10 @@ function EmptyState() {
 export default function Home() {
   const { address, isConnected } = useAccount()
   const { connect, connectors }  = useConnect()
+  const publicClient             = usePublicClient()
   const [ready, setReady]        = useState(false)
   const [selected, setSelected]  = useState<bigint | null>(null)
+  const [ids, setIds]            = useState<bigint[]>([])
 
   useEffect(() => {
     try { sdk.actions.ready() } catch {}
@@ -129,6 +133,23 @@ export default function Home() {
     const fc = connectors.find(c => c.id === 'farcaster-frame')
     if (fc) connect({ connector: fc })
   }, [])
+
+  // Scan Transfer logs to find owned token IDs (contract has no tokenOfOwnerByIndex)
+  useEffect(() => {
+    if (!address || !publicClient) return
+    setIds([])
+    ;(async () => {
+      const [received, sentAway] = await Promise.all([
+        publicClient.getLogs({ address: CCAT_COLLECTION, event: TRANSFER_EVENT, args: { to: address }, fromBlock: BigInt(0) }),
+        publicClient.getLogs({ address: CCAT_COLLECTION, event: TRANSFER_EVENT, args: { from: address }, fromBlock: BigInt(0) }),
+      ])
+      const sentIds = new Set(sentAway.map(l => l.args.tokenId))
+      const owned = received
+        .map(l => l.args.tokenId)
+        .filter((id): id is bigint => id !== undefined && !sentIds.has(id))
+      setIds(owned)
+    })()
+  }, [address, publicClient])
 
   const { data: balance } = useReadContract({
     address: CCAT_COLLECTION, abi: COLLECTION_ABI, functionName: 'balanceOf', args: [address!],
@@ -141,18 +162,6 @@ export default function Home() {
 
   const count = balance ? Number(balance as bigint) : 0
   const total = totalSupply ? Number(totalSupply as bigint) : null
-
-  const { data: tokenIds } = useReadContracts({
-    contracts: Array.from({ length: count }, (_, i) => ({
-      address: CCAT_COLLECTION,
-      abi: COLLECTION_ABI,
-      functionName: 'tokenOfOwnerByIndex' as const,
-      args: [address!, BigInt(i)] as const,
-    })),
-    query: { enabled: count > 0 && !!address },
-  })
-
-  const ids = tokenIds?.map(d => d.result as bigint).filter(Boolean) ?? []
 
   if (!ready) return null
 
