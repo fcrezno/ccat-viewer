@@ -7,18 +7,32 @@ export async function GET(req: NextRequest) {
 
   const imageUrl = `https://ccat-viewer.vercel.app/api/cat?id=${id}&seed=${seed}`
 
+  const frame = JSON.stringify({
+    version: '1',
+    imageUrl: imageUrl,
+    button: {
+      title: 'View My CCats',
+      action: {
+        type: 'launch_frame',
+        url: 'https://ccat-viewer.vercel.app',
+        name: 'ClankerCats',
+        splashImageUrl: 'https://ccat-viewer.vercel.app/splash.png',
+        splashBackgroundColor: '#0a0a14',
+      }
+    }
+  })
+
   const html = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
   <title>ClankerCat #${id}</title>
   <meta property="og:title" content="ClankerCat #${id}" />
-  <meta property="og:description" content="A unique on-chain ClankerCat" />
+  <meta property="og:description" content="A unique on-chain ClankerCat · clankercats.com" />
   <meta property="og:image" content="${imageUrl}" />
-  <meta property="og:image:type" content="image/svg+xml" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:image" content="${imageUrl}" />
-  <meta http-equiv="refresh" content="0;url=https://ccat-viewer.vercel.app" />
+  <meta name="fc:frame" content='${frame}' />
 </head>
 <body></body>
 </html>`
