@@ -50,7 +50,7 @@ const BASE_BUILDINGS: Omit<Building, 'count'>[] = [
   {
     id: 'fish_tank',  name: 'Fish Tank',  emoji: '🐟', desc: 'Generates fish passively',
     baseCost: { fish: 10,  moondust: 0,  clank: 0  },
-    prod:     { fish: 0.5 },
+    prod:     { fish: 0.35 },
   },
   {
     id: 'cat_trap',   name: 'Cat Trap',   emoji: '🪤', desc: 'Recruit a cat using fish',
@@ -61,13 +61,13 @@ const BASE_BUILDINGS: Omit<Building, 'count'>[] = [
   {
     id: 'moon_base',  name: 'Moon Base',  emoji: '🌙', desc: '+5 max cats, generates MoonDust',
     baseCost: { fish: 30,  moondust: 0,  clank: 0  },
-    prod:     { moondust: 0.2 },
+    prod:     { moondust: 0.14 },
     unlockAt: { fish: 30 },
   },
   {
     id: 'clank_mine', name: 'Clank Mine', emoji: '⚡', desc: 'Generates Clank passively',
     baseCost: { fish: 0,   moondust: 20, clank: 0  },
-    prod:     { clank: 0.1 },
+    prod:     { clank: 0.07 },
     unlockAt: { moondust: 10 },
   },
   {
