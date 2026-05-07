@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useAccount, useConnect, useReadContract } from 'wagmi'
 import sdk from '@farcaster/miniapp-sdk'
+import { loadStats, saveStats, feed, pet, play, mood, moodEmoji, catLine, type Stats } from '@/lib/tamagotchi'
 
 const CCAT     = '0xD7800C338228a6eeb37cF74133732Fb6aE05915F' as `0x${string}`
 const RENDERER = '0x2fE5bf2aB284bc71B261Ea6d32aaadfcA987Eeb8' as `0x${string}`
@@ -71,6 +72,54 @@ function CatCard({ upeg, selected, onClick }: { upeg: Upeg; selected: boolean; o
   )
 }
 
+function StatBar({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#555' }}>
+        <span style={{ textTransform: 'uppercase', letterSpacing: 1 }}>{label}</span>
+        <span>{Math.round(value)}%</span>
+      </div>
+      <div style={{ background: '#1a1a2e', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+        <div style={{ width: `${value}%`, height: '100%', background: color, borderRadius: 4, transition: 'width 0.4s ease' }} />
+      </div>
+    </div>
+  )
+}
+
+function TamagotchiPanel({ catId }: { catId: string }) {
+  const [stats, setStats] = useState<Stats | null>(null)
+
+  useEffect(() => { setStats(loadStats(catId)) }, [catId])
+
+  function act(fn: (s: Stats) => Stats) {
+    setStats(prev => {
+      const next = fn(prev!)
+      saveStats(catId, next)
+      return next
+    })
+  }
+
+  if (!stats) return null
+  const m = mood(stats)
+  const emoji = moodEmoji(m)
+
+  return (
+    <div style={s.tamaPanel}>
+      <div style={s.tamaMessage}>{emoji} &ldquo;{catLine(stats)}&rdquo;</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <StatBar label="Hunger"    value={stats.hunger}    color="#f59e0b" />
+        <StatBar label="Happiness" value={stats.happiness} color="#7c3aed" />
+        <StatBar label="Energy"    value={stats.energy}    color="#10b981" />
+      </div>
+      <div style={s.tamaActions}>
+        <button style={s.tamaBtn} onClick={() => act(feed)}>🍖 Feed</button>
+        <button style={s.tamaBtn} onClick={() => act(pet)}>🤚 Pet</button>
+        <button style={s.tamaBtn} onClick={() => act(play)}>🎮 Play</button>
+      </div>
+    </div>
+  )
+}
+
 function CatDetail({ upeg, onBack }: { upeg: Upeg; onBack: () => void }) {
   const { data: uri } = useReadContract({
     address: RENDERER, abi: RENDERER_ABI, functionName: 'tokenURI',
@@ -116,6 +165,8 @@ function CatDetail({ upeg, onBack }: { upeg: Upeg; onBack: () => void }) {
           </div>
         </>
       )}
+      <TamagotchiPanel catId={upeg.id.toString()} />
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <button style={s.shareBtn} onClick={share}>Cast this CCat 🐱</button>
         <button style={s.explorerBtn} onClick={viewOnSite}>clankercats.com</button>
@@ -239,6 +290,10 @@ const s: Record<string, React.CSSProperties> = {
   shareBtn:     { padding: 14, background: '#7c3aed', color: 'white', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 'bold' },
   explorerBtn:  { padding: 12, background: 'transparent', color: '#555', border: '1px solid #2a2a3e', borderRadius: 10, cursor: 'pointer', fontSize: 13 },
   back:         { background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 13, padding: '0 0 4px 0', textAlign: 'left' as const },
+  tamaPanel:    { display: 'flex', flexDirection: 'column', gap: 12, background: '#0a0a14', border: '1px solid #1a1a2e', borderRadius: 12, padding: '14px 16px' },
+  tamaMessage:  { fontSize: 13, color: '#aaa', fontStyle: 'italic', lineHeight: 1.5 },
+  tamaActions:  { display: 'flex', gap: 8 },
+  tamaBtn:      { flex: 1, padding: '10px 0', background: '#1e1e2e', border: '1px solid #2a2a3e', borderRadius: 10, color: 'white', cursor: 'pointer', fontSize: 13 },
   connectState: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, paddingTop: 24 },
   emptyState:   { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, paddingTop: 24, textAlign: 'center' as const },
   heroCat:      { fontSize: 72, lineHeight: 1 },
