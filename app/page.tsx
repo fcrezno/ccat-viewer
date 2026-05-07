@@ -4,28 +4,61 @@ import { useEffect, useState } from 'react'
 import { useAccount, useConnect, useReadContract, useReadContracts } from 'wagmi'
 import sdk from '@farcaster/miniapp-sdk'
 
-const CCAT_COLLECTION = '0x7b429e994873A9f7b50484Ce6c80c25040C7Ee26' as `0x${string}`
+const CCAT     = '0xD7800C338228a6eeb37cF74133732Fb6aE05915F' as `0x${string}`
+const RENDERER = '0x2fE5bf2aB284bc71B261Ea6d32aaadfcA987Eeb8' as `0x${string}`
 const CCAT_DEXSCREENER = 'https://dexscreener.com/base/0x88b2debaed47d530ec3442bc28ce8073422180e6f2acdb6b1ff75cee12c9806f'
 
-const COLLECTION_ABI = [
-  { type: 'function', name: 'balanceOf',   inputs: [{ name: 'owner',   type: 'address' }],         outputs: [{ type: 'uint256' }], stateMutability: 'view' },
-  { type: 'function', name: 'ownerOf',     inputs: [{ name: 'tokenId', type: 'uint256' }],         outputs: [{ type: 'address' }], stateMutability: 'view' },
-  { type: 'function', name: 'tokenURI',    inputs: [{ name: 'tokenId', type: 'uint256' }],         outputs: [{ type: 'string'  }], stateMutability: 'view' },
-  { type: 'function', name: 'totalSupply', inputs: [],                                              outputs: [{ type: 'uint256' }], stateMutability: 'view' },
+const CCAT_ABI = [
+  {
+    name: 'OwnerUpegsCount',
+    type: 'function', stateMutability: 'view',
+    inputs: [{ name: 'owner', type: 'address' }],
+    outputs: [{ type: 'uint256' }],
+  },
+  {
+    name: 'OwnerUpegsPage',
+    type: 'function', stateMutability: 'view',
+    inputs: [
+      { name: 'owner',    type: 'address'  },
+      { name: 'page',     type: 'uint256'  },
+      { name: 'pageSize', type: 'uint256'  },
+    ],
+    outputs: [{
+      name: 'upegs', type: 'tuple[]',
+      components: [
+        { name: 'id',   type: 'uint256' },
+        { name: 'seed', type: 'uint256' },
+      ],
+    }],
+  },
 ] as const
 
+const RENDERER_ABI = [
+  {
+    name: 'tokenURI',
+    type: 'function', stateMutability: 'view',
+    inputs: [
+      { name: 'upegId', type: 'uint256' },
+      { name: 'seed',   type: 'uint256' },
+    ],
+    outputs: [{ type: 'string' }],
+  },
+] as const
+
+type Upeg    = { id: bigint; seed: bigint }
 type CatMeta = { name: string; image: string; attributes: { trait_type: string; value: string }[] }
 
-function decodeTokenURI(uri: string): CatMeta | null {
+function decodeMeta(uri: string): CatMeta | null {
   try { return JSON.parse(atob(uri.split(',')[1])) }
   catch { return null }
 }
 
-function CatCard({ tokenId, selected, onClick }: { tokenId: bigint; selected: boolean; onClick: () => void }) {
+function CatCard({ upeg, selected, onClick }: { upeg: Upeg; selected: boolean; onClick: () => void }) {
   const { data: uri } = useReadContract({
-    address: CCAT_COLLECTION, abi: COLLECTION_ABI, functionName: 'tokenURI', args: [tokenId],
+    address: RENDERER, abi: RENDERER_ABI, functionName: 'tokenURI',
+    args: [upeg.id, upeg.seed],
   })
-  const meta = uri ? decodeTokenURI(uri as string) : null
+  const meta = uri ? decodeMeta(uri as string) : null
 
   return (
     <div onClick={onClick} style={{ ...s.card, borderColor: selected ? '#7c3aed' : '#1e1e2e', transform: selected ? 'scale(0.97)' : 'scale(1)', transition: 'all 0.15s ease' }}>
@@ -33,25 +66,26 @@ function CatCard({ tokenId, selected, onClick }: { tokenId: bigint; selected: bo
         ? <img src={meta.image} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
         : <div style={s.placeholder}><span style={{ fontSize: 24 }}>🐱</span></div>
       }
-      <div style={s.cardLabel}>#{tokenId.toString()}</div>
+      <div style={s.cardLabel}>#{upeg.id.toString()}</div>
     </div>
   )
 }
 
-function CatDetail({ tokenId, onBack }: { tokenId: bigint; onBack: () => void }) {
+function CatDetail({ upeg, onBack }: { upeg: Upeg; onBack: () => void }) {
   const { data: uri } = useReadContract({
-    address: CCAT_COLLECTION, abi: COLLECTION_ABI, functionName: 'tokenURI', args: [tokenId],
+    address: RENDERER, abi: RENDERER_ABI, functionName: 'tokenURI',
+    args: [upeg.id, upeg.seed],
   })
-  const meta = uri ? decodeTokenURI(uri as string) : null
+  const meta = uri ? decodeMeta(uri as string) : null
 
   async function share() {
-    try { await sdk.actions.openUrl(`https://warpcast.com/~/compose?text=Check out my ClankerCat %23${tokenId} 🐱%0Amirage.garden`) }
-    catch { window.open(`https://warpcast.com/~/compose?text=Check out my ClankerCat %23${tokenId}`, '_blank') }
+    try { await sdk.actions.openUrl(`https://warpcast.com/~/compose?text=Check out my ClankerCat %23${upeg.id} 🐱%0Aclankercats.com`) }
+    catch { window.open(`https://warpcast.com/~/compose?text=ClankerCat %23${upeg.id}`, '_blank') }
   }
 
-  async function viewOnExplorer() {
-    try { await sdk.actions.openUrl(`https://basescan.org/token/${CCAT_COLLECTION}?a=${tokenId}`) }
-    catch { window.open(`https://basescan.org/token/${CCAT_COLLECTION}?a=${tokenId}`, '_blank') }
+  async function viewOnSite() {
+    try { await sdk.actions.openUrl(`https://clankercats.com`) }
+    catch { window.open('https://clankercats.com', '_blank') }
   }
 
   return (
@@ -63,8 +97,8 @@ function CatDetail({ tokenId, onBack }: { tokenId: bigint; onBack: () => void })
           : <div style={{ ...s.placeholder, aspectRatio: '1', borderRadius: 12 }}><span style={{ fontSize: 48 }}>🐱</span></div>
         }
       </div>
-      <div style={s.detailName}>{meta?.name ?? `CCat #${tokenId}`}</div>
-      <div style={{ fontSize: 12, color: '#555' }}>ClankerCat on Base</div>
+      <div style={s.detailName}>{meta?.name ?? `CCat #${upeg.id}`}</div>
+      <div style={{ fontSize: 12, color: '#555' }}>ClankerCat · UniPeg on Base</div>
       {meta?.attributes && meta.attributes.length > 0 && (
         <>
           <div style={s.sectionLabel}>Traits</div>
@@ -80,7 +114,7 @@ function CatDetail({ tokenId, onBack }: { tokenId: bigint; onBack: () => void })
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <button style={s.shareBtn} onClick={share}>Cast this CCat 🐱</button>
-        <button style={s.explorerBtn} onClick={viewOnExplorer}>View on Basescan</button>
+        <button style={s.explorerBtn} onClick={viewOnSite}>clankercats.com</button>
       </div>
     </div>
   )
@@ -96,11 +130,11 @@ function EmptyState() {
       <div style={s.heroCat}>🐱</div>
       <div style={s.emptyTitle}>No ClankerCats yet</div>
       <div style={s.emptySubtitle}>
-        Hold $CCAT on Base to mint your cat.<br />
+        Buy $CCAT on Base to get your cat.<br />
         Each CCat is unique — fully on-chain pixel art.
       </div>
       <button style={s.buyBtn} onClick={openDex}>Buy $CCAT →</button>
-      <div style={s.emptyHint}>Get $CCAT, then mint at clankercats.com</div>
+      <div style={s.emptyHint}>Get $CCAT at clankercats.com</div>
     </div>
   )
 }
@@ -109,7 +143,7 @@ export default function Home() {
   const { address, isConnected } = useAccount()
   const { connect, connectors }  = useConnect()
   const [ready, setReady]        = useState(false)
-  const [selected, setSelected]  = useState<bigint | null>(null)
+  const [selected, setSelected]  = useState<Upeg | null>(null)
 
   useEffect(() => {
     try { sdk.actions.ready() } catch {}
@@ -118,26 +152,20 @@ export default function Home() {
     if (fc) connect({ connector: fc })
   }, [])
 
-  const { data: totalSupplyData } = useReadContract({
-    address: CCAT_COLLECTION, abi: COLLECTION_ABI, functionName: 'totalSupply',
+  const { data: countData } = useReadContract({
+    address: CCAT, abi: CCAT_ABI, functionName: 'OwnerUpegsCount',
+    args: [address!],
+    query: { enabled: !!address },
   })
-  const total = totalSupplyData ? Number(totalSupplyData as bigint) : 0
+  const count = countData ? Number(countData as bigint) : 0
 
-  // Call ownerOf for every token 1..totalSupply, filter to those owned by connected address
-  const { data: ownerResults } = useReadContracts({
-    contracts: Array.from({ length: total }, (_, i) => ({
-      address: CCAT_COLLECTION,
-      abi: COLLECTION_ABI,
-      functionName: 'ownerOf' as const,
-      args: [BigInt(i + 1)] as const,
-    })),
-    query: { enabled: total > 0 },
+  const { data: upegsData } = useReadContract({
+    address: CCAT, abi: CCAT_ABI, functionName: 'OwnerUpegsPage',
+    args: [address!, BigInt(0), BigInt(500)],
+    query: { enabled: count > 0 && !!address },
   })
 
-  const ids: bigint[] = (ownerResults ?? [])
-    .map((r, i) => ({ owner: r.result as string, id: BigInt(i + 1) }))
-    .filter(t => t.owner?.toLowerCase() === address?.toLowerCase())
-    .map(t => t.id)
+  const upegs: Upeg[] = (upegsData as Upeg[] | undefined) ?? []
 
   if (!ready) return null
 
@@ -146,7 +174,7 @@ export default function Home() {
       <div style={s.header}>
         <div>
           <div style={s.logo}>ClankerCats</div>
-          {total > 0 && <div style={s.supply}>{total} minted</div>}
+          {count > 0 && <div style={s.supply}>{count} cat{count !== 1 ? 's' : ''}</div>}
         </div>
         {address && <div style={s.addr}>{address.slice(0,6)}…{address.slice(-4)}</div>}
       </div>
@@ -163,16 +191,16 @@ export default function Home() {
           </div>
         </div>
       ) : selected !== null ? (
-        <CatDetail tokenId={selected} onBack={() => setSelected(null)} />
-      ) : ids.length > 0 ? (
+        <CatDetail upeg={selected} onBack={() => setSelected(null)} />
+      ) : upegs.length > 0 ? (
         <>
           <div style={s.ownedHeader}>
-            <span style={{ color: '#7c3aed', fontWeight: 'bold' }}>{ids.length}</span>
-            <span style={{ color: '#555' }}> ClankerCat{ids.length !== 1 ? 's' : ''} owned</span>
+            <span style={{ color: '#7c3aed', fontWeight: 'bold' }}>{upegs.length}</span>
+            <span style={{ color: '#555' }}> ClankerCat{upegs.length !== 1 ? 's' : ''} owned</span>
           </div>
           <div style={s.grid}>
-            {ids.map(id => (
-              <CatCard key={id.toString()} tokenId={id} selected={selected === id} onClick={() => setSelected(id)} />
+            {upegs.map(u => (
+              <CatCard key={u.id.toString()} upeg={u} selected={selected === u} onClick={() => setSelected(u)} />
             ))}
           </div>
           <div style={s.mintHint}>Tap a CCat to see its traits ↑</div>
@@ -188,7 +216,7 @@ const s: Record<string, React.CSSProperties> = {
   root:         { padding: '16px 16px 32px', maxWidth: 480, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16, minHeight: '100vh' },
   header:       { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' },
   logo:         { fontSize: 18, fontWeight: 'bold', color: '#7c3aed' },
-  supply:       { fontSize: 11, color: '#444', marginTop: 2 },
+  supply:       { fontSize: 11, color: '#7c3aed', marginTop: 2 },
   addr:         { fontSize: 11, color: '#555', background: '#1e1e2e', padding: '4px 10px', borderRadius: 20, flexShrink: 0 },
   ownedHeader:  { fontSize: 14 },
   mintHint:     { fontSize: 11, color: '#333', textAlign: 'center' as const },
