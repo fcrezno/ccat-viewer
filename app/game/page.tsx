@@ -91,8 +91,8 @@ function ProdBar({ rate, speed }: { rate: number; speed: number }) {
   return (
     <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 3 }}>
       <div style={{ fontSize: 10, color: '#444' }}>+{effective.toFixed(1)}/s</div>
-      <div style={{ background: '#1a1a2e', borderRadius: 3, height: 3, overflow: 'hidden', width: '100%' }}>
-        <div style={{ width: `${tick}%`, height: '100%', background: '#7c3aed', borderRadius: 3, transition: 'width 0.05s linear' }} />
+      <div style={{ background: '#1a1a2e', borderRadius: 4, height: 8, overflow: 'hidden', width: '100%' }}>
+        <div style={{ width: `${tick}%`, height: '100%', background: '#7c3aed', borderRadius: 4, transition: 'width 0.05s linear' }} />
       </div>
     </div>
   )
