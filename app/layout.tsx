@@ -8,14 +8,14 @@ export const metadata: Metadata = {
   other: {
     'fc:frame': JSON.stringify({
       version: '1',
-      imageUrl: 'https://mirage.garden/image.png',
+      imageUrl: 'https://ccat-viewer.vercel.app/image.png',
       button: {
         title: 'View My CCats',
         action: {
           type: 'launch_frame',
           url: 'https://ccat-viewer.vercel.app',
           name: 'ClankerCats',
-          splashImageUrl: 'https://mirage.garden/splash.png',
+          splashImageUrl: 'https://ccat-viewer.vercel.app/splash.png',
           splashBackgroundColor: '#0a0a14',
         }
       }

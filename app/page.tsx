@@ -80,7 +80,7 @@ function CatDetail({ upeg, onBack }: { upeg: Upeg; onBack: () => void }) {
 
   async function share() {
     const imageUrl = `https://ccat-viewer.vercel.app/api/cat?id=${upeg.id}&seed=${upeg.seed}`
-    const text = encodeURIComponent(`Check out my ClankerCat #${upeg.id} 🐱\nhttps://ccat-viewer.vercel.app`)
+    const text = encodeURIComponent(`Check out my ClankerCat #${upeg.id} 🐱`)
     const embed = encodeURIComponent(imageUrl)
     const url = `https://warpcast.com/~/compose?text=${text}&embeds[]=${embed}`
     try { await sdk.actions.openUrl(url) }
