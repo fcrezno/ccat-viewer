@@ -78,20 +78,21 @@ function CombatPanel({ state, onToggle }: { state: GameState; onToggle: () => vo
       />
 
       {/* Enemy arena */}
-      <div style={{ background: '#0d0d1a', borderRadius: 10, minHeight: 180, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '12px 0 0' }}>
+      <div style={{ background: '#0d0d1a', borderRadius: 10, overflow: 'hidden' }}>
         {enemy ? (
           <>
             <img
               src={enemyImg ?? ''}
               onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
               style={{
-                height: 140, width: 'auto', imageRendering: 'pixelated',
-                transform: flash ? 'scale(1.08)' : 'scale(1)',
-                filter: flash ? 'brightness(2)' : 'none',
+                width: '100%', height: 200, objectFit: 'contain',
+                display: 'block', background: 'white',
+                transform: flash ? 'scale(1.03)' : 'scale(1)',
+                filter: flash ? 'brightness(1.3)' : 'none',
                 transition: 'transform 0.1s ease, filter 0.1s ease',
               }}
             />
-            <div style={{ width: '100%', padding: '10px 14px 12px' }}>
+            <div style={{ padding: '10px 14px 12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#ccc', marginBottom: 6 }}>
                 <span style={{ fontWeight: 'bold' }}>{enemy.name}</span>
                 <span style={{ color: '#ef4444' }}>{fmt(Math.max(0, enemy.hp))}/{fmt(enemy.maxHp)} HP</span>
@@ -102,9 +103,9 @@ function CombatPanel({ state, onToggle }: { state: GameState; onToggle: () => vo
             </div>
           </>
         ) : (
-          <span style={{ fontSize: 12, color: '#333' }}>
-            {fighting ? 'Spawning...' : 'Not exploring'}
-          </span>
+          <div style={{ height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: 12, color: '#333' }}>{fighting ? 'Spawning...' : 'Not exploring'}</span>
+          </div>
         )}
       </div>
 
