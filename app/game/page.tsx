@@ -11,7 +11,7 @@ import {
 const TICK_MS = 250
 
 // Placeholder — replace with deployed contract address
-const AUTO_RUN_ADDRESS = '0x0000000000000000000000000000000000000000' as `0x${string}`
+const AUTO_RUN_ADDRESS = '0xa003b34f82950604d2c5e7b26986d6acc7862514' as `0x${string}`
 const CLKCAT_ADDRESS   = '0xD7800C338228a6eeb37cF74133732Fb6aE05915F' as `0x${string}`
 
 const AUTO_RUN_ABI = [
