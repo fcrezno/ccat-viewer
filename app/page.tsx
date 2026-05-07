@@ -3,15 +3,16 @@
 import { useEffect, useState } from 'react'
 import { useAccount, useConnect, useReadContract, useReadContracts } from 'wagmi'
 import sdk from '@farcaster/miniapp-sdk'
-import { frameConnector } from '@/lib/frameConnector'
 
-// CCat collection address — update once re-registered on new factory
-const CCAT_COLLECTION = '0x0000000000000000000000000000000000000000' as `0x${string}`
+const CCAT_COLLECTION = '0x7b429e994873A9f7b50484Ce6c80c25040C7Ee26' as `0x${string}`
+
+const UNISWAP_CLKCAT = 'https://app.uniswap.org/swap?outputCurrency=0x56d011f3d82c91d58a14ddd07ad3e4c97f7e2e0b&chain=base'
 
 const COLLECTION_ABI = [
   { type: 'function', name: 'balanceOf',           inputs: [{ name: 'owner', type: 'address' }],                                          outputs: [{ type: 'uint256' }], stateMutability: 'view' },
   { type: 'function', name: 'tokenOfOwnerByIndex', inputs: [{ name: 'owner', type: 'address' }, { name: 'index', type: 'uint256' }],       outputs: [{ type: 'uint256' }], stateMutability: 'view' },
   { type: 'function', name: 'tokenURI',            inputs: [{ name: 'tokenId', type: 'uint256' }],                                         outputs: [{ type: 'string'  }], stateMutability: 'view' },
+  { type: 'function', name: 'totalSupply',         inputs: [],                                                                              outputs: [{ type: 'uint256' }], stateMutability: 'view' },
 ] as const
 
 type CatMeta = { name: string; image: string; attributes: { trait_type: string; value: string }[] }
@@ -28,10 +29,12 @@ function CatCard({ tokenId, selected, onClick }: { tokenId: bigint; selected: bo
   const meta = uri ? decodeTokenURI(uri as string) : null
 
   return (
-    <div onClick={onClick} style={{ ...s.card, borderColor: selected ? '#7c3aed' : '#1e1e2e' }}>
+    <div onClick={onClick} style={{ ...s.card, borderColor: selected ? '#7c3aed' : '#1e1e2e', transform: selected ? 'scale(0.97)' : 'scale(1)', transition: 'all 0.15s ease' }}>
       {meta?.image
-        ? <img src={meta.image} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover' }} />
-        : <div style={s.placeholder}>#{tokenId.toString()}</div>
+        ? <img src={meta.image} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
+        : <div style={s.placeholder}>
+            <span style={{ fontSize: 24 }}>🐱</span>
+          </div>
       }
       <div style={s.cardLabel}>#{tokenId.toString()}</div>
     </div>
@@ -50,25 +53,66 @@ function CatDetail({ tokenId, onBack }: { tokenId: bigint; onBack: () => void })
     )
   }
 
+  async function viewOnExplorer() {
+    await sdk.actions.openUrl(
+      `https://basescan.org/token/${CCAT_COLLECTION}?a=${tokenId}`
+    )
+  }
+
   return (
     <div style={s.detail}>
-      <button style={s.back} onClick={onBack}>← Back</button>
-      {meta?.image
-        ? <img src={meta.image} style={{ width: '100%', borderRadius: 12, border: '1px solid #1e1e2e' }} />
-        : <div style={{ ...s.placeholder, aspectRatio: '1', borderRadius: 12 }}>Loading…</div>
-      }
-      <div style={s.detailName}>{meta?.name ?? `CCat #${tokenId}`}</div>
-      {meta?.attributes && meta.attributes.length > 0 && (
-        <div style={s.traits}>
-          {meta.attributes.map((a, i) => (
-            <div key={i} style={s.trait}>
-              <div style={s.traitKey}>{a.trait_type}</div>
-              <div style={s.traitVal}>{a.value}</div>
+      <button style={s.back} onClick={onBack}>← Back to my CCats</button>
+      <div style={s.detailCard}>
+        {meta?.image
+          ? <img src={meta.image} style={{ width: '100%', borderRadius: 12, display: 'block' }} />
+          : <div style={{ ...s.placeholder, aspectRatio: '1', borderRadius: 12 }}>
+              <span style={{ fontSize: 48 }}>🐱</span>
             </div>
-          ))}
-        </div>
+        }
+      </div>
+      <div style={s.detailName}>{meta?.name ?? `CCat #${tokenId}`}</div>
+      <div style={{ fontSize: 12, color: '#555' }}>ClankerCat on Base</div>
+
+      {meta?.attributes && meta.attributes.length > 0 && (
+        <>
+          <div style={s.sectionLabel}>Traits</div>
+          <div style={s.traits}>
+            {meta.attributes.map((a, i) => (
+              <div key={i} style={s.trait}>
+                <div style={s.traitKey}>{a.trait_type}</div>
+                <div style={s.traitVal}>{a.value}</div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
-      <button style={s.shareBtn} onClick={share}>Cast this CCat 🐱</button>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <button style={s.shareBtn} onClick={share}>Cast this CCat 🐱</button>
+        <button style={s.explorerBtn} onClick={viewOnExplorer}>View on Basescan</button>
+      </div>
+    </div>
+  )
+}
+
+function EmptyState() {
+  async function buyClkcat() {
+    try { await sdk.actions.openUrl(UNISWAP_CLKCAT) }
+    catch { window.open(UNISWAP_CLKCAT, '_blank') }
+  }
+
+  return (
+    <div style={s.emptyState}>
+      <div style={s.heroCat}>🐱</div>
+      <div style={s.emptyTitle}>No ClankerCats yet</div>
+      <div style={s.emptySubtitle}>
+        Hold $CLKCAT on Base to mint your cat.<br />
+        Each CCat is unique — fully on-chain pixel art.
+      </div>
+      <button style={s.buyBtn} onClick={buyClkcat}>
+        Buy $CLKCAT on Uniswap →
+      </button>
+      <div style={s.emptyHint}>Get $CLKCAT, then mint at clankercats.com</div>
     </div>
   )
 }
@@ -91,7 +135,12 @@ export default function Home() {
     query: { enabled: !!address },
   })
 
+  const { data: totalSupply } = useReadContract({
+    address: CCAT_COLLECTION, abi: COLLECTION_ABI, functionName: 'totalSupply',
+  })
+
   const count = balance ? Number(balance as bigint) : 0
+  const total = totalSupply ? Number(totalSupply as bigint) : null
 
   const { data: tokenIds } = useReadContracts({
     contracts: Array.from({ length: count }, (_, i) => ({
@@ -110,35 +159,40 @@ export default function Home() {
   return (
     <div style={s.root}>
       <div style={s.header}>
-        <div style={s.logo}>ClankerCats 🐱</div>
+        <div>
+          <div style={s.logo}>ClankerCats</div>
+          {total !== null && <div style={s.supply}>{total} minted</div>}
+        </div>
         {address && <div style={s.addr}>{address.slice(0,6)}…{address.slice(-4)}</div>}
       </div>
 
       {!isConnected ? (
-        <div style={s.center}>
-          <div style={{ color: '#888', fontSize: 14, marginBottom: 16 }}>Open in Warpcast to view your CCats</div>
-          <div style={{ color: '#555', fontSize: 12 }}>or connect a wallet below</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+        <div style={s.connectState}>
+          <div style={s.heroCat}>🐱</div>
+          <div style={s.emptyTitle}>ClankerCats Viewer</div>
+          <div style={s.emptySubtitle}>Open in Warpcast to auto-connect,<br />or connect your wallet below.</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
             {connectors.filter(c => c.id !== 'farcaster-frame').map(c => (
               <button key={c.id} style={s.connectBtn} onClick={() => connect({ connector: c })}>{c.name}</button>
             ))}
           </div>
         </div>
-      ) : count === 0 ? (
-        <div style={s.center}>
-          <div style={{ fontSize: 14, color: '#888' }}>You don't have any ClankerCats yet.</div>
-          <div style={{ color: '#555', fontSize: 12, marginTop: 8 }}>Buy $CLKCAT on Base to mint one.</div>
-        </div>
       ) : selected !== null ? (
         <CatDetail tokenId={selected} onBack={() => setSelected(null)} />
+      ) : count === 0 ? (
+        <EmptyState />
       ) : (
         <>
-          <div style={{ fontSize: 13, color: '#555' }}>{count} ClankerCat{count !== 1 ? 's' : ''}</div>
+          <div style={s.ownedHeader}>
+            <span style={{ color: '#7c3aed', fontWeight: 'bold' }}>{count}</span>
+            <span style={{ color: '#555' }}> ClankerCat{count !== 1 ? 's' : ''} owned</span>
+          </div>
           <div style={s.grid}>
             {ids.map(id => (
               <CatCard key={id.toString()} tokenId={id} selected={selected === id} onClick={() => setSelected(id)} />
             ))}
           </div>
+          <div style={s.mintHint}>Tap a CCat to see its traits ↑</div>
         </>
       )}
     </div>
@@ -146,22 +200,36 @@ export default function Home() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  root:       { padding: 16, maxWidth: 480, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 },
-  header:     { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  logo:       { fontSize: 18, fontWeight: 'bold', color: '#7c3aed' },
-  addr:       { fontSize: 12, color: '#555', background: '#1e1e2e', padding: '4px 10px', borderRadius: 20 },
-  center:     { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 200, textAlign: 'center' },
-  grid:       { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 },
-  card:       { border: '1px solid #1e1e2e', borderRadius: 10, overflow: 'hidden', cursor: 'pointer', background: '#12122a' },
-  placeholder:{ display: 'flex', alignItems: 'center', justifyContent: 'center', aspectRatio: '1', color: '#2a2a3e', fontSize: 12 },
-  cardLabel:  { padding: '6px 8px', fontSize: 11, color: '#555' },
-  detail:     { display: 'flex', flexDirection: 'column', gap: 14 },
-  detailName: { fontSize: 18, fontWeight: 'bold' },
-  traits:     { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 },
-  trait:      { background: '#0a0a14', border: '1px solid #1a1a2e', borderRadius: 8, padding: '8px 10px' },
-  traitKey:   { fontSize: 10, color: '#555', textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 3 },
-  traitVal:   { fontSize: 13, color: '#ccc', fontWeight: 'bold' },
-  shareBtn:   { padding: 12, background: '#7c3aed', color: 'white', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 'bold' },
-  back:       { background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 13, padding: '0 0 8px 0', textAlign: 'left' as const },
-  connectBtn: { padding: '10px 20px', background: '#1e1e2e', border: '1px solid #2a2a3e', borderRadius: 8, color: 'white', cursor: 'pointer', fontSize: 13 },
+  root:         { padding: '16px 16px 32px', maxWidth: 480, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16, minHeight: '100vh' },
+  header:       { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' },
+  logo:         { fontSize: 18, fontWeight: 'bold', color: '#7c3aed' },
+  supply:       { fontSize: 11, color: '#444', marginTop: 2 },
+  addr:         { fontSize: 11, color: '#555', background: '#1e1e2e', padding: '4px 10px', borderRadius: 20, flexShrink: 0 },
+  ownedHeader:  { fontSize: 14 },
+  mintHint:     { fontSize: 11, color: '#333', textAlign: 'center' as const },
+  grid:         { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 },
+  card:         { border: '1px solid #1e1e2e', borderRadius: 10, overflow: 'hidden', cursor: 'pointer', background: '#12122a' },
+  placeholder:  { display: 'flex', alignItems: 'center', justifyContent: 'center', aspectRatio: '1', color: '#2a2a3e', fontSize: 12 },
+  cardLabel:    { padding: '6px 8px', fontSize: 11, color: '#444' },
+  // detail
+  detail:       { display: 'flex', flexDirection: 'column', gap: 14 },
+  detailCard:   { borderRadius: 14, overflow: 'hidden', border: '1px solid #1e1e2e' },
+  detailName:   { fontSize: 22, fontWeight: 'bold' },
+  sectionLabel: { fontSize: 11, color: '#555', textTransform: 'uppercase' as const, letterSpacing: 1 },
+  traits:       { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 },
+  trait:        { background: '#0a0a14', border: '1px solid #1a1a2e', borderRadius: 8, padding: '8px 10px' },
+  traitKey:     { fontSize: 10, color: '#555', textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 3 },
+  traitVal:     { fontSize: 13, color: '#ccc', fontWeight: 'bold' },
+  shareBtn:     { padding: 14, background: '#7c3aed', color: 'white', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 'bold' },
+  explorerBtn:  { padding: 12, background: 'transparent', color: '#555', border: '1px solid #2a2a3e', borderRadius: 10, cursor: 'pointer', fontSize: 13 },
+  back:         { background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 13, padding: '0 0 4px 0', textAlign: 'left' as const },
+  // empty / connect
+  connectState: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, paddingTop: 24 },
+  emptyState:   { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, paddingTop: 24, textAlign: 'center' as const },
+  heroCat:      { fontSize: 72, lineHeight: 1 },
+  emptyTitle:   { fontSize: 20, fontWeight: 'bold', color: '#ccc' },
+  emptySubtitle:{ fontSize: 14, color: '#555', lineHeight: 1.6 },
+  emptyHint:    { fontSize: 11, color: '#333' },
+  buyBtn:       { padding: '14px 24px', background: '#7c3aed', color: 'white', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 15, fontWeight: 'bold', width: '100%' },
+  connectBtn:   { padding: '14px 20px', background: '#1e1e2e', border: '1px solid #2a2a3e', borderRadius: 10, color: 'white', cursor: 'pointer', fontSize: 14, width: '100%' },
 }
