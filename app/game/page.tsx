@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useMemo } from 'react'
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import sdk from '@farcaster/miniapp-sdk'
 import {
   loadGame, saveGame, tick, buyBuilding, buyUpgrade,
   buildingCost, canAfford, fmt, ZONE_NAMES, UPGRADES,
@@ -293,9 +294,13 @@ function ResourceBar({ state }: { state: GameState }) {
   )
 }
 
+type DmgFloat = { id: number; val: number }
+
 function CombatPanel({ state, onToggle }: { state: GameState; onToggle: () => void }) {
   const { enemy, zone, kills, cats, catHealth, catMaxHealth, fighting } = state
-  const [flash, setFlash] = useState(false)
+  const [flash, setFlash]     = useState(false)
+  const [damages, setDamages] = useState<DmgFloat[]>([])
+  const dmgId = useRef(0)
   const zoneName  = ZONE_NAMES[Math.min(zone, ZONE_NAMES.length - 1)]
   const zoneImg   = `/zones/zone-${Math.min(zone, ZONE_NAMES.length - 1)}.png`
   const enemyImg  = enemy ? `/sprites/enemies/${enemy.sprite ?? 'enemy'}.png` : null
@@ -304,10 +309,14 @@ function CombatPanel({ state, onToggle }: { state: GameState; onToggle: () => vo
 
   const prevHp = useRef(enemy?.hp ?? 0)
   useEffect(() => {
-    if (!enemy) return
+    if (!enemy) { prevHp.current = 0; return }
     if (enemy.hp < prevHp.current) {
+      const delta = Math.round(prevHp.current - enemy.hp)
       setFlash(true)
       setTimeout(() => setFlash(false), 200)
+      const id = ++dmgId.current
+      setDamages(d => [...d, { id, val: delta }])
+      setTimeout(() => setDamages(d => d.filter(x => x.id !== id)), 900)
     }
     prevHp.current = enemy.hp
   }, [enemy?.hp])
@@ -338,6 +347,11 @@ function CombatPanel({ state, onToggle }: { state: GameState; onToggle: () => vo
                   style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', height: 80, width: 'auto', imageRendering: 'pixelated', pointerEvents: 'none' }}
                 />
               )}
+              {damages.map(d => (
+                <div key={d.id} style={{ position: 'absolute', top: '30%', left: `${30 + Math.random() * 40}%`, fontWeight: 'bold', fontSize: 18, color: '#ef4444', pointerEvents: 'none', animation: 'floatDmg 0.9s ease-out forwards', fontFamily: "'MyFont', monospace" }}>
+                  -{d.val}
+                </div>
+              ))}
             </div>
             <div style={{ padding: '10px 14px 12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#333', marginBottom: 6 }}>
@@ -508,6 +522,17 @@ function UpgradesPanel({ state, onBuy }: { state: GameState; onBuy: (id: string)
   )
 }
 
+function KillFeed({ killLog }: { killLog: string[] }) {
+  if (!killLog.length) return null
+  return (
+    <div style={{ ...g.panel, gap: 4, padding: '8px 14px' }}>
+      {killLog.map((entry, i) => (
+        <div key={i} style={{ fontSize: 11, color: '#333', opacity: 1 - i * 0.18 }}>{entry}</div>
+      ))}
+    </div>
+  )
+}
+
 const MINI_GAME_ABI = [
   { name: 'claimMiniReward', type: 'function', stateMutability: 'nonpayable', inputs: [], outputs: [] },
   { name: 'miniRewardCooldownRemaining', type: 'function', stateMutability: 'view',
@@ -583,7 +608,15 @@ export default function GamePage() {
       <div style={g.header}>
         <a href="/" style={g.backLink}>← Cats</a>
         <span style={g.title} onClick={tapTitle}>🐱 Idle Clank</span>
-        <span style={{ fontSize: 11, color: '#666' }}>Zone {state.zone + 1}</span>
+        <button
+          style={{ fontSize: 11, color: '#666', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+          onClick={() => {
+            const zoneName = ZONE_NAMES[Math.min(state.zone, ZONE_NAMES.length - 1)]
+            const text = `Zone ${state.zone + 1}: ${zoneName} · ${state.kills} kills · ${fmt(state.resources.fish)} fish 🐟\nplaying Idle Clank on ClankerCats $CLKCAT`
+            const url = `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}&embeds[]=https://ccat-viewer.vercel.app/game`
+            sdk.actions.openUrl(url)
+          }}
+        >↗ share</button>
       </div>
 
       <PrizePoolBanner />
@@ -596,12 +629,13 @@ export default function GamePage() {
       </button>
 
       <CombatPanel  state={state} onToggle={toggleFight} />
+      <KillFeed killLog={state.killLog} />
       <BuildingsPanel state={state} onBuy={id => update(s => buyBuilding(s, id))} />
       <UpgradesPanel  state={state} onBuy={id => update(s => buyUpgrade(s, id as any))} />
       <AutoRunPanel />
 
       {debug && (
-        <div style={{ background: '#0d0d1a', border: '1px solid #ef4444', borderRadius: 10, padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ background: 'white', border: '1.5px solid #ef4444', borderRadius: 10, padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ fontSize: 11, color: '#ef4444', fontWeight: 'bold' }}>🛠 DEBUG MODE</div>
           <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8 }}>
             <button style={g.dbgBtn} onClick={() => setShowMini(true)}>🎮 Trigger Mini-Game</button>

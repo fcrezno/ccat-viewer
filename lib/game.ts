@@ -29,21 +29,22 @@ export type GameState = {
   fighting:    boolean
   kills:       number
   portals:     number
+  killLog:     string[]
   lastTick:    number
 }
 
 export const ZONE_NAMES = [
-  'The Lake', 'Crater Field', 'Asteroid Belt',
-  'Deep Space', 'Nebula', 'Black Hole Rim',
+  'The Lake', 'The Feed', 'The Channels',
+  'The Memes', 'Purple Territory', 'The Void',
 ]
 
 const ENEMY_POOLS: { name: string; emoji: string }[][] = [
-  [{ name: 'Paper Hand', emoji: '🙌' }, { name: 'FUD Bear', emoji: '🐻' }],
-  [{ name: 'Rugger',     emoji: '🧶' }, { name: 'Shill Bot', emoji: '🤖' }],
-  [{ name: 'Whale',      emoji: '🐋' }, { name: 'Degen',    emoji: '🎰' }],
-  [{ name: 'Short',      emoji: '📉' }, { name: 'Ponzi',    emoji: '🌀' }],
-  [{ name: 'SEC Agent',  emoji: '👮' }, { name: 'Lawyer',   emoji: '⚖️'  }],
-  [{ name: 'BlackHole',  emoji: '🕳️' }, { name: 'Void Cat', emoji: '👾' }],
+  [{ name: 'Paper Hand', emoji: '🙌' }, { name: 'FUD Bear',  emoji: '🐻' }, { name: 'Lurker',    emoji: '👁️' }],
+  [{ name: 'Reply Guy',  emoji: '💬' }, { name: 'Shill Bot', emoji: '🤖' }, { name: 'Normie',    emoji: '🧑' }],
+  [{ name: 'Whale',      emoji: '🐋' }, { name: 'Degen',     emoji: '🎰' }],
+  [{ name: 'Short',      emoji: '📉' }, { name: 'Ponzi',     emoji: '🌀' }],
+  [{ name: 'SEC Agent',  emoji: '👮' }, { name: 'Lawyer',    emoji: '⚖️'  }],
+  [{ name: 'BlackHole',  emoji: '🕳️' }, { name: 'Void Cat',  emoji: '👾' }],
 ]
 
 const BASE_BUILDINGS: Omit<Building, 'count'>[] = [
@@ -105,6 +106,7 @@ export function defaultState(): GameState {
     fighting:     false,
     kills:        0,
     portals:      0,
+    killLog:      [],
     lastTick:     Date.now(),
   }
 }
@@ -191,11 +193,12 @@ export function tick(state: GameState, dtMs: number): GameState {
     }
 
     if (s.enemy && s.enemy.hp <= 0) {
+      const defeated = s.enemy
       s.kills++
       s.resources.fish     += s.zone + 1
       s.resources.moondust += s.zone * 0.5
+      s.killLog = [`${defeated.emoji} ${defeated.name} defeated`, ...s.killLog].slice(0, 5)
       s.enemy = null
-      // Every 10 kills advance zone
       if (s.kills % 10 === 0 && s.zone < ZONE_NAMES.length - 1) {
         s.zone++
       }
