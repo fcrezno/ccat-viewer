@@ -6,7 +6,7 @@ import sdk from '@farcaster/miniapp-sdk'
 
 const CCAT_COLLECTION = '0x7b429e994873A9f7b50484Ce6c80c25040C7Ee26' as `0x${string}`
 
-const UNISWAP_CLKCAT = 'https://app.uniswap.org/swap?outputCurrency=0x56d011f3d82c91d58a14ddd07ad3e4c97f7e2e0b&chain=base'
+const CCAT_DEXSCREENER = 'https://dexscreener.com/base/0x88b2debaed47d530ec3442bc28ce8073422180e6f2acdb6b1ff75cee12c9806f'
 
 const COLLECTION_ABI = [
   { type: 'function', name: 'balanceOf',           inputs: [{ name: 'owner', type: 'address' }],                                          outputs: [{ type: 'uint256' }], stateMutability: 'view' },
@@ -97,8 +97,8 @@ function CatDetail({ tokenId, onBack }: { tokenId: bigint; onBack: () => void })
 
 function EmptyState() {
   async function buyClkcat() {
-    try { await sdk.actions.openUrl(UNISWAP_CLKCAT) }
-    catch { window.open(UNISWAP_CLKCAT, '_blank') }
+    try { await sdk.actions.openUrl(CCAT_DEXSCREENER) }
+    catch { window.open(CCAT_DEXSCREENER, '_blank') }
   }
 
   return (
