@@ -106,13 +106,13 @@ function EmptyState() {
       <div style={s.heroCat}>🐱</div>
       <div style={s.emptyTitle}>No ClankerCats yet</div>
       <div style={s.emptySubtitle}>
-        Hold $CLKCAT on Base to mint your cat.<br />
+        Hold $CCAT on Base to mint your cat.<br />
         Each CCat is unique — fully on-chain pixel art.
       </div>
       <button style={s.buyBtn} onClick={buyClkcat}>
-        Buy $CLKCAT on Uniswap →
+        Buy $CCAT on Uniswap →
       </button>
-      <div style={s.emptyHint}>Get $CLKCAT, then mint at clankercats.com</div>
+      <div style={s.emptyHint}>Get $CCAT, then mint at clankercats.com</div>
     </div>
   )
 }
