@@ -81,17 +81,20 @@ function CombatPanel({ state, onToggle }: { state: GameState; onToggle: () => vo
       <div style={{ background: '#0d0d1a', borderRadius: 10, overflow: 'hidden' }}>
         {enemy ? (
           <>
-            <img
-              src={enemyImg ?? ''}
-              onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-              style={{
-                width: '100%', height: 200, objectFit: 'contain',
-                display: 'block', background: 'white',
-                transform: flash ? 'scale(1.03)' : 'scale(1)',
-                filter: flash ? 'brightness(1.3)' : 'none',
-                transition: 'transform 0.1s ease, filter 0.1s ease',
-              }}
-            />
+            <div style={{ position: 'relative' }}>
+              <img
+                src={enemyImg ?? ''}
+                onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                style={{ width: '100%', height: 200, objectFit: 'contain', display: 'block', background: 'white' }}
+              />
+              {flash && (
+                <img
+                  src="/sprites/hit.png"
+                  onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                  style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', height: 80, width: 'auto', imageRendering: 'pixelated', pointerEvents: 'none' }}
+                />
+              )}
+            </div>
             <div style={{ padding: '10px 14px 12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#ccc', marginBottom: 6 }}>
                 <span style={{ fontWeight: 'bold' }}>{enemy.name}</span>
