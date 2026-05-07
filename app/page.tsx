@@ -340,7 +340,7 @@ export default function Home() {
           {count > 0 && <div style={s.supply}>{count} cat{count !== 1 ? 's' : ''}</div>}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <a href="/game" style={s.gameLink}>🎮 Idle</a>
+          <a href="/game" style={s.gameLink}>🎮 Idle Game</a>
           {address && <div style={s.addr}>{address.slice(0,6)}…{address.slice(-4)}</div>}
         </div>
       </div>
@@ -370,6 +370,14 @@ export default function Home() {
             ))}
           </div>
           <div style={s.mintHint}>Tap a CCat to see its traits ↑</div>
+          <a href="/game" style={s.gameCard}>
+            <span style={{ fontSize: 28 }}>🎮</span>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 'bold', color: '#ccc' }}>Idle Clank</div>
+              <div style={{ fontSize: 11, color: '#555' }}>Fish · Build · Fight</div>
+            </div>
+            <span style={{ marginLeft: 'auto', fontSize: 18, color: '#7c3aed' }}>→</span>
+          </a>
         </>
       ) : (
         <EmptyState />
@@ -410,6 +418,7 @@ const s: Record<string, React.CSSProperties> = {
   tamaActions:  { display: 'flex', gap: 8 },
   tamaBtn:      { flex: 1, padding: '10px 0', background: '#1e1e2e', border: '1px solid #2a2a3e', borderRadius: 10, color: 'white', cursor: 'pointer', fontSize: 13 },
   gameLink:     { fontSize: 12, color: '#7c3aed', textDecoration: 'none', background: '#1a1a2e', padding: '4px 10px', borderRadius: 20 },
+  gameCard:     { display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: '#12122a', border: '1px solid #2a2a3e', borderRadius: 12, textDecoration: 'none', cursor: 'pointer' },
   connectState: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, paddingTop: 24 },
   emptyState:   { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, paddingTop: 24, textAlign: 'center' as const },
   heroCat:      { fontSize: 72, lineHeight: 1 },

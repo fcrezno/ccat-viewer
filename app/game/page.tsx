@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import {
   loadGame, saveGame, tick, buyBuilding, buyUpgrade,
   buildingCost, canAfford, fmt, ZONE_NAMES, UPGRADES,
@@ -78,7 +78,28 @@ function CombatPanel({ state, onToggle }: { state: GameState; onToggle: () => vo
   )
 }
 
+function ProdBar({ rate, speed }: { rate: number; speed: number }) {
+  const [tick, setTick] = useState(0)
+  const effective = rate * speed
+  useEffect(() => {
+    if (effective <= 0) return
+    const ms = Math.max(200, 1000 / effective)
+    const id = setInterval(() => setTick(t => (t + 1) % 100), ms / 100)
+    return () => clearInterval(id)
+  }, [effective])
+  if (effective <= 0) return null
+  return (
+    <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <div style={{ fontSize: 10, color: '#444' }}>+{effective.toFixed(1)}/s</div>
+      <div style={{ background: '#1a1a2e', borderRadius: 3, height: 3, overflow: 'hidden', width: '100%' }}>
+        <div style={{ width: `${tick}%`, height: '100%', background: '#7c3aed', borderRadius: 3, transition: 'width 0.05s linear' }} />
+      </div>
+    </div>
+  )
+}
+
 function BuildingsPanel({ state, onBuy }: { state: GameState; onBuy: (id: string) => void }) {
+  const speed    = 1 + state.upgrades.speed * 0.5
   const unlocked = state.buildings.filter(b => {
     if (!b.unlockAt) return true
     const r = state.resources
@@ -91,8 +112,9 @@ function BuildingsPanel({ state, onBuy }: { state: GameState; onBuy: (id: string
     <div style={g.panel}>
       <div style={g.panelHeader}>🏗️ Buildings</div>
       {unlocked.map(b => {
-        const cost      = buildingCost(b)
+        const cost       = buildingCost(b)
         const affordable = canAfford(state.resources, cost)
+        const prodRate   = b.count > 0 ? Object.values(b.prod).reduce((s, v) => s + (v ?? 0), 0) * b.count : 0
         return (
           <button
             key={b.id}
@@ -100,14 +122,17 @@ function BuildingsPanel({ state, onBuy }: { state: GameState; onBuy: (id: string
             onClick={() => onBuy(b.id)}
             disabled={!affordable}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 20 }}>{b.emoji}</span>
-              <div style={{ textAlign: 'left' as const }}>
-                <div style={{ fontSize: 13, color: '#ccc' }}>{b.name} <span style={{ color: '#555' }}>×{b.count}</span></div>
-                <div style={{ fontSize: 11, color: '#555' }}>{b.desc}</div>
+            <div style={{ flex: 1, textAlign: 'left' as const }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 20 }}>{b.emoji}</span>
+                <div>
+                  <div style={{ fontSize: 13, color: '#ccc' }}>{b.name} <span style={{ color: '#555' }}>×{b.count}</span></div>
+                  <div style={{ fontSize: 11, color: '#555' }}>{b.desc}</div>
+                </div>
               </div>
+              {b.count > 0 && <ProdBar rate={prodRate} speed={speed} />}
             </div>
-            <div style={{ textAlign: 'right' as const, fontSize: 11, flexShrink: 0 }}>
+            <div style={{ textAlign: 'right' as const, fontSize: 11, flexShrink: 0, marginLeft: 10 }}>
               {cost.fish     > 0 && <div>🐟 {fmt(cost.fish)}</div>}
               {cost.moondust > 0 && <div>🌙 {fmt(cost.moondust)}</div>}
               {cost.clank    > 0 && <div>⚡ {fmt(cost.clank)}</div>}
