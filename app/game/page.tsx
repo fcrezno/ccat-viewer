@@ -42,45 +42,41 @@ function CombatPanel({ state, onToggle }: { state: GameState; onToggle: () => vo
 
   return (
     <div style={g.panel}>
-      {/* Dragon Quest battle scene */}
-      <div style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', background: '#f5f0e8' }}>
-        <img
-          src={zoneImg}
-          onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-          style={{ width: '100%', display: 'block', objectFit: 'cover', height: 180 }}
-        />
-        {/* Enemy sprite centered over zone */}
-        {enemy && enemyImg && (
-          <img
-            src={enemyImg}
-            onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-            style={{
-              position: 'absolute', bottom: 16, left: '50%',
-              transform: `translateX(-50%) ${flash ? 'scale(1.08)' : 'scale(1)'}`,
-              height: 160, width: 'auto', imageRendering: 'pixelated',
-              filter: flash ? 'brightness(2) invert(0.2)' : 'none',
-              transition: 'transform 0.1s ease, filter 0.1s ease',
-            }}
-          />
-        )}
-        {/* Enemy name + HP overlay at bottom */}
-        {enemy && (
-          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.6)', padding: '6px 10px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#fff', marginBottom: 4 }}>
-              <span style={{ fontWeight: 'bold' }}>{enemy.name}</span>
-              <span style={{ color: '#ef4444' }}>{fmt(Math.max(0, enemy.hp))}/{fmt(enemy.maxHp)} HP</span>
+      {/* Zone banner */}
+      <img
+        src={zoneImg}
+        onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+        style={{ width: '100%', borderRadius: 8, display: 'block', objectFit: 'cover', height: 120 }}
+      />
+
+      {/* Enemy arena */}
+      <div style={{ background: '#0d0d1a', borderRadius: 10, minHeight: 180, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '12px 0 0' }}>
+        {enemy ? (
+          <>
+            <img
+              src={enemyImg ?? ''}
+              onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+              style={{
+                height: 140, width: 'auto', imageRendering: 'pixelated',
+                transform: flash ? 'scale(1.08)' : 'scale(1)',
+                filter: flash ? 'brightness(2)' : 'none',
+                transition: 'transform 0.1s ease, filter 0.1s ease',
+              }}
+            />
+            <div style={{ width: '100%', padding: '10px 14px 12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#ccc', marginBottom: 6 }}>
+                <span style={{ fontWeight: 'bold' }}>{enemy.name}</span>
+                <span style={{ color: '#ef4444' }}>{fmt(Math.max(0, enemy.hp))}/{fmt(enemy.maxHp)} HP</span>
+              </div>
+              <div style={g.hpTrack}>
+                <div style={{ ...g.hpFill, width: `${hpPct}%`, background: '#ef4444' }} />
+              </div>
             </div>
-            <div style={g.hpTrack}>
-              <div style={{ ...g.hpFill, width: `${hpPct}%`, background: '#ef4444' }} />
-            </div>
-          </div>
-        )}
-        {!enemy && (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', background: 'rgba(0,0,0,0.4)', padding: '4px 10px', borderRadius: 20 }}>
-              {fighting ? 'Spawning...' : 'Not exploring'}
-            </span>
-          </div>
+          </>
+        ) : (
+          <span style={{ fontSize: 12, color: '#333' }}>
+            {fighting ? 'Spawning...' : 'Not exploring'}
+          </span>
         )}
       </div>
 
