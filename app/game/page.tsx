@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useMemo } from 'react'
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import {
   loadGame, saveGame, tick, buyBuilding, buyUpgrade,
   buildingCost, canAfford, fmt, ZONE_NAMES, UPGRADES,
@@ -8,6 +9,138 @@ import {
 } from '@/lib/game'
 
 const TICK_MS = 250
+
+// Placeholder — replace with deployed contract address
+const AUTO_RUN_ADDRESS = '0x0000000000000000000000000000000000000000' as `0x${string}`
+const CLKCAT_ADDRESS   = '0xD7800C338228a6eeb37cF74133732Fb6aE05915F' as `0x${string}`
+
+const AUTO_RUN_ABI = [
+  { name: 'startAutoRun', type: 'function', stateMutability: 'nonpayable',
+    inputs: [{ name: 'tier', type: 'uint8' }], outputs: [] },
+  { name: 'isActive', type: 'function', stateMutability: 'view',
+    inputs: [{ name: 'player', type: 'address' }], outputs: [{ type: 'bool' }] },
+  { name: 'remainingSecs', type: 'function', stateMutability: 'view',
+    inputs: [{ name: 'player', type: 'address' }], outputs: [{ type: 'uint256' }] },
+  { name: 'getSession', type: 'function', stateMutability: 'view',
+    inputs: [{ name: 'player', type: 'address' }],
+    outputs: [{ type: 'tuple', components: [
+      { name: 'startedAt', type: 'uint64' },
+      { name: 'expiresAt', type: 'uint64' },
+      { name: 'tier',      type: 'uint8'  },
+    ]}] },
+  { name: 'prizePool', type: 'function', stateMutability: 'view',
+    inputs: [], outputs: [{ type: 'uint256' }] },
+] as const
+
+const CLKCAT_ABI = [
+  { name: 'approve', type: 'function', stateMutability: 'nonpayable',
+    inputs: [{ name: 'spender', type: 'address' }, { name: 'amount', type: 'uint256' }],
+    outputs: [{ type: 'bool' }] },
+] as const
+
+const TIER_LABELS    = ['6 hours', '12 hours', '24 hours']
+const TIER_COSTS     = ['100K $CLKCAT', '250K $CLKCAT', '500K $CLKCAT']
+const TIER_COSTS_WEI = [BigInt('100000000000000000000000'), BigInt('250000000000000000000000'), BigInt('500000000000000000000000')]
+
+function fmtSecs(s: number): string {
+  if (s <= 0) return '0s'
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const sec = s % 60
+  if (h > 0) return `${h}h ${m}m`
+  if (m > 0) return `${m}m ${sec}s`
+  return `${sec}s`
+}
+
+function AutoRunPanel() {
+  const { address } = useAccount()
+  const [step, setStep] = useState<'idle' | 'approving' | 'buying'>('idle')
+  const [selectedTier, setSelectedTier] = useState<number | null>(null)
+
+  const { data: isActive, refetch: refetchActive } = useReadContract({
+    address: AUTO_RUN_ADDRESS, abi: AUTO_RUN_ABI, functionName: 'isActive',
+    args: [address!], query: { enabled: !!address && AUTO_RUN_ADDRESS !== '0x0000000000000000000000000000000000000000' },
+  })
+  const { data: remainingSecs, refetch: refetchSecs } = useReadContract({
+    address: AUTO_RUN_ADDRESS, abi: AUTO_RUN_ABI, functionName: 'remainingSecs',
+    args: [address!], query: { enabled: !!address && AUTO_RUN_ADDRESS !== '0x0000000000000000000000000000000000000000' },
+  })
+  const { data: prizePool } = useReadContract({
+    address: AUTO_RUN_ADDRESS, abi: AUTO_RUN_ABI, functionName: 'prizePool',
+    query: { enabled: AUTO_RUN_ADDRESS !== '0x0000000000000000000000000000000000000000' },
+  })
+
+  const { writeContract: approve, data: approveTx } = useWriteContract()
+  const { writeContract: buy,     data: buyTx      } = useWriteContract()
+  const { isSuccess: approveSuccess } = useWaitForTransactionReceipt({ hash: approveTx })
+  const { isSuccess: buySuccess }     = useWaitForTransactionReceipt({ hash: buyTx })
+
+  useEffect(() => {
+    if (approveSuccess && selectedTier !== null) {
+      buy({ address: AUTO_RUN_ADDRESS, abi: AUTO_RUN_ABI, functionName: 'startAutoRun', args: [selectedTier] })
+      setStep('buying')
+    }
+  }, [approveSuccess])
+
+  useEffect(() => {
+    if (buySuccess) { setStep('idle'); setSelectedTier(null); refetchActive(); refetchSecs() }
+  }, [buySuccess])
+
+  function startPurchase(tier: number) {
+    if (!address) return
+    setSelectedTier(tier)
+    setStep('approving')
+    approve({ address: CLKCAT_ADDRESS, abi: CLKCAT_ABI, functionName: 'approve',
+      args: [AUTO_RUN_ADDRESS, TIER_COSTS_WEI[tier]] })
+  }
+
+  const notDeployed = AUTO_RUN_ADDRESS === '0x0000000000000000000000000000000000000000'
+  const secs = remainingSecs ? Number(remainingSecs) : 0
+  const pool = prizePool ? Number(prizePool) / 1e18 : 0
+
+  return (
+    <div style={g.panel}>
+      <div style={g.panelHeader}>
+        <span>⚡ Auto-Run</span>
+        {pool > 0 && <span style={{ fontSize: 11, color: '#7c3aed' }}>🏆 {fmt(pool)} $CLKCAT pool</span>}
+      </div>
+
+      {notDeployed ? (
+        <div style={{ fontSize: 11, color: '#555', textAlign: 'center' as const, padding: '8px 0' }}>
+          Contract deploying soon — check back!
+        </div>
+      ) : isActive ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ fontSize: 12, color: '#10b981', textAlign: 'center' as const }}>✅ Auto-run active</div>
+          <div style={{ fontSize: 20, fontWeight: 'bold', color: '#ccc', textAlign: 'center' as const }}>{fmtSecs(secs)}</div>
+          <div style={{ fontSize: 11, color: '#555', textAlign: 'center' as const }}>remaining · game runs while you're away</div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ fontSize: 11, color: '#555' }}>Pay $CLKCAT to auto-run. 80% goes to the prize pool — top players earn it back.</div>
+          {TIER_LABELS.map((label, i) => (
+            <button
+              key={i}
+              style={{ ...g.buildingRow, opacity: step !== 'idle' ? 0.5 : 1 }}
+              disabled={step !== 'idle'}
+              onClick={() => startPurchase(i)}
+            >
+              <div style={{ textAlign: 'left' as const }}>
+                <div style={{ fontSize: 13, color: '#ccc' }}>{label}</div>
+                <div style={{ fontSize: 11, color: '#555' }}>{TIER_COSTS[i]}</div>
+              </div>
+              <div style={{ fontSize: 11, color: '#7c3aed' }}>
+                {step !== 'idle' && selectedTier === i
+                  ? (step === 'approving' ? 'Approving…' : 'Starting…')
+                  : '▶'}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function ResourceBar({ state }: { state: GameState }) {
   const { fish, moondust, clank } = state.resources
@@ -319,6 +452,7 @@ export default function GamePage() {
       <CombatPanel  state={state} onToggle={toggleFight} />
       <BuildingsPanel state={state} onBuy={id => update(s => buyBuilding(s, id))} />
       <UpgradesPanel  state={state} onBuy={id => update(s => buyUpgrade(s, id as any))} />
+      <AutoRunPanel />
 
       <div style={{ fontSize: 10, color: '#222', textAlign: 'center' as const, paddingTop: 8 }}>
         Auto-saves every 5s · Offline progress up to 30s
