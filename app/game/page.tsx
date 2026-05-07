@@ -52,6 +52,27 @@ function fmtSecs(s: number): string {
   return `${sec}s`
 }
 
+function PrizePoolBanner() {
+  const { data: prizePool } = useReadContract({
+    address: AUTO_RUN_ADDRESS, abi: AUTO_RUN_ABI, functionName: 'prizePool',
+    query: { refetchInterval: 30_000 },
+  })
+  const pool = prizePool ? Number(prizePool) / 1e18 : 0
+  if (pool <= 0) return null
+  return (
+    <div style={{ background: 'linear-gradient(90deg, #3b1f6e, #7c3aed)', borderRadius: 10, padding: '10px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div>
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginBottom: 2 }}>🏆 Season Prize Pool</div>
+        <div style={{ fontSize: 20, fontWeight: 'bold', color: 'white' }}>{fmt(pool)} $CLKCAT</div>
+      </div>
+      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', textAlign: 'right' as const }}>
+        <div>Top players</div>
+        <div>earn it all</div>
+      </div>
+    </div>
+  )
+}
+
 function AutoRunPanel() {
   const { address } = useAccount()
   const [step, setStep] = useState<'idle' | 'approving' | 'buying'>('idle')
@@ -441,6 +462,7 @@ export default function GamePage() {
         <span style={{ fontSize: 11, color: '#555' }}>Zone {state.zone + 1}</span>
       </div>
 
+      <PrizePoolBanner />
       <ResourceBar state={state} />
 
       {/* Click to fish */}
