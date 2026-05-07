@@ -94,46 +94,46 @@ function MiniGame({ onWin, onClose }: { onWin: () => void; onClose: () => void }
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div style={{ background: '#0a0a14', border: '2px solid #7c3aed', borderRadius: 16, padding: 24, width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center' }}>
+      <div style={{ background: 'white', border: '2.5px solid #111', borderRadius: 16, padding: 24, width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center' }}>
 
         {phase === 'intro' && <>
-          <div style={{ fontSize: 32, fontWeight: 'bold', color: '#7c3aed', textAlign: 'center' as const, lineHeight: 1.2 }}>🎮 MINI GAME TIME!</div>
-          <div style={{ fontSize: 14, color: '#aaa', textAlign: 'center' as const }}>Tap all the 🐟 fish before time runs out!</div>
-          <div style={{ fontSize: 13, color: '#555', textAlign: 'center' as const }}>Win → earn 500 $CLKCAT + bonus fish</div>
-          <button style={{ ...g.actionBtn, background: '#7c3aed', width: '100%', fontSize: 16 }} onClick={startGame}>Let's GO! 🚀</button>
+          <div style={{ fontSize: 32, fontWeight: 'bold', color: '#111', textAlign: 'center' as const, lineHeight: 1.2 }}>🎮 MINI GAME TIME!</div>
+          <div style={{ fontSize: 14, color: '#555', textAlign: 'center' as const }}>Tap all the 🐟 fish before time runs out!</div>
+          <div style={{ fontSize: 13, color: '#666', textAlign: 'center' as const }}>Win → earn 500 $CLKCAT + bonus fish</div>
+          <button style={{ ...g.actionBtn, background: '#111', color: 'white', width: '100%', fontSize: 16 }} onClick={startGame}>Let's GO! 🚀</button>
           <button style={{ background: 'none', border: 'none', color: '#333', cursor: 'pointer', fontSize: 12 }} onClick={onClose}>skip</button>
         </>}
 
         {phase === 'play' && <>
           <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-            <span style={{ fontSize: 13, color: '#aaa' }}>Tap the 🐟 fish!</span>
+            <span style={{ fontSize: 13, color: '#555' }}>Tap the 🐟 fish!</span>
             <span style={{ fontSize: 20, fontWeight: 'bold', color: timeLeft <= 2 ? '#ef4444' : '#7c3aed' }}>⏱ {timeLeft}s</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, width: '100%' }}>
             {grid.map((emoji, i) => (
               <button key={i} onClick={() => tap(i)}
-                style={{ fontSize: 28, padding: 10, borderRadius: 10, border: '1px solid #1a1a2e',
-                  background: tapped.has(i) ? '#1a3a1a' : '#12122a', cursor: 'pointer',
+                style={{ fontSize: 28, padding: 10, borderRadius: 10, border: '1.5px solid #111',
+                  background: tapped.has(i) ? '#ddd' : 'white', cursor: 'pointer',
                   opacity: tapped.has(i) ? 0.4 : 1, transition: 'all 0.1s' }}>
                 {emoji}
               </button>
             ))}
           </div>
-          <div style={{ fontSize: 12, color: '#555' }}>{tapped.size}/{FISH_COUNT} caught</div>
+          <div style={{ fontSize: 12, color: '#666' }}>{tapped.size}/{FISH_COUNT} caught</div>
         </>}
 
         {phase === 'win' && <>
           <div style={{ fontSize: 48 }}>🎉</div>
           <div style={{ fontSize: 22, fontWeight: 'bold', color: '#10b981' }}>You got them all!</div>
-          <div style={{ fontSize: 14, color: '#aaa', textAlign: 'center' as const }}>+500 $CLKCAT incoming<br />+50 bonus fish added!</div>
+          <div style={{ fontSize: 14, color: '#555', textAlign: 'center' as const }}>+500 $CLKCAT incoming<br />+50 bonus fish added!</div>
           <button style={{ ...g.actionBtn, background: '#10b981', width: '100%' }} onClick={onClose}>Claim & Continue</button>
         </>}
 
         {phase === 'lose' && <>
           <div style={{ fontSize: 48 }}>😿</div>
           <div style={{ fontSize: 22, fontWeight: 'bold', color: '#ef4444' }}>Wrong one!</div>
-          <div style={{ fontSize: 14, color: '#555', textAlign: 'center' as const }}>The fish got away...</div>
-          <button style={{ ...g.actionBtn, background: '#7c3aed', width: '100%' }} onClick={startGame}>Try Again!</button>
+          <div style={{ fontSize: 14, color: '#666', textAlign: 'center' as const }}>The fish got away...</div>
+          <button style={{ ...g.actionBtn, background: '#111', color: 'white', width: '100%' }} onClick={startGame}>Try Again!</button>
           <button style={{ background: 'none', border: 'none', color: '#333', cursor: 'pointer', fontSize: 12 }} onClick={onClose}>skip</button>
         </>}
 
@@ -150,7 +150,7 @@ function PrizePoolBanner() {
   const pool = prizePool ? Number(prizePool) / 1e18 : 0
   if (pool <= 0) return null
   return (
-    <div style={{ background: 'linear-gradient(90deg, #3b1f6e, #7c3aed)', borderRadius: 10, padding: '10px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div style={{ background: '#111', borderRadius: 10, padding: '10px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <div>
         <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginBottom: 2 }}>🏆 Season Prize Pool</div>
         <div style={{ fontSize: 20, fontWeight: 'bold', color: 'white' }}>{fmt(pool)} $CLKCAT</div>
@@ -213,22 +213,22 @@ function AutoRunPanel() {
     <div style={g.panel}>
       <div style={g.panelHeader}>
         <span>⚡ Auto-Run</span>
-        {pool > 0 && <span style={{ fontSize: 11, color: '#7c3aed' }}>🏆 {fmt(pool)} $CLKCAT pool</span>}
+        {pool > 0 && <span style={{ fontSize: 11, color: '#111' }}>🏆 {fmt(pool)} $CLKCAT pool</span>}
       </div>
 
       {notDeployed ? (
-        <div style={{ fontSize: 11, color: '#555', textAlign: 'center' as const, padding: '8px 0' }}>
+        <div style={{ fontSize: 11, color: '#666', textAlign: 'center' as const, padding: '8px 0' }}>
           Contract deploying soon — check back!
         </div>
       ) : isActive ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ fontSize: 12, color: '#10b981', textAlign: 'center' as const }}>✅ Auto-run active</div>
-          <div style={{ fontSize: 20, fontWeight: 'bold', color: '#ccc', textAlign: 'center' as const }}>{fmtSecs(secs)}</div>
-          <div style={{ fontSize: 11, color: '#555', textAlign: 'center' as const }}>remaining · game runs while you're away</div>
+          <div style={{ fontSize: 20, fontWeight: 'bold', color: '#333', textAlign: 'center' as const }}>{fmtSecs(secs)}</div>
+          <div style={{ fontSize: 11, color: '#666', textAlign: 'center' as const }}>remaining · game runs while you're away</div>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ fontSize: 11, color: '#555' }}>Pay $CLKCAT to auto-run. 80% goes to the prize pool — top players earn it back.</div>
+          <div style={{ fontSize: 11, color: '#666' }}>Pay $CLKCAT to auto-run. 80% goes to the prize pool — top players earn it back.</div>
           {TIER_LABELS.map((label, i) => (
             <button
               key={i}
@@ -237,10 +237,10 @@ function AutoRunPanel() {
               onClick={() => startPurchase(i)}
             >
               <div style={{ textAlign: 'left' as const }}>
-                <div style={{ fontSize: 13, color: '#ccc' }}>{label}</div>
-                <div style={{ fontSize: 11, color: '#555' }}>{TIER_COSTS[i]}</div>
+                <div style={{ fontSize: 13, color: '#333' }}>{label}</div>
+                <div style={{ fontSize: 11, color: '#666' }}>{TIER_COSTS[i]}</div>
               </div>
-              <div style={{ fontSize: 11, color: '#7c3aed' }}>
+              <div style={{ fontSize: 11, color: '#111' }}>
                 {step !== 'idle' && selectedTier === i
                   ? (step === 'approving' ? 'Approving…' : 'Starting…')
                   : '▶'}
@@ -265,7 +265,7 @@ function ResourceBar({ state }: { state: GameState }) {
 
   function RateLabel({ rate }: { rate: number }) {
     if (rate <= 0) return null
-    return <span style={{ fontSize: 9, color: '#7c3aed' }}>+{rate < 1 ? rate.toFixed(1) : fmt(rate)}/s</span>
+    return <span style={{ fontSize: 9, color: '#111' }}>+{rate < 1 ? rate.toFixed(1) : fmt(rate)}/s</span>
   }
 
   return (
@@ -340,7 +340,7 @@ function CombatPanel({ state, onToggle }: { state: GameState; onToggle: () => vo
               )}
             </div>
             <div style={{ padding: '10px 14px 12px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#ccc', marginBottom: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#333', marginBottom: 6 }}>
                 <span style={{ fontWeight: 'bold' }}>{enemy.name}</span>
                 <span style={{ color: '#ef4444' }}>{fmt(Math.max(0, enemy.hp))}/{fmt(enemy.maxHp)} HP</span>
               </div>
@@ -357,24 +357,24 @@ function CombatPanel({ state, onToggle }: { state: GameState; onToggle: () => vo
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: 13, fontWeight: 'bold', color: '#7c3aed' }}>⚔️ {zoneName}</span>
-        <span style={{ fontSize: 11, color: '#555' }}>Zone {zone + 1} · {kills} kills</span>
+        <span style={{ fontSize: 13, fontWeight: 'bold', color: '#111' }}>⚔️ {zoneName}</span>
+        <span style={{ fontSize: 11, color: '#666' }}>Zone {zone + 1} · {kills} kills</span>
       </div>
 
       {cats > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#555' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#666' }}>
             <span>🐱 Cat HP</span>
             <span>{fmt(catHealth)}/{fmt(catMaxHealth)}</span>
           </div>
           <div style={g.hpTrack}>
-            <div style={{ ...g.hpFill, width: `${catHpPct}%`, background: '#7c3aed' }} />
+            <div style={{ ...g.hpFill, width: `${catHpPct}%`, background: '#111', color: 'white' }} />
           </div>
         </div>
       )}
 
       <button
-        style={{ ...g.actionBtn, background: fighting ? '#1e1e2e' : '#7c3aed' }}
+        style={{ ...g.actionBtn, background: fighting ? '#666' : '#111' }}
         onClick={onToggle}
       >
         {fighting ? '⏸ Pause' : '▶ Explore'}
@@ -396,8 +396,8 @@ function ProdBar({ rate, speed }: { rate: number; speed: number }) {
   return (
     <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 3 }}>
       <div style={{ fontSize: 10, color: '#444' }}>+{effective.toFixed(1)}/s</div>
-      <div style={{ background: '#1a1a2e', borderRadius: 4, height: 8, overflow: 'hidden', width: '100%' }}>
-        <div style={{ width: `${tick}%`, height: '100%', background: '#7c3aed', borderRadius: 4, transition: 'width 0.05s linear' }} />
+      <div style={{ background: '#ddd', borderRadius: 4, height: 8, overflow: 'hidden', width: '100%' }}>
+        <div style={{ width: `${tick}%`, height: '100%', background: '#111', borderRadius: 4, transition: 'width 0.05s linear' }} />
       </div>
     </div>
   )
@@ -449,8 +449,8 @@ function BuildingsPanel({ state, onBuy }: { state: GameState; onBuy: (id: string
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontSize: 20 }}>{b.emoji}</span>
                 <div>
-                  <div style={{ fontSize: 13, color: '#ccc' }}>{b.name} <span style={{ color: '#555' }}>×{b.count}</span></div>
-                  <div style={{ fontSize: 11, color: '#555' }}>{b.desc}</div>
+                  <div style={{ fontSize: 13, color: '#333' }}>{b.name} <span style={{ color: '#666' }}>×{b.count}</span></div>
+                  <div style={{ fontSize: 11, color: '#666' }}>{b.desc}</div>
                 </div>
               </div>
               {b.count > 0 && <ProdBar rate={prodRate} speed={speed} />}
@@ -459,7 +459,7 @@ function BuildingsPanel({ state, onBuy }: { state: GameState; onBuy: (id: string
               {cost.fish     > 0 && <div>🐟 {fmt(cost.fish)}</div>}
               {cost.moondust > 0 && <div>🌙 {fmt(cost.moondust)}</div>}
               {cost.clank    > 0 && <div>⚡ {fmt(cost.clank)}</div>}
-              {etaLabel && <div style={{ color: '#7c3aed', marginTop: 4 }}>{etaLabel}</div>}
+              {etaLabel && <div style={{ color: '#111', marginTop: 4 }}>{etaLabel}</div>}
             </div>
           </button>
         )
@@ -492,8 +492,8 @@ function UpgradesPanel({ state, onBuy }: { state: GameState; onBuy: (id: string)
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 20 }}>{u.emoji}</span>
               <div style={{ textAlign: 'left' as const }}>
-                <div style={{ fontSize: 13, color: '#ccc' }}>{u.name} <span style={{ color: '#7c3aed' }}>Lv{level}</span></div>
-                <div style={{ fontSize: 11, color: '#555' }}>{u.desc}</div>
+                <div style={{ fontSize: 13, color: '#333' }}>{u.name} <span style={{ color: '#111' }}>Lv{level}</span></div>
+                <div style={{ fontSize: 11, color: '#666' }}>{u.desc}</div>
               </div>
             </div>
             <div style={{ textAlign: 'right' as const, fontSize: 11, flexShrink: 0 }}>
@@ -583,7 +583,7 @@ export default function GamePage() {
       <div style={g.header}>
         <a href="/" style={g.backLink}>← Cats</a>
         <span style={g.title} onClick={tapTitle}>🐱 Idle Clank</span>
-        <span style={{ fontSize: 11, color: '#555' }}>Zone {state.zone + 1}</span>
+        <span style={{ fontSize: 11, color: '#666' }}>Zone {state.zone + 1}</span>
       </div>
 
       <PrizePoolBanner />
@@ -592,7 +592,7 @@ export default function GamePage() {
       {/* Click to fish */}
       <button style={g.clickBtn} onClick={() => update(s => ({ ...s, resources: { ...s.resources, fish: s.resources.fish + 1 + s.upgrades.speed } }))}>
         <div style={{ fontSize: 36 }}>🐟</div>
-        <div style={{ fontSize: 11, color: '#555' }}>tap to fish</div>
+        <div style={{ fontSize: 11, color: '#666' }}>tap to fish</div>
       </button>
 
       <CombatPanel  state={state} onToggle={toggleFight} />
@@ -625,19 +625,19 @@ export default function GamePage() {
 }
 
 const g: Record<string, React.CSSProperties> = {
-  root:        { padding: '12px 14px 40px', maxWidth: 480, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 12, minHeight: '100vh', background: '#0a0a14', color: 'white', fontFamily: "'MyFont', monospace" },
+  root:        { padding: '12px 14px 40px', maxWidth: 480, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 12, minHeight: '100vh', background: '#f5f5f0', color: '#111', fontFamily: "'MyFont', monospace" },
   header:      { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  backLink:    { fontSize: 12, color: '#555', textDecoration: 'none' },
-  title:       { fontSize: 16, fontWeight: 'bold', color: '#7c3aed' },
+  backLink:    { fontSize: 12, color: '#666', textDecoration: 'none' },
+  title:       { fontSize: 16, fontWeight: 'bold', color: '#111', cursor: 'pointer' },
   resBar:      { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 6 },
-  resItem:     { display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#12122a', borderRadius: 8, padding: '6px 4px', gap: 2, fontSize: 12 },
+  resItem:     { display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'white', border: '1.5px solid #111', borderRadius: 8, padding: '6px 4px', gap: 2, fontSize: 12 },
   resEmoji:    { fontSize: 16 },
-  clickBtn:    { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '14px', background: '#12122a', border: '1px solid #1e1e2e', borderRadius: 12, cursor: 'pointer', gap: 4 },
-  panel:       { background: '#12122a', border: '1px solid #1a1a2e', borderRadius: 12, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 },
-  panelHeader: { fontSize: 13, fontWeight: 'bold', color: '#7c3aed', display: 'flex', justifyContent: 'space-between' },
-  buildingRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0a0a14', border: '1px solid #1a1a2e', borderRadius: 8, padding: '10px 12px', cursor: 'pointer', width: '100%', color: 'white' },
-  actionBtn:   { padding: '10px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 'bold', color: 'white' },
-  hpTrack:     { background: '#1a1a2e', borderRadius: 4, height: 6, overflow: 'hidden' },
+  clickBtn:    { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '14px', background: 'white', border: '1.5px solid #111', borderRadius: 12, cursor: 'pointer', gap: 4 },
+  panel:       { background: 'white', border: '1.5px solid #111', borderRadius: 12, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 },
+  panelHeader: { fontSize: 13, fontWeight: 'bold', color: '#111', display: 'flex', justifyContent: 'space-between' },
+  buildingRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f5f5f0', border: '1.5px solid #111', borderRadius: 8, padding: '10px 12px', cursor: 'pointer', width: '100%', color: '#111' },
+  actionBtn:   { padding: '10px', borderRadius: 10, border: '1.5px solid #111', cursor: 'pointer', fontSize: 13, fontWeight: 'bold', color: 'white', background: '#111', color: 'white' },
+  hpTrack:     { background: '#ddd', borderRadius: 4, height: 6, overflow: 'hidden' },
   hpFill:      { height: '100%', borderRadius: 4, transition: 'width 0.25s linear' },
-  dbgBtn:      { padding: '6px 10px', background: '#1a1a2e', border: '1px solid #ef4444', borderRadius: 8, color: '#ef4444', cursor: 'pointer', fontSize: 11 },
+  dbgBtn:      { padding: '6px 10px', background: 'white', border: '1.5px solid #ef4444', borderRadius: 8, color: '#ef4444', cursor: 'pointer', fontSize: 11 },
 }
