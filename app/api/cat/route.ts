@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createPublicClient, http, fallback } from 'viem'
 import { base } from 'viem/chains'
+import sharp from 'sharp'
 
 const client = createPublicClient({
   chain: base,
@@ -40,12 +41,13 @@ export async function GET(req: NextRequest) {
       args: [BigInt(id), BigInt(seed)],
     }) as string
 
-    const json  = JSON.parse(Buffer.from(uri.split(',')[1], 'base64').toString('utf8'))
-    const svg   = Buffer.from((json.image as string).split(',')[1], 'base64')
+    const json = JSON.parse(Buffer.from(uri.split(',')[1], 'base64').toString('utf8'))
+    const svg  = Buffer.from((json.image as string).split(',')[1], 'base64')
+    const png  = await sharp(svg).resize(600, 600, { kernel: 'nearest' }).png().toBuffer()
 
-    return new NextResponse(svg, {
+    return new NextResponse(png, {
       headers: {
-        'Content-Type': 'image/svg+xml',
+        'Content-Type': 'image/png',
         'Cache-Control': 'public, max-age=31536000, immutable',
       },
     })
