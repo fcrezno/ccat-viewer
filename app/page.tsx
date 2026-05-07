@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useAccount, useConnect, useReadContract } from 'wagmi'
+import { useAccount, useConnect, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { isAddress } from 'viem'
 import sdk from '@farcaster/miniapp-sdk'
 import { loadStats, saveStats, feed, pet, play, mood, moodEmoji, catLine, type Stats } from '@/lib/tamagotchi'
 
@@ -31,6 +32,15 @@ const CCAT_ABI = [
         { name: 'seed', type: 'uint256' },
       ],
     }],
+  },
+  {
+    name: 'transferUpeg',
+    type: 'function', stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'to',     type: 'address' },
+      { name: 'upegId', type: 'uint256' },
+    ],
+    outputs: [],
   },
 ] as const
 
@@ -120,7 +130,100 @@ function TamagotchiPanel({ catId }: { catId: string }) {
   )
 }
 
+function SendPanel({ upeg, meta, onClose }: { upeg: Upeg; meta: CatMeta | null; onClose: () => void }) {
+  const [to, setTo]         = useState('')
+  const [confirmed, setConfirmed] = useState(false)
+  const { writeContract, data: txHash, isPending, isError, error } = useWriteContract()
+  const { isSuccess, isLoading: isConfirming } = useWaitForTransactionReceipt({ hash: txHash })
+
+  const valid = isAddress(to)
+
+  function send() {
+    if (!valid) return
+    writeContract({
+      address: CCAT,
+      abi: CCAT_ABI,
+      functionName: 'transferUpeg',
+      args: [to as `0x${string}`, upeg.id],
+    })
+  }
+
+  if (isSuccess) {
+    return (
+      <div style={s.sendPanel}>
+        <div style={{ fontSize: 36, textAlign: 'center' as const }}>✅</div>
+        <div style={{ fontSize: 15, fontWeight: 'bold', textAlign: 'center' as const }}>CCat #{upeg.id.toString()} sent!</div>
+        <div style={{ fontSize: 11, color: '#555', textAlign: 'center' as const, wordBreak: 'break-all' as const }}>To: {to}</div>
+        <button style={s.sendConfirmBtn} onClick={onClose}>Done</button>
+      </div>
+    )
+  }
+
+  return (
+    <div style={s.sendPanel}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontSize: 14, fontWeight: 'bold', color: '#ccc' }}>Send CCat</span>
+        <button style={{ background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 18 }} onClick={onClose}>×</button>
+      </div>
+
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+        {meta?.image
+          ? <img src={meta.image} style={{ width: 64, height: 64, borderRadius: 8, border: '1px solid #2a2a3e', objectFit: 'cover' }} />
+          : <div style={{ width: 64, height: 64, borderRadius: 8, background: '#12122a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>🐱</div>
+        }
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 'bold' }}>{meta?.name ?? `CCat #${upeg.id}`}</div>
+          <div style={{ fontSize: 11, color: '#555' }}>UniPeg · ClankerCats</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <label style={{ fontSize: 11, color: '#555', textTransform: 'uppercase' as const, letterSpacing: 1 }}>Recipient Address</label>
+        <input
+          value={to}
+          onChange={e => setTo(e.target.value)}
+          placeholder="0x..."
+          style={s.sendInput}
+          spellCheck={false}
+          autoComplete="off"
+        />
+        {to.length > 0 && !valid && <div style={{ fontSize: 11, color: '#ef4444' }}>Invalid address</div>}
+      </div>
+
+      {!confirmed ? (
+        <button
+          style={{ ...s.sendConfirmBtn, opacity: valid ? 1 : 0.4 }}
+          disabled={!valid}
+          onClick={() => setConfirmed(true)}
+        >
+          Review Send →
+        </button>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ fontSize: 12, color: '#aaa', background: '#0a0a14', border: '1px solid #2a2a3e', borderRadius: 8, padding: '10px 12px' }}>
+            <div style={{ color: '#ef4444', fontWeight: 'bold', marginBottom: 4 }}>⚠️ This cannot be undone</div>
+            Sending <strong style={{ color: '#ccc' }}>{meta?.name ?? `CCat #${upeg.id}`}</strong> to<br />
+            <span style={{ fontSize: 10, color: '#555', wordBreak: 'break-all' as const }}>{to}</span>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button style={{ ...s.sendConfirmBtn, background: '#1e1e2e', flex: 1 }} onClick={() => setConfirmed(false)}>Cancel</button>
+            <button
+              style={{ ...s.sendConfirmBtn, flex: 2, opacity: isPending || isConfirming ? 0.6 : 1 }}
+              disabled={isPending || isConfirming}
+              onClick={send}
+            >
+              {isPending ? 'Confirm in wallet…' : isConfirming ? 'Sending…' : 'Confirm Send'}
+            </button>
+          </div>
+          {isError && <div style={{ fontSize: 11, color: '#ef4444' }}>{error?.message?.slice(0, 80)}</div>}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function CatDetail({ upeg, onBack }: { upeg: Upeg; onBack: () => void }) {
+  const [showSend, setShowSend] = useState(false)
   const { data: uri } = useReadContract({
     address: RENDERER, abi: RENDERER_ABI, functionName: 'tokenURI',
     args: [upeg.id, upeg.seed],
@@ -167,8 +270,13 @@ function CatDetail({ upeg, onBack }: { upeg: Upeg; onBack: () => void }) {
       )}
       <TamagotchiPanel catId={upeg.id.toString()} />
 
+      {showSend && <SendPanel upeg={upeg} meta={meta} onClose={() => setShowSend(false)} />}
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <button style={s.shareBtn} onClick={share}>Cast this CCat 🐱</button>
+        <button style={s.sendBtn} onClick={() => setShowSend(v => !v)}>
+          {showSend ? '✕ Cancel Send' : '📤 Send CCat'}
+        </button>
         <button style={s.explorerBtn} onClick={viewOnSite}>clankercats.com</button>
       </div>
     </div>
@@ -291,7 +399,11 @@ const s: Record<string, React.CSSProperties> = {
   traitKey:     { fontSize: 10, color: '#555', textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 3 },
   traitVal:     { fontSize: 13, color: '#ccc', fontWeight: 'bold' },
   shareBtn:     { padding: 14, background: '#7c3aed', color: 'white', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 'bold' },
+  sendBtn:      { padding: 12, background: 'transparent', color: '#ccc', border: '1px solid #3a3a4e', borderRadius: 10, cursor: 'pointer', fontSize: 13 },
   explorerBtn:  { padding: 12, background: 'transparent', color: '#555', border: '1px solid #2a2a3e', borderRadius: 10, cursor: 'pointer', fontSize: 13 },
+  sendPanel:    { display: 'flex', flexDirection: 'column', gap: 14, background: '#0a0a14', border: '1px solid #2a2a3e', borderRadius: 12, padding: '16px' },
+  sendInput:    { background: '#12122a', border: '1px solid #2a2a3e', borderRadius: 8, padding: '10px 12px', color: 'white', fontSize: 13, fontFamily: 'monospace', width: '100%', boxSizing: 'border-box' as const, outline: 'none' },
+  sendConfirmBtn: { padding: '12px 0', background: '#7c3aed', color: 'white', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 'bold', width: '100%' },
   back:         { background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 13, padding: '0 0 4px 0', textAlign: 'left' as const },
   tamaPanel:    { display: 'flex', flexDirection: 'column', gap: 12, background: '#0a0a14', border: '1px solid #1a1a2e', borderRadius: 12, padding: '14px 16px' },
   tamaMessage:  { fontSize: 13, color: '#aaa', fontStyle: 'italic', lineHeight: 1.5 },
