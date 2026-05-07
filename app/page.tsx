@@ -231,7 +231,10 @@ export default function Home() {
           <div style={s.logo}>ClankerCats</div>
           {count > 0 && <div style={s.supply}>{count} cat{count !== 1 ? 's' : ''}</div>}
         </div>
-        {address && <div style={s.addr}>{address.slice(0,6)}…{address.slice(-4)}</div>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <a href="/game" style={s.gameLink}>🎮 Idle</a>
+          {address && <div style={s.addr}>{address.slice(0,6)}…{address.slice(-4)}</div>}
+        </div>
       </div>
 
       {!isConnected ? (
@@ -294,6 +297,7 @@ const s: Record<string, React.CSSProperties> = {
   tamaMessage:  { fontSize: 13, color: '#aaa', fontStyle: 'italic', lineHeight: 1.5 },
   tamaActions:  { display: 'flex', gap: 8 },
   tamaBtn:      { flex: 1, padding: '10px 0', background: '#1e1e2e', border: '1px solid #2a2a3e', borderRadius: 10, color: 'white', cursor: 'pointer', fontSize: 13 },
+  gameLink:     { fontSize: 12, color: '#7c3aed', textDecoration: 'none', background: '#1a1a2e', padding: '4px 10px', borderRadius: 20 },
   connectState: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, paddingTop: 24 },
   emptyState:   { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, paddingTop: 24, textAlign: 'center' as const },
   heroCat:      { fontSize: 72, lineHeight: 1 },
