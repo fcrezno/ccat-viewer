@@ -625,7 +625,7 @@ export default function GamePage() {
 }
 
 const g: Record<string, React.CSSProperties> = {
-  root:        { padding: '12px 14px 40px', maxWidth: 480, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 12, minHeight: '100vh', background: '#0a0a14', color: 'white', fontFamily: 'monospace' },
+  root:        { padding: '12px 14px 40px', maxWidth: 480, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 12, minHeight: '100vh', background: '#0a0a14', color: 'white', fontFamily: "'MyFont', monospace" },
   header:      { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   backLink:    { fontSize: 12, color: '#555', textDecoration: 'none' },
   title:       { fontSize: 16, fontWeight: 'bold', color: '#7c3aed' },

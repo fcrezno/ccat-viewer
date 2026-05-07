@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: 'MyFont';
+  src: url('/fonts/MyFont-Regular.woff2') format('woff2'),
+       url('/fonts/MyFont-Regular.ttf') format('truetype'),
+       url('/fonts/MyFont-Regular.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
