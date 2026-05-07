@@ -65,16 +65,15 @@ function MiniGame({ onWin, onClose }: { onWin: () => void; onClose: () => void }
   const [fishIdx, setFishIdx] = useState<Set<number>>(new Set())
 
   function startGame() {
-    const positions = Array.from({ length: MINI_GRID_SIZE }, (_, i) => i)
-    const shuffled  = positions.sort(() => Math.random() - 0.5)
-    const fish      = new Set(shuffled.slice(0, FISH_COUNT))
-    const items     = positions.map(i =>
+    const fish = new Set<number>()
+    while (fish.size < FISH_COUNT) fish.add(Math.floor(Math.random() * MINI_GRID_SIZE))
+    const items = Array.from({ length: MINI_GRID_SIZE }, (_, i) =>
       fish.has(i) ? '🐟' : DECOYS[Math.floor(Math.random() * DECOYS.length)]
     )
     setFishIdx(fish)
     setGrid(items)
     setTapped(new Set())
-    setTimeLeft(5)
+    setTimeLeft(8)
     setPhase('play')
   }
 
@@ -108,7 +107,7 @@ function MiniGame({ onWin, onClose }: { onWin: () => void; onClose: () => void }
         {phase === 'play' && <>
           <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
             <span style={{ fontSize: 13, color: '#555' }}>Tap the 🐟 fish!</span>
-            <span style={{ fontSize: 20, fontWeight: 'bold', color: timeLeft <= 2 ? '#ef4444' : '#7c3aed' }}>⏱ {timeLeft}s</span>
+            <span style={{ fontSize: 20, fontWeight: 'bold', color: timeLeft <= 2 ? '#ef4444' : '#111' }}>⏱ {timeLeft}s</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, width: '100%' }}>
             {grid.map((emoji, i) => (
