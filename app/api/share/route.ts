@@ -30,6 +30,8 @@ export async function GET(req: NextRequest) {
   <meta property="og:title" content="ClankerCat #${id}" />
   <meta property="og:description" content="A unique on-chain ClankerCat · clankercats.com" />
   <meta property="og:image" content="${imageUrl}" />
+  <meta property="og:image:width" content="800" />
+  <meta property="og:image:height" content="800" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:image" content="${imageUrl}" />
   <meta name="fc:frame" content='${frame}' />
