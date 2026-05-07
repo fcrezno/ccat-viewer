@@ -517,10 +517,18 @@ const MINI_GAME_ABI = [
 export default function GamePage() {
   const [state, setState]     = useState<GameState | null>(null)
   const [showMini, setShowMini] = useState(false)
+  const [debug, setDebug]     = useState(false)
+  const [titleTaps, setTitleTaps] = useState(0)
   const stateRef              = useRef<GameState | null>(null)
   const lastTickRef           = useRef<number>(Date.now())
   const nextMiniAt            = useRef<number>(Date.now() + (10 + Math.random() * 20) * 60_000)
   const { address }           = useAccount()
+
+  function tapTitle() {
+    const next = titleTaps + 1
+    setTitleTaps(next)
+    if (next >= 5) { setDebug(d => !d); setTitleTaps(0) }
+  }
 
   const { writeContract: claimMini } = useWriteContract()
 
@@ -574,7 +582,7 @@ export default function GamePage() {
       {showMini && <MiniGame onWin={onMiniWin} onClose={() => setShowMini(false)} />}
       <div style={g.header}>
         <a href="/" style={g.backLink}>← Cats</a>
-        <span style={g.title}>🐱 Idle Clank</span>
+        <span style={g.title} onClick={tapTitle}>🐱 Idle Clank</span>
         <span style={{ fontSize: 11, color: '#555' }}>Zone {state.zone + 1}</span>
       </div>
 
@@ -591,6 +599,23 @@ export default function GamePage() {
       <BuildingsPanel state={state} onBuy={id => update(s => buyBuilding(s, id))} />
       <UpgradesPanel  state={state} onBuy={id => update(s => buyUpgrade(s, id as any))} />
       <AutoRunPanel />
+
+      {debug && (
+        <div style={{ background: '#0d0d1a', border: '1px solid #ef4444', borderRadius: 10, padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ fontSize: 11, color: '#ef4444', fontWeight: 'bold' }}>🛠 DEBUG MODE</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8 }}>
+            <button style={g.dbgBtn} onClick={() => setShowMini(true)}>🎮 Trigger Mini-Game</button>
+            <button style={g.dbgBtn} onClick={() => { nextMiniAt.current = Date.now() }}>⏱ Reset Timer</button>
+            <button style={g.dbgBtn} onClick={() => update(s => ({ ...s, resources: { fish: s.resources.fish + 1000, moondust: s.resources.moondust + 500, clank: s.resources.clank + 200 } }))}>+Resources</button>
+            <button style={g.dbgBtn} onClick={() => update(s => ({ ...s, kills: s.kills + 25 }))}>+25 Kills</button>
+            <button style={g.dbgBtn} onClick={() => update(s => ({ ...s, cats: Math.min(s.cats + 1, s.maxCats) }))}>+Cat</button>
+            <button style={g.dbgBtn} onClick={() => { localStorage.removeItem('ccat-idle'); window.location.reload() }}>🗑 Reset Save</button>
+          </div>
+          <div style={{ fontSize: 10, color: '#333' }}>
+            kills: {state.kills} · zone: {state.zone} · next mini: {Math.max(0, Math.round((nextMiniAt.current - Date.now()) / 1000))}s
+          </div>
+        </div>
+      )}
 
       <div style={{ fontSize: 10, color: '#222', textAlign: 'center' as const, paddingTop: 8 }}>
         Auto-saves every 5s · Offline progress up to 30s
@@ -614,4 +639,5 @@ const g: Record<string, React.CSSProperties> = {
   actionBtn:   { padding: '10px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 'bold', color: 'white' },
   hpTrack:     { background: '#1a1a2e', borderRadius: 4, height: 6, overflow: 'hidden' },
   hpFill:      { height: '100%', borderRadius: 4, transition: 'width 0.25s linear' },
+  dbgBtn:      { padding: '6px 10px', background: '#1a1a2e', border: '1px solid #ef4444', borderRadius: 8, color: '#ef4444', cursor: 'pointer', fontSize: 11 },
 }
