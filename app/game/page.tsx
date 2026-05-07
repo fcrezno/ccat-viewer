@@ -322,7 +322,7 @@ function CombatPanel({ state, onToggle }: { state: GameState; onToggle: () => vo
       />
 
       {/* Enemy arena */}
-      <div style={{ background: '#0d0d1a', borderRadius: 10, overflow: 'hidden' }}>
+      <div style={{ background: 'white', border: '1.5px solid #111', borderRadius: 10, overflow: 'hidden' }}>
         {enemy ? (
           <>
             <div style={{ position: 'relative' }}>
@@ -368,7 +368,7 @@ function CombatPanel({ state, onToggle }: { state: GameState; onToggle: () => vo
             <span>{fmt(catHealth)}/{fmt(catMaxHealth)}</span>
           </div>
           <div style={g.hpTrack}>
-            <div style={{ ...g.hpFill, width: `${catHpPct}%`, background: '#111', color: 'white' }} />
+            <div style={{ ...g.hpFill, width: `${catHpPct}%`, background: '#111' }} />
           </div>
         </div>
       )}
