@@ -337,7 +337,7 @@ function CombatPanel({ state, onToggle, onHeal }: { state: GameState; onToggle: 
       />
 
       {/* Enemy arena */}
-      <div style={{ background: 'white', border: '1.5px solid #111', borderRadius: 10, overflow: 'hidden' }}>
+      <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: 14, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
         {enemy ? (
           <>
             <div style={{ position: 'relative' }}>
@@ -619,7 +619,7 @@ function BottomNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
     { id: 'token', label: 'Token', svg: 'M13 10V3L4 14h7v7l9-11h-7z' },
   ]
   return (
-    <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'white', borderTop: '1.5px solid #111', display: 'flex', zIndex: 40, maxWidth: 480, margin: '0 auto' }}>
+    <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'white', borderTop: '1px solid #e5e5e0', display: 'flex', zIndex: 40, maxWidth: 480, margin: '0 auto', boxShadow: '0 -1px 8px rgba(0,0,0,0.06)' }}>
       {items.map(item => (
         <button key={item.id} onClick={() => setTab(item.id)}
           style={{ flex: 1, padding: '8px 0 10px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
@@ -799,7 +799,8 @@ export default function GamePage() {
             setTimeout(() => setClankPops(p => p.filter(x => x.id !== id)), 700)
           }}
         >
-          <div style={{ fontSize: 20, fontWeight: 'bold', color: '#111', letterSpacing: 2 }}>CLANK!</div>
+          <div style={{ fontSize: 22, fontWeight: 'bold', color: '#111', letterSpacing: 3 }}>CLANK!</div>
+          <div style={{ fontSize: 10, color: '#999', letterSpacing: 1 }}>tap to earn ⚡</div>
         </button>
         <CombatPanel state={state} onToggle={toggleFight} onHeal={() => update(s => s.resources.fish >= 10 ? { ...s, resources: { ...s.resources, fish: s.resources.fish - 10 }, catHealth: s.catMaxHealth } : s)} />
         <KillFeed killLog={state.killLog} />
@@ -835,19 +836,19 @@ export default function GamePage() {
 }
 
 const g: Record<string, React.CSSProperties> = {
-  root:        { padding: '12px 14px 80px', maxWidth: 480, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 12, minHeight: '100vh', background: '#f5f5f0', color: '#111', fontFamily: "'MyFont', monospace" },
-  header:      { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  backLink:    { fontSize: 12, color: '#666', textDecoration: 'none' },
-  title:       { fontSize: 16, fontWeight: 'bold', color: '#111', cursor: 'pointer' },
-  resBar:      { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 6 },
-  resItem:     { display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'white', border: '1.5px solid #111', borderRadius: 8, padding: '6px 4px', gap: 2, fontSize: 12 },
-  resEmoji:    { fontSize: 16 },
-  clickBtn:    { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '14px', background: 'white', border: '1.5px solid #111', borderRadius: 12, cursor: 'pointer', gap: 4 },
-  panel:       { background: 'white', border: '1.5px solid #111', borderRadius: 12, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 },
-  panelHeader: { fontSize: 13, fontWeight: 'bold', color: '#111', display: 'flex', justifyContent: 'space-between' },
-  buildingRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f5f5f0', border: '1.5px solid #111', borderRadius: 8, padding: '10px 12px', cursor: 'pointer', width: '100%', color: '#111' },
-  actionBtn:   { padding: '10px', borderRadius: 10, border: '1.5px solid #111', cursor: 'pointer', fontSize: 13, fontWeight: 'bold', color: 'white', background: '#111' },
-  hpTrack:     { background: '#ddd', borderRadius: 4, height: 6, overflow: 'hidden' },
-  hpFill:      { height: '100%', borderRadius: 4 },
+  root:        { padding: '14px 16px 88px', maxWidth: 480, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 10, minHeight: '100vh', background: '#f0efe9', color: '#111', fontFamily: "'MyFont', monospace" },
+  header:      { display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 2 },
+  backLink:    { fontSize: 12, color: '#888', textDecoration: 'none', letterSpacing: 0.3 },
+  title:       { fontSize: 17, fontWeight: 'bold', color: '#111', cursor: 'pointer', letterSpacing: 0.5 },
+  resBar:      { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 7 },
+  resItem:     { display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'white', borderRadius: 12, padding: '8px 4px', gap: 2, fontSize: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.07)', border: '1px solid #e5e5e0' },
+  resEmoji:    { fontSize: 18 },
+  clickBtn:    { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '18px 14px', background: 'white', border: '1px solid #e5e5e0', borderRadius: 16, cursor: 'pointer', gap: 4, boxShadow: '0 2px 6px rgba(0,0,0,0.08)' },
+  panel:       { background: 'white', border: '1px solid #e5e5e0', borderRadius: 16, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 11, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' },
+  panelHeader: { fontSize: 13, fontWeight: 'bold', color: '#111', display: 'flex', justifyContent: 'space-between', letterSpacing: 0.3 },
+  buildingRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f7f6f1', border: '1px solid #e5e5e0', borderRadius: 10, padding: '11px 13px', cursor: 'pointer', width: '100%', color: '#111' },
+  actionBtn:   { padding: '12px', borderRadius: 12, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 'bold', color: 'white', background: '#111', letterSpacing: 0.5 },
+  hpTrack:     { background: '#ebebeb', borderRadius: 99, height: 7, overflow: 'hidden' },
+  hpFill:      { height: '100%', borderRadius: 99 },
   dbgBtn:      { padding: '6px 10px', background: 'white', border: '1.5px solid #ef4444', borderRadius: 8, color: '#ef4444', cursor: 'pointer', fontSize: 11 },
 }
