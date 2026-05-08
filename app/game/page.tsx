@@ -532,6 +532,72 @@ function KillFeed({ killLog }: { killLog: string[] }) {
   )
 }
 
+type ShareMoment = { type: 'zone'; zone: number; zoneName: string; kills: number } | { type: 'boss'; name: string; kills: number; zone: number }
+
+function ShareMomentModal({ moment, state, onClose }: { moment: ShareMoment; state: GameState; onClose: () => void }) {
+  const score   = state.kills * 10 + state.zone * 100
+  const heading = moment.type === 'zone'
+    ? `🎉 Zone ${moment.zone + 1}: ${moment.zoneName} unlocked!`
+    : `💀 BOSS defeated!`
+  const castText = `Zone ${state.zone + 1}: ${ZONE_NAMES[Math.min(state.zone, ZONE_NAMES.length - 1)]} · ${state.kills} kills · ${score}pts #IdleClank $CLKCAT\nCome play 👉 https://ccat-viewer.vercel.app/game`
+  const url = `https://warpcast.com/~/compose?text=${encodeURIComponent(castText)}`
+
+  useEffect(() => {
+    const t = setTimeout(onClose, 10_000)
+    return () => clearTimeout(t)
+  }, [])
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{ background: 'white', border: '2.5px solid #111', borderRadius: 16, padding: 24, width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ fontSize: 22, fontWeight: 'bold', color: '#111', textAlign: 'center' as const }}>{heading}</div>
+        <textarea
+          readOnly
+          value={castText}
+          style={{ fontSize: 12, color: '#333', background: '#f5f5f0', border: '1.5px solid #111', borderRadius: 8, padding: '8px 10px', resize: 'none', height: 80, fontFamily: "'MyFont', monospace" }}
+        />
+        <button style={{ ...g.actionBtn, background: '#111', color: 'white' }} onClick={() => { sdk.actions.openUrl(url); onClose() }}>
+          ↗ Cast to Warpcast
+        </button>
+        <button style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: 12, textAlign: 'center' as const }} onClick={onClose}>skip</button>
+      </div>
+    </div>
+  )
+}
+
+type LeaderEntry = { fid: number; username: string; pfp: string; zone: number; kills: number; score: number; castHash: string }
+
+function LeaderboardPanel() {
+  const [entries, setEntries] = useState<LeaderEntry[] | null>(null)
+
+  useEffect(() => {
+    fetch('/api/leaderboard').then(r => r.json()).then(setEntries).catch(() => setEntries([]))
+  }, [])
+
+  return (
+    <div style={g.panel}>
+      <div style={g.panelHeader}>🏆 Season 1 Leaderboard</div>
+      {entries === null && <div style={{ fontSize: 12, color: '#666', textAlign: 'center' as const }}>Loading…</div>}
+      {entries?.length === 0 && (
+        <div style={{ fontSize: 12, color: '#666', textAlign: 'center' as const }}>
+          No entries yet — be the first to cast your score with #IdleClank!
+        </div>
+      )}
+      {entries?.map((e, i) => (
+        <div key={e.fid} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: i < entries.length - 1 ? '1px solid #eee' : 'none' }}>
+          <span style={{ fontSize: 12, color: '#aaa', width: 18, flexShrink: 0 }}>#{i + 1}</span>
+          {e.pfp && <img src={e.pfp} alt="" style={{ width: 28, height: 28, borderRadius: '50%', border: '1px solid #111', flexShrink: 0 }} />}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 'bold', color: '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>@{e.username}</div>
+            <div style={{ fontSize: 10, color: '#666' }}>Zone {e.zone} · {e.kills} kills</div>
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 'bold', color: '#111', flexShrink: 0 }}>{e.score}pts</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 type Tab = 'home' | 'rules' | 'share' | 'token'
 
 function BottomNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
@@ -613,6 +679,9 @@ export default function GamePage() {
   const [clankPops, setClankPops] = useState<{ id: number; x: number; y: number }[]>([])
   const [offlineMsg, setOfflineMsg] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('home')
+  const [shareMoment, setShareMoment] = useState<ShareMoment | null>(null)
+  const prevZoneRef    = useRef(0)
+  const prevKillLogRef = useRef<string[]>([])
   const stateRef              = useRef<GameState | null>(null)
   const lastTickRef           = useRef<number>(Date.now())
   const nextMiniAt            = useRef<number>(Date.now() + (10 + Math.random() * 20) * 60_000)
@@ -644,6 +713,20 @@ export default function GamePage() {
       lastTickRef.current = now
       stateRef.current = tick(stateRef.current!, dt)
       setState({ ...stateRef.current })
+
+      // Milestone: zone advance
+      if (stateRef.current.zone > prevZoneRef.current) {
+        const z = stateRef.current.zone
+        setShareMoment({ type: 'zone', zone: z, zoneName: ZONE_NAMES[Math.min(z, ZONE_NAMES.length - 1)], kills: stateRef.current.kills })
+        prevZoneRef.current = z
+      }
+      // Milestone: boss kill
+      const newLog = stateRef.current.killLog
+      if (newLog[0]?.startsWith('⚠️') && newLog[0] !== prevKillLogRef.current[0]) {
+        setShareMoment({ type: 'boss', name: newLog[0], kills: stateRef.current.kills, zone: stateRef.current.zone })
+      }
+      prevKillLogRef.current = newLog
+
       // Trigger mini-game on a random 10-30 min timer
       if (Date.now() >= nextMiniAt.current) {
         nextMiniAt.current = Date.now() + (10 + Math.random() * 20) * 60_000
@@ -681,6 +764,7 @@ export default function GamePage() {
   return (
     <div style={g.root}>
       {showMini && <MiniGame onWin={onMiniWin} onClose={() => setShowMini(false)} />}
+      {shareMoment && <ShareMomentModal moment={shareMoment} state={state} onClose={() => setShareMoment(null)} />}
 
       {/* Always-visible header + status */}
       <div style={g.header}>
@@ -737,6 +821,7 @@ export default function GamePage() {
       {tab === 'share' && <SharePanel state={state} />}
       {tab === 'token' && <>
         <PrizePoolBanner />
+        <LeaderboardPanel />
         <AutoRunPanel />
       </>}
 
