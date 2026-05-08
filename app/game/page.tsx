@@ -307,20 +307,14 @@ function CombatPanel({ state, onToggle, onHeal }: { state: GameState; onToggle: 
   const catHpPct  = catMaxHealth > 0 ? (catHealth / catMaxHealth) * 100 : 100
   const canHeal   = catHealth < catMaxHealth && state.resources.fish >= 10
 
-  const prevHp = useRef(enemy?.hp ?? 0)
   useEffect(() => {
-    if (!enemy) { prevHp.current = 0; return }
-    if (enemy.hp < prevHp.current) {
-      const delta = Math.round(prevHp.current - enemy.hp)
-      if (delta <= 0) { prevHp.current = enemy.hp; return }
-      setFlash(true)
-      setTimeout(() => setFlash(false), 200)
-      const id = ++dmgId.current
-      setDamages(d => [...d, { id, val: delta }])
-      setTimeout(() => setDamages(d => d.filter(x => x.id !== id)), 900)
-    }
-    prevHp.current = enemy.hp
-  }, [enemy?.hp])
+    if (!state.lastHitDamage) return
+    setFlash(true)
+    setTimeout(() => setFlash(false), 200)
+    const id = ++dmgId.current
+    setDamages(d => [...d, { id, val: state.lastHitDamage }])
+    setTimeout(() => setDamages(d => d.filter(x => x.id !== id)), 800)
+  }, [state.hitTick])
 
   return (
     <div style={g.panel}>

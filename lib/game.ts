@@ -30,8 +30,10 @@ export type GameState = {
   kills:       number
   portals:     number
   killLog:     string[]
-  attackClock: number
-  lastTick:    number
+  attackClock:    number
+  lastHitDamage:  number
+  hitTick:        number
+  lastTick:       number
 }
 
 export const ZONE_NAMES = [
@@ -109,8 +111,10 @@ export function defaultState(): GameState {
     kills:        0,
     portals:      0,
     killLog:      [],
-    attackClock:  0,
-    lastTick:     Date.now(),
+    attackClock:   0,
+    lastHitDamage: 0,
+    hitTick:       0,
+    lastTick:      Date.now(),
   }
 }
 
@@ -185,6 +189,7 @@ export function tick(state: GameState, dtMs: number): GameState {
 
   // Combat — discrete hits every 1.5s
   const ATTACK_INTERVAL = 1.5
+  s.lastHitDamage = 0
   if (s.fighting && s.enemy && s.cats > 0) {
     s.attackClock += dt
     if (s.attackClock >= ATTACK_INTERVAL) {
@@ -192,6 +197,8 @@ export function tick(state: GameState, dtMs: number): GameState {
 
       const catAtk   = s.catAttack * s.cats * (1 + s.upgrades.claws * 0.5) * ATTACK_INTERVAL
       s.enemy.hp    -= catAtk
+      s.lastHitDamage = Math.round(catAtk)
+      s.hitTick       = (s.hitTick + 1) % 10000
 
       const enemyAtk = s.enemy.attack * ATTACK_INTERVAL
       s.catHealth   -= enemyAtk
