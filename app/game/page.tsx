@@ -305,6 +305,7 @@ function CombatPanel({ state, onToggle, onHeal }: { state: GameState; onToggle: 
   const enemyImg  = enemy ? `/sprites/enemies/${enemy.sprite ?? 'enemy'}.png` : null
   const hpPct     = enemy ? Math.max(0, (enemy.hp / enemy.maxHp) * 100) : 0
   const catHpPct  = catMaxHealth > 0 ? (catHealth / catMaxHealth) * 100 : 100
+  const canHeal   = catHealth < catMaxHealth && state.resources.fish >= 10
 
   const prevHp = useRef(enemy?.hp ?? 0)
   useEffect(() => {
@@ -378,13 +379,11 @@ function CombatPanel({ state, onToggle, onHeal }: { state: GameState; onToggle: 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, color: '#666' }}>
             <span>🐱 Cat HP {fmt(catHealth)}/{fmt(catMaxHealth)}</span>
-            {catHealth < catMaxHealth && (
-              <button
-                style={{ fontSize: 11, padding: '2px 8px', border: '1.5px solid #111', borderRadius: 6, background: state.resources.fish >= 10 ? 'white' : '#eee', color: '#111', cursor: state.resources.fish >= 10 ? 'pointer' : 'default', opacity: state.resources.fish >= 10 ? 1 : 0.4 }}
-                disabled={state.resources.fish < 10}
-                onClick={() => onHeal()}
-              >🩹 Heal (10🐟)</button>
-            )}
+            <button
+              style={{ fontSize: 11, padding: '2px 8px', border: '1.5px solid #111', borderRadius: 6, background: 'white', color: '#111', cursor: canHeal ? 'pointer' : 'default', opacity: canHeal ? 1 : 0.35 }}
+              disabled={!canHeal}
+              onClick={() => onHeal()}
+            >🩹 Heal (10🐟)</button>
           </div>
           <div style={g.hpTrack}>
             <div style={{ ...g.hpFill, width: `${catHpPct}%`, background: '#111' }} />
