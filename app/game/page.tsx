@@ -543,9 +543,11 @@ export default function GamePage() {
   const [showMini, setShowMini] = useState(false)
   const [debug, setDebug]     = useState(false)
   const [titleTaps, setTitleTaps] = useState(0)
+  const [clankPops, setClankPops] = useState<{ id: number; x: number; y: number }[]>([])
   const stateRef              = useRef<GameState | null>(null)
   const lastTickRef           = useRef<number>(Date.now())
   const nextMiniAt            = useRef<number>(Date.now() + (10 + Math.random() * 20) * 60_000)
+  const popIdRef              = useRef(0)
   const { address }           = useAccount()
 
   function tapTitle() {
@@ -621,10 +623,20 @@ export default function GamePage() {
       <PrizePoolBanner />
       <ResourceBar state={state} />
 
-      {/* Click to fish */}
-      <button style={g.clickBtn} onClick={() => update(s => ({ ...s, resources: { ...s.resources, fish: s.resources.fish + 1 + s.upgrades.speed } }))}>
-        <div style={{ fontSize: 36 }}>🐟</div>
-        <div style={{ fontSize: 11, color: '#666' }}>tap to fish</div>
+      {clankPops.map(p => (
+        <div key={p.id} style={{ position: 'fixed', left: p.x, top: p.y, transform: 'translate(-50%, -50%)', pointerEvents: 'none', fontWeight: 'bold', fontSize: 15, color: '#111', animation: 'floatDmg 0.7s ease-out forwards', fontFamily: "'MyFont', monospace", zIndex: 50 }}>+1</div>
+      ))}
+
+      <button
+        style={g.clickBtn}
+        onClick={e => {
+          update(s => ({ ...s, resources: { ...s.resources, fish: s.resources.fish + 1 + s.upgrades.speed } }))
+          const id = ++popIdRef.current
+          setClankPops(p => [...p, { id, x: e.clientX, y: e.clientY }])
+          setTimeout(() => setClankPops(p => p.filter(x => x.id !== id)), 700)
+        }}
+      >
+        <div style={{ fontSize: 20, fontWeight: 'bold', color: '#111', letterSpacing: 2 }}>CLANK!</div>
       </button>
 
       <CombatPanel  state={state} onToggle={toggleFight} />
