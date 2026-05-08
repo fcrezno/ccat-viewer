@@ -642,7 +642,7 @@ export default function GamePage() {
       <CombatPanel  state={state} onToggle={toggleFight} />
       <KillFeed killLog={state.killLog} />
       <BuildingsPanel state={state} onBuy={id => update(s => buyBuilding(s, id))} />
-      <UpgradesPanel  state={state} onBuy={id => update(s => buyUpgrade(s, id as any))} />
+      {state.zone >= 1 && <UpgradesPanel state={state} onBuy={id => update(s => buyUpgrade(s, id as any))} />}
       <AutoRunPanel />
 
       {debug && (
