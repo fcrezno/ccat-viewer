@@ -271,6 +271,11 @@ function ResourceBar({ state }: { state: GameState }) {
   return (
     <div style={g.resBar}>
       <div style={g.resItem}>
+        <span style={g.resEmoji}>⚡</span>
+        <span>{fmt(clank)}</span>
+        <RateLabel rate={rates.clank} />
+      </div>
+      <div style={g.resItem}>
         <span style={g.resEmoji}>🐟</span>
         <span>{fmt(fish)}</span>
         <RateLabel rate={rates.fish} />
@@ -279,11 +284,6 @@ function ResourceBar({ state }: { state: GameState }) {
         <span style={g.resEmoji}>🌙</span>
         <span>{fmt(moondust)}</span>
         <RateLabel rate={rates.moondust} />
-      </div>
-      <div style={g.resItem}>
-        <span style={g.resEmoji}>⚡</span>
-        <span>{fmt(clank)}</span>
-        <RateLabel rate={rates.clank} />
       </div>
       <div style={g.resItem}>
         <span style={g.resEmoji}>🐱</span>
@@ -295,7 +295,7 @@ function ResourceBar({ state }: { state: GameState }) {
 
 type DmgFloat = { id: number; val: number }
 
-function CombatPanel({ state, onToggle }: { state: GameState; onToggle: () => void }) {
+function CombatPanel({ state, onToggle, onHeal }: { state: GameState; onToggle: () => void; onHeal: () => void }) {
   const { enemy, zone, kills, cats, catHealth, catMaxHealth, fighting } = state
   const [flash, setFlash]     = useState(false)
   const [damages, setDamages] = useState<DmgFloat[]>([])
@@ -354,7 +354,7 @@ function CombatPanel({ state, onToggle }: { state: GameState; onToggle: () => vo
             </div>
             <div style={{ padding: '10px 14px 12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#333', marginBottom: 6 }}>
-                <span style={{ fontWeight: 'bold' }}>{enemy.name}</span>
+                <span style={{ fontWeight: 'bold', color: enemy.isBoss ? '#ef4444' : '#333' }}>{enemy.name}</span>
                 <span style={{ color: '#ef4444' }}>{fmt(Math.max(0, enemy.hp))}/{fmt(enemy.maxHp)} HP</span>
               </div>
               <div style={g.hpTrack}>
@@ -376,9 +376,15 @@ function CombatPanel({ state, onToggle }: { state: GameState; onToggle: () => vo
 
       {cats > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#666' }}>
-            <span>🐱 Cat HP</span>
-            <span>{fmt(catHealth)}/{fmt(catMaxHealth)}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, color: '#666' }}>
+            <span>🐱 Cat HP {fmt(catHealth)}/{fmt(catMaxHealth)}</span>
+            {catHealth < catMaxHealth && (
+              <button
+                style={{ fontSize: 11, padding: '2px 8px', border: '1.5px solid #111', borderRadius: 6, background: state.resources.fish >= 10 ? 'white' : '#eee', color: '#111', cursor: state.resources.fish >= 10 ? 'pointer' : 'default', opacity: state.resources.fish >= 10 ? 1 : 0.4 }}
+                disabled={state.resources.fish < 10}
+                onClick={() => onHeal()}
+              >🩹 Heal (10🐟)</button>
+            )}
           </div>
           <div style={g.hpTrack}>
             <div style={{ ...g.hpFill, width: `${catHpPct}%`, background: '#111' }} />
@@ -544,6 +550,7 @@ export default function GamePage() {
   const [debug, setDebug]     = useState(false)
   const [titleTaps, setTitleTaps] = useState(0)
   const [clankPops, setClankPops] = useState<{ id: number; x: number; y: number }[]>([])
+  const [offlineMsg, setOfflineMsg] = useState<string | null>(null)
   const stateRef              = useRef<GameState | null>(null)
   const lastTickRef           = useRef<number>(Date.now())
   const nextMiniAt            = useRef<number>(Date.now() + (10 + Math.random() * 20) * 60_000)
@@ -562,6 +569,12 @@ export default function GamePage() {
     const s = loadGame()
     setState(s)
     stateRef.current = s
+    const awayMs = Date.now() - s.lastTick
+    if (awayMs > 60_000) {
+      const mins = Math.floor(awayMs / 60_000)
+      setOfflineMsg(`Welcome back! ${mins}m of progress earned.`)
+      setTimeout(() => setOfflineMsg(null), 4000)
+    }
 
     const interval = setInterval(() => {
       const now = Date.now()
@@ -621,6 +634,11 @@ export default function GamePage() {
       </div>
 
       <PrizePoolBanner />
+      {offlineMsg && (
+        <div style={{ background: '#111', color: 'white', borderRadius: 8, padding: '8px 14px', fontSize: 12, textAlign: 'center' as const }}>
+          ⏰ {offlineMsg}
+        </div>
+      )}
       <ResourceBar state={state} />
 
       {clankPops.map(p => (
@@ -630,7 +648,7 @@ export default function GamePage() {
       <button
         style={g.clickBtn}
         onClick={e => {
-          update(s => ({ ...s, resources: { ...s.resources, fish: s.resources.fish + 1 + s.upgrades.speed } }))
+          update(s => ({ ...s, resources: { ...s.resources, clank: s.resources.clank + 1 + s.upgrades.speed } }))
           const id = ++popIdRef.current
           setClankPops(p => [...p, { id, x: e.clientX, y: e.clientY }])
           setTimeout(() => setClankPops(p => p.filter(x => x.id !== id)), 700)
@@ -639,7 +657,7 @@ export default function GamePage() {
         <div style={{ fontSize: 20, fontWeight: 'bold', color: '#111', letterSpacing: 2 }}>CLANK!</div>
       </button>
 
-      <CombatPanel  state={state} onToggle={toggleFight} />
+      <CombatPanel  state={state} onToggle={toggleFight} onHeal={() => update(s => s.resources.fish >= 10 ? { ...s, resources: { ...s.resources, fish: s.resources.fish - 10 }, catHealth: s.catMaxHealth } : s)} />
       <KillFeed killLog={state.killLog} />
       <BuildingsPanel state={state} onBuy={id => update(s => buyBuilding(s, id))} />
       {state.zone >= 1 && <UpgradesPanel state={state} onBuy={id => update(s => buyUpgrade(s, id as any))} />}

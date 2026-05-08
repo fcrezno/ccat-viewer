@@ -13,7 +13,7 @@ export type Building = {
   unlockAt?: Partial<Resources>
 }
 
-export type Enemy = { name: string; emoji: string; hp: number; maxHp: number; attack: number; sprite?: string }
+export type Enemy = { name: string; emoji: string; hp: number; maxHp: number; attack: number; sprite?: string; isBoss?: boolean }
 
 export type GameState = {
   resources:   Resources
@@ -49,36 +49,37 @@ const ENEMY_POOLS: { name: string; emoji: string }[][] = [
 
 const BASE_BUILDINGS: Omit<Building, 'count'>[] = [
   {
-    id: 'fish_tank',  name: 'Fish Tank',  emoji: '🐟', desc: 'Generates fish passively',
-    baseCost: { fish: 10,  moondust: 0,  clank: 0  },
+    id: 'fish_tank',  name: 'The Feed',    emoji: '📡', desc: 'Generates fish from the cast stream',
+    baseCost: { fish: 0,   moondust: 0,  clank: 10 },
     prod:     { fish: 0.35 },
+    unlockAt: { clank: 5 },
   },
   {
-    id: 'cat_trap',   name: 'Cat Trap',   emoji: '🪤', desc: 'Recruit a cat using fish',
+    id: 'cat_trap',   name: 'Cat Recruit', emoji: '🪤', desc: 'Recruit a cat using fish',
     baseCost: { fish: 50,  moondust: 0,  clank: 0  },
     prod:     {},
-    unlockAt: { fish: 20 },
+    unlockAt: { fish: 10 },
   },
   {
-    id: 'moon_base',  name: 'Moon Base',  emoji: '🌙', desc: '+5 max cats, generates MoonDust',
-    baseCost: { fish: 30,  moondust: 0,  clank: 0  },
+    id: 'moon_base',  name: 'The Hub',     emoji: '🌙', desc: '+5 max cats, generates MoonDust',
+    baseCost: { fish: 0,   moondust: 0,  clank: 20 },
     prod:     { moondust: 0.14 },
-    unlockAt: { fish: 30 },
+    unlockAt: { clank: 15 },
   },
   {
-    id: 'clank_mine', name: 'Clank Mine', emoji: '⚡', desc: 'Generates Clank passively',
+    id: 'clank_mine', name: 'Clank Bot',   emoji: '⚡', desc: 'Auto-generates Clank',
     baseCost: { fish: 0,   moondust: 20, clank: 0  },
     prod:     { clank: 0.07 },
     unlockAt: { moondust: 10 },
   },
   {
-    id: 'laser_forge',name: 'Laser Forge',emoji: '🔫', desc: 'Increases cat attack',
+    id: 'laser_forge',name: 'Purr Laser',  emoji: '🔫', desc: 'Boosts cat attack',
     baseCost: { fish: 0,   moondust: 50, clank: 0  },
     prod:     {},
     unlockAt: { moondust: 40 },
   },
   {
-    id: 'shield_gen', name: 'Shield Gen', emoji: '🛡️', desc: 'Increases cat armor',
+    id: 'shield_gen', name: 'Shield Gen',  emoji: '🛡️', desc: 'Boosts cat armor',
     baseCost: { fish: 0,   moondust: 0,  clank: 10 },
     prod:     {},
     unlockAt: { clank: 5 },
@@ -116,9 +117,10 @@ export function loadGame(key = 'ccat-idle'): GameState {
   try {
     const raw = localStorage.getItem(key)
     if (!raw) return defaultState()
-    // Merge saved state with defaults to handle new fields
     const saved = JSON.parse(raw) as GameState
-    const def   = defaultState()
+    // Migration: old economy used fish as base resource — incompatible, reset
+    if (saved.resources.fish > 50 && saved.resources.clank === 0) return defaultState()
+    const def = defaultState()
     return {
       ...def, ...saved,
       buildings: def.buildings.map(b => {
@@ -152,16 +154,18 @@ export function subtract(res: Resources, cost: Resources): Resources {
 }
 
 function spawnEnemy(zone: number, kills: number): Enemy {
-  const pool  = ENEMY_POOLS[Math.min(zone, ENEMY_POOLS.length - 1)]
-  const pick  = pool[kills % pool.length]
-  const hp    = Math.floor(10 * Math.pow(1.3, zone) * (1 + kills * 0.05))
-  const atk   = Math.floor(1  * Math.pow(1.2, zone) * (1 + kills * 0.02))
-  return { ...pick, hp, maxHp: hp, attack: atk }
+  const pool   = ENEMY_POOLS[Math.min(zone, ENEMY_POOLS.length - 1)]
+  const pick   = pool[kills % pool.length]
+  const isBoss = kills % 10 === 9
+  const hp     = Math.floor(10 * Math.pow(1.3, zone) * (1 + kills * 0.05) * (isBoss ? 3 : 1))
+  const atk    = Math.floor(1  * Math.pow(1.2, zone) * (1 + kills * 0.02) * (isBoss ? 2 : 1))
+  const name   = isBoss ? `⚠️ BOSS: ${pick.name}` : pick.name
+  return { ...pick, name, hp, maxHp: hp, attack: atk, isBoss }
 }
 
 export function tick(state: GameState, dtMs: number): GameState {
   const s     = structuredClone(state)
-  const dt    = Math.min(dtMs / 1000, 30)  // seconds, cap at 30 to avoid huge offline gains
+  const dt    = Math.min(dtMs / 1000, 14400)  // seconds, cap at 4 hours offline
   const speed = 1 + s.upgrades.speed * 0.5
 
   // Resource production
@@ -196,7 +200,7 @@ export function tick(state: GameState, dtMs: number): GameState {
       const defeated = s.enemy
       s.kills++
       s.resources.fish     += s.zone + 1
-      s.resources.moondust += s.zone * 0.5
+      s.resources.moondust += defeated.isBoss ? (s.zone + 1) * 3 : s.zone * 0.5
       s.killLog = [`${defeated.emoji} ${defeated.name} defeated`, ...s.killLog].slice(0, 5)
       s.enemy = null
       if (s.kills % 10 === 0 && s.zone < ZONE_NAMES.length - 1) {
