@@ -101,7 +101,7 @@ function MiniGame({ onWin, onClose }: { onWin: () => void; onClose: () => void }
         {phase === 'intro' && <>
           <div style={{ fontSize: 32, fontWeight: 'bold', color: '#111', textAlign: 'center' as const, lineHeight: 1.2 }}>🎮 MINI GAME TIME!</div>
           <div style={{ fontSize: 14, color: '#555', textAlign: 'center' as const }}>Tap all the 🐟 fish before time runs out!</div>
-          <div style={{ fontSize: 13, color: '#666', textAlign: 'center' as const }}>Win → earn 500 $CLKCAT + bonus fish</div>
+          <div style={{ fontSize: 13, color: '#666', textAlign: 'center' as const }}>Win → bonus Fish + Clank!</div>
           <button style={{ ...g.actionBtn, background: '#111', color: 'white', width: '100%', fontSize: 16 }} onClick={startGame}>Let's GO! 🚀</button>
           <button style={{ background: 'none', border: 'none', color: '#333', cursor: 'pointer', fontSize: 12 }} onClick={onClose}>skip</button>
         </>}
@@ -127,8 +127,8 @@ function MiniGame({ onWin, onClose }: { onWin: () => void; onClose: () => void }
         {phase === 'win' && <>
           <div style={{ fontSize: 48 }}>🎉</div>
           <div style={{ fontSize: 22, fontWeight: 'bold', color: '#10b981' }}>You got them all!</div>
-          <div style={{ fontSize: 14, color: '#555', textAlign: 'center' as const }}>+500 $CLKCAT incoming<br />+50 bonus fish added!</div>
-          <button style={{ ...g.actionBtn, background: '#10b981', width: '100%' }} onClick={onClose}>Claim & Continue</button>
+          <div style={{ fontSize: 14, color: '#555', textAlign: 'center' as const }}>+50 🐟 Fish + 20 ⚡ Clank added!</div>
+          <button style={{ ...g.actionBtn, background: '#10b981', width: '100%' }} onClick={onClose}>Collect & Continue</button>
         </>}
 
         {phase === 'lose' && <>
@@ -762,12 +762,7 @@ export default function GamePage() {
   }
 
   function onMiniWin() {
-    // Bonus fish in game
-    update(s => ({ ...s, resources: { ...s.resources, fish: s.resources.fish + 50 } }))
-    // Claim $CLKCAT on-chain
-    if (address) {
-      claimMini({ address: AUTO_RUN_ADDRESS, abi: MINI_GAME_ABI, functionName: 'claimMiniReward' })
-    }
+    update(s => ({ ...s, resources: { ...s.resources, fish: s.resources.fish + 50, clank: s.resources.clank + 20 } }))
   }
 
   if (!state) return null
