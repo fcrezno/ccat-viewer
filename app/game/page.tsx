@@ -302,7 +302,7 @@ function CombatPanel({ state, onToggle, onHeal }: { state: GameState; onToggle: 
   const dmgId = useRef(0)
   const zoneName  = ZONE_NAMES[Math.min(zone, ZONE_NAMES.length - 1)]
   const zoneImg   = `/zones/zone-${Math.min(zone, ZONE_NAMES.length - 1)}.png`
-  const enemyImg  = enemy ? `/sprites/enemies/${enemy.sprite ?? 'enemy'}.png` : null
+  const enemyImg  = enemy ? `/sprites/enemies/${encodeURIComponent(enemy.sprite ?? 'enemy')}.png` : null
   const hpPct     = enemy ? Math.max(0, (enemy.hp / enemy.maxHp) * 100) : 0
   const catHpPct  = catMaxHealth > 0 ? (catHealth / catMaxHealth) * 100 : 100
   const canHeal   = catHealth < catMaxHealth && state.resources.fish >= 10

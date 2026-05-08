@@ -19,6 +19,11 @@
 - [ ] **Personality system** — derived from cat traits, affects decay rates + diary voice
 - [ ] **Activity log** — on-chain $CCAT transfer history as cat diary entries
 - [ ] **Farcaster notifications** — ping user when cat is hungry/sad via Snaps webhook
+- [x] **Idle Clank game** — Trimps-style idle at `/game`, Clank as tap resource, discrete combat, zones, bosses
+- [x] **Viral sharing** — ShareMoment modal auto-triggers on zone advance + boss kill, casts `#IdleClank $CLKCAT`
+- [x] **Leaderboard** — `/api/leaderboard` reads Neynar `#IdleClank` casts, Token tab shows top 10
+- [ ] **Idle Clank sprites** — cat fighter (64×64), hit effect, zone art, enemy sprites
+- [ ] **Fund mini-game pool** — call `fundRewards()` + `startSeason()` on contract `0xa003b34f82950604d2c5e7b26986d6acc7862514`
 
 ---
 

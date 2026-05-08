@@ -41,8 +41,14 @@ export const ZONE_NAMES = [
   'The Memes', 'Purple Territory', 'The Void',
 ]
 
-const ENEMY_POOLS: { name: string; emoji: string }[][] = [
-  [{ name: 'Paper Hand', emoji: '🙌' }, { name: 'FUD Bear',  emoji: '🐻' }, { name: 'Lurker',    emoji: '👁️' }],
+const ENEMY_POOLS: { name: string; emoji: string; sprite?: string }[][] = [
+  [
+    { name: 'Mr. Fish',          emoji: '🐟', sprite: 'MrFish' },
+    { name: 'Slime',             emoji: '🟢', sprite: 'Slime' },
+    { name: 'Cool Rat',          emoji: '🐀', sprite: 'cool rat' },
+    { name: 'Duck with a Knife', emoji: '🦆', sprite: 'duck with a knife' },
+    { name: 'Big Frog',          emoji: '🐸', sprite: 'big frog' },
+  ],
   [{ name: 'Reply Guy',  emoji: '💬' }, { name: 'Shill Bot', emoji: '🤖' }, { name: 'Normie',    emoji: '🧑' }],
   [{ name: 'Whale',      emoji: '🐋' }, { name: 'Degen',     emoji: '🎰' }],
   [{ name: 'Short',      emoji: '📉' }, { name: 'Ponzi',     emoji: '🌀' }],
