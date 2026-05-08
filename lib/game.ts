@@ -36,6 +36,8 @@ export type GameState = {
   lastTick:       number
 }
 
+export const MAX_ZONE = 0  // unlock more zones as content is added
+
 export const ZONE_NAMES = [
   'The Lake', 'The Feed', 'The Channels',
   'The Memes', 'Purple Territory', 'The Void',
@@ -221,7 +223,7 @@ export function tick(state: GameState, dtMs: number): GameState {
         s.resources.moondust += defeated.isBoss ? (s.zone + 1) * 3 : s.zone * 0.5
         s.killLog = [`${defeated.emoji} ${defeated.name} defeated`, ...s.killLog].slice(0, 5)
         s.enemy = null
-        if (s.kills % 10 === 0 && s.zone < ZONE_NAMES.length - 1) s.zone++
+        if (s.kills % 10 === 0 && s.zone < MAX_ZONE) s.zone++
       }
     }
     if (s.lastHitDamage > 0) s.hitTick = (s.hitTick + 1) % 10000
