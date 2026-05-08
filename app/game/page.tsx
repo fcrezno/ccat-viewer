@@ -304,7 +304,7 @@ function ResourceBar({ state }: { state: GameState }) {
   )
 }
 
-type DmgFloat = { id: number; val: number }
+type DmgFloat = { id: number; val: number; x: number }
 
 function CombatPanel({ state, onToggle, onHeal }: { state: GameState; onToggle: () => void; onHeal: () => void }) {
   const { enemy, zone, kills, cats, catHealth, catMaxHealth, fighting } = state
@@ -323,7 +323,8 @@ function CombatPanel({ state, onToggle, onHeal }: { state: GameState; onToggle: 
     setFlash(true)
     setTimeout(() => setFlash(false), 200)
     const id = ++dmgId.current
-    setDamages(d => [...d, { id, val: state.lastHitDamage }])
+    const x = 30 + Math.random() * 40
+    setDamages(d => [...d, { id, val: state.lastHitDamage, x }])
     setTimeout(() => setDamages(d => d.filter(x => x.id !== id)), 800)
   }, [state.hitTick])
 
@@ -354,7 +355,7 @@ function CombatPanel({ state, onToggle, onHeal }: { state: GameState; onToggle: 
                 />
               )}
               {damages.map(d => (
-                <div key={d.id} style={{ position: 'absolute', top: '30%', left: `${30 + Math.random() * 40}%`, fontWeight: 'bold', fontSize: 18, color: '#ef4444', pointerEvents: 'none', animation: 'floatDmg 0.8s ease-out forwards', fontFamily: "'MyFont', monospace" }}>
+                <div key={d.id} style={{ position: 'absolute', top: '25%', left: `${d.x}%`, fontWeight: 'bold', fontSize: 20, color: '#ef4444', pointerEvents: 'none', animation: 'floatDmg 0.8s ease-out forwards', fontFamily: "'MyFont', monospace", textShadow: '0 1px 3px rgba(0,0,0,0.2)' }}>
                   -{d.val}
                 </div>
               ))}
