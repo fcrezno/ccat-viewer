@@ -49,11 +49,11 @@ const ENEMY_POOLS: { name: string; emoji: string; sprite?: string }[][] = [
     { name: 'Duck with a Knife', emoji: '🦆', sprite: 'duck with a knife' },
     { name: 'Big Frog',          emoji: '🐸', sprite: 'big frog' },
   ],
-  [{ name: 'Reply Guy',  emoji: '💬' }, { name: 'Shill Bot', emoji: '🤖' }, { name: 'Normie',    emoji: '🧑' }],
-  [{ name: 'Whale',      emoji: '🐋' }, { name: 'Degen',     emoji: '🎰' }],
-  [{ name: 'Short',      emoji: '📉' }, { name: 'Ponzi',     emoji: '🌀' }],
-  [{ name: 'SEC Agent',  emoji: '👮' }, { name: 'Lawyer',    emoji: '⚖️'  }],
-  [{ name: 'BlackHole',  emoji: '🕳️' }, { name: 'Void Cat',  emoji: '👾' }],
+  [{ name: 'Reply Guy',  emoji: '💬', sprite: 'cool rat'          }, { name: 'Shill Bot', emoji: '🤖', sprite: 'Slime'              }, { name: 'Normie',    emoji: '🧑', sprite: 'MrFish'             }],
+  [{ name: 'Whale',      emoji: '🐋', sprite: 'big frog'          }, { name: 'Degen',     emoji: '🎰', sprite: 'duck with a knife'  }],
+  [{ name: 'Short',      emoji: '📉', sprite: 'cool rat'          }, { name: 'Ponzi',     emoji: '🌀', sprite: 'Slime'              }],
+  [{ name: 'SEC Agent',  emoji: '👮', sprite: 'MrFish'            }, { name: 'Lawyer',    emoji: '⚖️', sprite: 'big frog'           }],
+  [{ name: 'BlackHole',  emoji: '🕳️', sprite: 'duck with a knife' }, { name: 'Void Cat',  emoji: '👾', sprite: 'Slime'              }],
 ]
 
 const BASE_BUILDINGS: Omit<Building, 'count'>[] = [
