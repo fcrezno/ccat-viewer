@@ -31,6 +31,8 @@ const AUTO_RUN_ABI = [
     ]}] },
   { name: 'prizePool', type: 'function', stateMutability: 'view',
     inputs: [], outputs: [{ type: 'uint256' }] },
+  { name: 'seasonActive', type: 'function', stateMutability: 'view',
+    inputs: [], outputs: [{ type: 'bool' }] },
 ] as const
 
 const CLKCAT_ABI = [
@@ -180,6 +182,10 @@ function AutoRunPanel() {
     address: AUTO_RUN_ADDRESS, abi: AUTO_RUN_ABI, functionName: 'prizePool',
     query: { enabled: AUTO_RUN_ADDRESS !== '0x0000000000000000000000000000000000000000' },
   })
+  const { data: seasonActive } = useReadContract({
+    address: AUTO_RUN_ADDRESS, abi: AUTO_RUN_ABI, functionName: 'seasonActive',
+    query: { enabled: AUTO_RUN_ADDRESS !== '0x0000000000000000000000000000000000000000' },
+  })
 
   const { writeContract: approve, data: approveTx } = useWriteContract()
   const { writeContract: buy,     data: buyTx      } = useWriteContract()
@@ -208,6 +214,7 @@ function AutoRunPanel() {
   const notDeployed = AUTO_RUN_ADDRESS === '0x0000000000000000000000000000000000000000'
   const secs = remainingSecs ? Number(remainingSecs) : 0
   const pool = prizePool ? Number(prizePool) / 1e18 : 0
+  const seasonOpen = seasonActive === true
 
   return (
     <div style={g.panel}>
@@ -219,6 +226,10 @@ function AutoRunPanel() {
       {notDeployed ? (
         <div style={{ fontSize: 11, color: '#666', textAlign: 'center' as const, padding: '8px 0' }}>
           Contract deploying soon — check back!
+        </div>
+      ) : !seasonOpen ? (
+        <div style={{ fontSize: 11, color: '#666', textAlign: 'center' as const, padding: '8px 0' }}>
+          🏁 Season 1 starting soon — check back!
         </div>
       ) : isActive ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
