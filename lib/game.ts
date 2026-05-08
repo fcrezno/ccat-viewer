@@ -143,6 +143,7 @@ export function loadGame(key = 'ccat-idle'): GameState {
     const def = defaultState()
     return {
       ...def, ...saved,
+      zone: Math.min(saved.zone ?? 0, MAX_ZONE),
       buildings: def.buildings.map(b => {
         const found = saved.buildings?.find(sb => sb.id === b.id)
         return found ? { ...b, count: found.count } : b
