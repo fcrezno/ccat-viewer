@@ -190,15 +190,14 @@ export function tick(state: GameState, dtMs: number): GameState {
   // Combat — discrete hits every 1.5s
   const ATTACK_INTERVAL = 1.5
   s.lastHitDamage = 0
-  if (s.fighting && s.enemy && s.cats > 0) {
+  if (s.fighting && s.cats > 0) {
     s.attackClock += dt
-    if (s.attackClock >= ATTACK_INTERVAL) {
+    while (s.attackClock >= ATTACK_INTERVAL && s.enemy && s.cats > 0) {
       s.attackClock -= ATTACK_INTERVAL
 
       const catAtk   = s.catAttack * s.cats * (1 + s.upgrades.claws * 0.5) * ATTACK_INTERVAL
       s.enemy.hp    -= catAtk
-      s.lastHitDamage = Math.round(catAtk)
-      s.hitTick       = (s.hitTick + 1) % 10000
+      s.lastHitDamage += Math.round(catAtk)
 
       const enemyAtk = s.enemy.attack * ATTACK_INTERVAL
       s.catHealth   -= enemyAtk
@@ -219,6 +218,7 @@ export function tick(state: GameState, dtMs: number): GameState {
         if (s.kills % 10 === 0 && s.zone < ZONE_NAMES.length - 1) s.zone++
       }
     }
+    if (s.lastHitDamage > 0) s.hitTick = (s.hitTick + 1) % 10000
   }
 
   return s
