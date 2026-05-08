@@ -30,6 +30,7 @@ export type GameState = {
   kills:       number
   portals:     number
   killLog:     string[]
+  attackClock: number
   lastTick:    number
 }
 
@@ -108,6 +109,7 @@ export function defaultState(): GameState {
     kills:        0,
     portals:      0,
     killLog:      [],
+    attackClock:  0,
     lastTick:     Date.now(),
   }
 }
@@ -181,30 +183,33 @@ export function tick(state: GameState, dtMs: number): GameState {
     s.enemy = spawnEnemy(s.zone, s.kills)
   }
 
-  // Combat
+  // Combat — discrete hits every 1.5s
+  const ATTACK_INTERVAL = 1.5
   if (s.fighting && s.enemy && s.cats > 0) {
-    const catAtk = s.catAttack * s.cats * (1 + s.upgrades.claws * 0.5)
-    s.enemy.hp  -= catAtk * dt
+    s.attackClock += dt
+    if (s.attackClock >= ATTACK_INTERVAL) {
+      s.attackClock -= ATTACK_INTERVAL
 
-    const enemyAtk = s.enemy.attack * dt
-    s.catHealth   -= enemyAtk
+      const catAtk   = s.catAttack * s.cats * (1 + s.upgrades.claws * 0.5) * ATTACK_INTERVAL
+      s.enemy.hp    -= catAtk
 
-    if (s.catHealth <= 0) {
-      // Cat horde wiped — lose a cat, reset health
-      s.cats        = Math.max(0, s.cats - 1)
-      s.catHealth   = s.catMaxHealth
-      s.enemy       = null
-    }
+      const enemyAtk = s.enemy.attack * ATTACK_INTERVAL
+      s.catHealth   -= enemyAtk
 
-    if (s.enemy && s.enemy.hp <= 0) {
-      const defeated = s.enemy
-      s.kills++
-      s.resources.fish     += s.zone + 1
-      s.resources.moondust += defeated.isBoss ? (s.zone + 1) * 3 : s.zone * 0.5
-      s.killLog = [`${defeated.emoji} ${defeated.name} defeated`, ...s.killLog].slice(0, 5)
-      s.enemy = null
-      if (s.kills % 10 === 0 && s.zone < ZONE_NAMES.length - 1) {
-        s.zone++
+      if (s.catHealth <= 0) {
+        s.cats      = Math.max(0, s.cats - 1)
+        s.catHealth = s.catMaxHealth
+        s.enemy     = null
+      }
+
+      if (s.enemy && s.enemy.hp <= 0) {
+        const defeated = s.enemy
+        s.kills++
+        s.resources.fish     += s.zone + 1
+        s.resources.moondust += defeated.isBoss ? (s.zone + 1) * 3 : s.zone * 0.5
+        s.killLog = [`${defeated.emoji} ${defeated.name} defeated`, ...s.killLog].slice(0, 5)
+        s.enemy = null
+        if (s.kills % 10 === 0 && s.zone < ZONE_NAMES.length - 1) s.zone++
       }
     }
   }
