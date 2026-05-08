@@ -831,9 +831,7 @@ export default function GamePage() {
       {tab === 'rules' && <RulesPanel />}
       {tab === 'share' && <SharePanel state={state} />}
       {tab === 'token' && <>
-        <PrizePoolBanner />
         <LeaderboardPanel />
-        <AutoRunPanel />
       </>}
 
       <BottomNav tab={tab} setTab={setTab} />
