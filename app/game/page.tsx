@@ -343,7 +343,7 @@ function CombatPanel({ state, onToggle, onHeal }: { state: GameState; onToggle: 
                 />
               )}
               {damages.map(d => (
-                <div key={d.id} style={{ position: 'absolute', top: '30%', left: `${30 + Math.random() * 40}%`, fontWeight: 'bold', fontSize: 18, color: '#ef4444', pointerEvents: 'none', animation: 'floatDmg 0.8s steps(5, end) forwards', fontFamily: "'MyFont', monospace" }}>
+                <div key={d.id} style={{ position: 'absolute', top: '30%', left: `${30 + Math.random() * 40}%`, fontWeight: 'bold', fontSize: 18, color: '#ef4444', pointerEvents: 'none', animation: 'floatDmg 0.8s ease-out forwards', fontFamily: "'MyFont', monospace" }}>
                   -{d.val}
                 </div>
               ))}
@@ -698,7 +698,7 @@ export default function GamePage() {
       {/* Tab content */}
       {tab === 'home' && <>
         {clankPops.map(p => (
-          <div key={p.id} style={{ position: 'fixed', left: p.x, top: p.y, transform: 'translate(-50%, -50%)', pointerEvents: 'none', fontWeight: 'bold', fontSize: 15, color: '#111', animation: 'floatDmg 0.7s steps(4, end) forwards', fontFamily: "'MyFont', monospace", zIndex: 50 }}>+1</div>
+          <div key={p.id} style={{ position: 'fixed', left: p.x, top: p.y, transform: 'translate(-50%, -50%)', pointerEvents: 'none', fontWeight: 'bold', fontSize: 15, color: '#111', animation: 'floatDmg 0.7s ease-out forwards', fontFamily: "'MyFont', monospace", zIndex: 50 }}>+1</div>
         ))}
         <button
           style={g.clickBtn}
