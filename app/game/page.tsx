@@ -538,6 +538,73 @@ function KillFeed({ killLog }: { killLog: string[] }) {
   )
 }
 
+type Tab = 'home' | 'rules' | 'share' | 'token'
+
+function BottomNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
+  const items: { id: Tab; label: string; svg: string }[] = [
+    { id: 'home',  label: 'Home',  svg: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
+    { id: 'rules', label: 'Rules', svg: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' },
+    { id: 'share', label: 'Share', svg: 'M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z' },
+    { id: 'token', label: 'Token', svg: 'M13 10V3L4 14h7v7l9-11h-7z' },
+  ]
+  return (
+    <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'white', borderTop: '1.5px solid #111', display: 'flex', zIndex: 40, maxWidth: 480, margin: '0 auto' }}>
+      {items.map(item => (
+        <button key={item.id} onClick={() => setTab(item.id)}
+          style={{ flex: 1, padding: '8px 0 10px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={tab === item.id ? '#111' : '#aaa'} strokeWidth={tab === item.id ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round">
+            <path d={item.svg} />
+          </svg>
+          <span style={{ fontSize: 10, color: tab === item.id ? '#111' : '#aaa', fontWeight: tab === item.id ? 'bold' : 'normal', fontFamily: "'MyFont', monospace" }}>{item.label}</span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function RulesPanel() {
+  const rules = [
+    ['⚡', 'Tap CLANK! to earn Clank — the base resource'],
+    ['📡', 'Buy The Feed (5⚡) to passively generate 🐟 Fish'],
+    ['🪤', 'Spend Fish to recruit cats with Cat Recruit'],
+    ['⚔️', 'Press Explore to send cats into combat'],
+    ['💀', 'Defeat 10 enemies to advance to the next zone'],
+    ['⚠️', 'Every 10th enemy is a BOSS — 3× HP, big moondust drop'],
+    ['🩹', 'Heal your cats for 10🐟 when their HP drops'],
+    ['🔬', 'Upgrades unlock after reaching Zone 2 (The Feed)'],
+    ['🎮', 'Mini-games appear every 10–30 min — tap all the fish!'],
+    ['⚡', 'Auto-Run lets the game play while you\'re away'],
+  ]
+  return (
+    <div style={g.panel}>
+      <div style={g.panelHeader}>📖 How to Play</div>
+      {rules.map(([icon, text], i) => (
+        <div key={i} style={{ display: 'flex', gap: 10, fontSize: 12, color: '#333', alignItems: 'flex-start' }}>
+          <span style={{ flexShrink: 0 }}>{icon}</span>
+          <span>{text}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function SharePanel({ state }: { state: GameState }) {
+  const zoneName = ZONE_NAMES[Math.min(state.zone, ZONE_NAMES.length - 1)]
+  const text = `Zone ${state.zone + 1}: ${zoneName} · ${state.kills} kills · ${fmt(state.resources.fish)}🐟 · ${fmt(state.resources.clank)}⚡\nPlaying Idle Clank on ClankerCats $CLKCAT`
+  const url = `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}&embeds[]=https://ccat-viewer.vercel.app/game`
+  return (
+    <div style={g.panel}>
+      <div style={g.panelHeader}>↗ Share Your Progress</div>
+      <div style={{ background: '#f5f5f0', border: '1.5px solid #111', borderRadius: 8, padding: '10px 12px', fontSize: 12, color: '#333', lineHeight: 1.6 }}>
+        {text}
+      </div>
+      <button style={{ ...g.actionBtn, background: '#111', color: 'white' }} onClick={() => sdk.actions.openUrl(url)}>
+        Cast to Warpcast ↗
+      </button>
+    </div>
+  )
+}
+
 const MINI_GAME_ABI = [
   { name: 'claimMiniReward', type: 'function', stateMutability: 'nonpayable', inputs: [], outputs: [] },
   { name: 'miniRewardCooldownRemaining', type: 'function', stateMutability: 'view',
@@ -551,6 +618,7 @@ export default function GamePage() {
   const [titleTaps, setTitleTaps] = useState(0)
   const [clankPops, setClankPops] = useState<{ id: number; x: number; y: number }[]>([])
   const [offlineMsg, setOfflineMsg] = useState<string | null>(null)
+  const [tab, setTab] = useState<Tab>('home')
   const stateRef              = useRef<GameState | null>(null)
   const lastTickRef           = useRef<number>(Date.now())
   const nextMiniAt            = useRef<number>(Date.now() + (10 + Math.random() * 20) * 60_000)
@@ -619,21 +687,13 @@ export default function GamePage() {
   return (
     <div style={g.root}>
       {showMini && <MiniGame onWin={onMiniWin} onClose={() => setShowMini(false)} />}
+
+      {/* Always-visible header + status */}
       <div style={g.header}>
         <a href="/" style={g.backLink}>← Cats</a>
         <span style={g.title} onClick={tapTitle}>🐱 Idle Clank</span>
-        <button
-          style={{ fontSize: 11, color: '#666', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-          onClick={() => {
-            const zoneName = ZONE_NAMES[Math.min(state.zone, ZONE_NAMES.length - 1)]
-            const text = `Zone ${state.zone + 1}: ${zoneName} · ${state.kills} kills · ${fmt(state.resources.fish)} fish 🐟\nplaying Idle Clank on ClankerCats $CLKCAT`
-            const url = `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}&embeds[]=https://ccat-viewer.vercel.app/game`
-            sdk.actions.openUrl(url)
-          }}
-        >↗ share</button>
+        <span style={{ fontSize: 11, color: '#666' }}>Zone {state.zone + 1}</span>
       </div>
-
-      <PrizePoolBanner />
       {offlineMsg && (
         <div style={{ background: '#111', color: 'white', borderRadius: 8, padding: '8px 14px', fontSize: 12, textAlign: 'center' as const }}>
           ⏰ {offlineMsg}
@@ -641,54 +701,58 @@ export default function GamePage() {
       )}
       <ResourceBar state={state} />
 
-      {clankPops.map(p => (
-        <div key={p.id} style={{ position: 'fixed', left: p.x, top: p.y, transform: 'translate(-50%, -50%)', pointerEvents: 'none', fontWeight: 'bold', fontSize: 15, color: '#111', animation: 'floatDmg 0.7s ease-out forwards', fontFamily: "'MyFont', monospace", zIndex: 50 }}>+1</div>
-      ))}
-
-      <button
-        style={g.clickBtn}
-        onClick={e => {
-          update(s => ({ ...s, resources: { ...s.resources, clank: s.resources.clank + 1 + s.upgrades.speed } }))
-          const id = ++popIdRef.current
-          setClankPops(p => [...p, { id, x: e.clientX, y: e.clientY }])
-          setTimeout(() => setClankPops(p => p.filter(x => x.id !== id)), 700)
-        }}
-      >
-        <div style={{ fontSize: 20, fontWeight: 'bold', color: '#111', letterSpacing: 2 }}>CLANK!</div>
-      </button>
-
-      <CombatPanel  state={state} onToggle={toggleFight} onHeal={() => update(s => s.resources.fish >= 10 ? { ...s, resources: { ...s.resources, fish: s.resources.fish - 10 }, catHealth: s.catMaxHealth } : s)} />
-      <KillFeed killLog={state.killLog} />
-      <BuildingsPanel state={state} onBuy={id => update(s => buyBuilding(s, id))} />
-      {state.zone >= 1 && <UpgradesPanel state={state} onBuy={id => update(s => buyUpgrade(s, id as any))} />}
-      <AutoRunPanel />
-
-      {debug && (
-        <div style={{ background: 'white', border: '1.5px solid #ef4444', borderRadius: 10, padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ fontSize: 11, color: '#ef4444', fontWeight: 'bold' }}>🛠 DEBUG MODE</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8 }}>
-            <button style={g.dbgBtn} onClick={() => setShowMini(true)}>🎮 Trigger Mini-Game</button>
-            <button style={g.dbgBtn} onClick={() => { nextMiniAt.current = Date.now() }}>⏱ Reset Timer</button>
-            <button style={g.dbgBtn} onClick={() => update(s => ({ ...s, resources: { fish: s.resources.fish + 1000, moondust: s.resources.moondust + 500, clank: s.resources.clank + 200 } }))}>+Resources</button>
-            <button style={g.dbgBtn} onClick={() => update(s => ({ ...s, kills: s.kills + 25 }))}>+25 Kills</button>
-            <button style={g.dbgBtn} onClick={() => update(s => ({ ...s, cats: Math.min(s.cats + 1, s.maxCats) }))}>+Cat</button>
-            <button style={g.dbgBtn} onClick={() => { localStorage.removeItem('ccat-idle'); window.location.reload() }}>🗑 Reset Save</button>
+      {/* Tab content */}
+      {tab === 'home' && <>
+        {clankPops.map(p => (
+          <div key={p.id} style={{ position: 'fixed', left: p.x, top: p.y, transform: 'translate(-50%, -50%)', pointerEvents: 'none', fontWeight: 'bold', fontSize: 15, color: '#111', animation: 'floatDmg 0.7s ease-out forwards', fontFamily: "'MyFont', monospace", zIndex: 50 }}>+1</div>
+        ))}
+        <button
+          style={g.clickBtn}
+          onClick={e => {
+            update(s => ({ ...s, resources: { ...s.resources, clank: s.resources.clank + 1 + s.upgrades.speed } }))
+            const id = ++popIdRef.current
+            setClankPops(p => [...p, { id, x: e.clientX, y: e.clientY }])
+            setTimeout(() => setClankPops(p => p.filter(x => x.id !== id)), 700)
+          }}
+        >
+          <div style={{ fontSize: 20, fontWeight: 'bold', color: '#111', letterSpacing: 2 }}>CLANK!</div>
+        </button>
+        <CombatPanel state={state} onToggle={toggleFight} onHeal={() => update(s => s.resources.fish >= 10 ? { ...s, resources: { ...s.resources, fish: s.resources.fish - 10 }, catHealth: s.catMaxHealth } : s)} />
+        <KillFeed killLog={state.killLog} />
+        <BuildingsPanel state={state} onBuy={id => update(s => buyBuilding(s, id))} />
+        {state.zone >= 1 && <UpgradesPanel state={state} onBuy={id => update(s => buyUpgrade(s, id as any))} />}
+        {debug && (
+          <div style={{ background: 'white', border: '1.5px solid #ef4444', borderRadius: 10, padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontSize: 11, color: '#ef4444', fontWeight: 'bold' }}>🛠 DEBUG MODE</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8 }}>
+              <button style={g.dbgBtn} onClick={() => setShowMini(true)}>🎮 Trigger Mini-Game</button>
+              <button style={g.dbgBtn} onClick={() => { nextMiniAt.current = Date.now() }}>⏱ Reset Timer</button>
+              <button style={g.dbgBtn} onClick={() => update(s => ({ ...s, resources: { fish: s.resources.fish + 1000, moondust: s.resources.moondust + 500, clank: s.resources.clank + 200 } }))}>+Resources</button>
+              <button style={g.dbgBtn} onClick={() => update(s => ({ ...s, kills: s.kills + 25 }))}>+25 Kills</button>
+              <button style={g.dbgBtn} onClick={() => update(s => ({ ...s, cats: Math.min(s.cats + 1, s.maxCats) }))}>+Cat</button>
+              <button style={g.dbgBtn} onClick={() => { localStorage.removeItem('ccat-idle'); window.location.reload() }}>🗑 Reset Save</button>
+            </div>
+            <div style={{ fontSize: 10, color: '#333' }}>
+              kills: {state.kills} · zone: {state.zone} · next mini: {Math.max(0, Math.round((nextMiniAt.current - Date.now()) / 1000))}s
+            </div>
           </div>
-          <div style={{ fontSize: 10, color: '#333' }}>
-            kills: {state.kills} · zone: {state.zone} · next mini: {Math.max(0, Math.round((nextMiniAt.current - Date.now()) / 1000))}s
-          </div>
-        </div>
-      )}
+        )}
+      </>}
 
-      <div style={{ fontSize: 10, color: '#222', textAlign: 'center' as const, paddingTop: 8 }}>
-        Auto-saves every 5s · Offline progress up to 30s
-      </div>
+      {tab === 'rules' && <RulesPanel />}
+      {tab === 'share' && <SharePanel state={state} />}
+      {tab === 'token' && <>
+        <PrizePoolBanner />
+        <AutoRunPanel />
+      </>}
+
+      <BottomNav tab={tab} setTab={setTab} />
     </div>
   )
 }
 
 const g: Record<string, React.CSSProperties> = {
-  root:        { padding: '12px 14px 40px', maxWidth: 480, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 12, minHeight: '100vh', background: '#f5f5f0', color: '#111', fontFamily: "'MyFont', monospace" },
+  root:        { padding: '12px 14px 80px', maxWidth: 480, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 12, minHeight: '100vh', background: '#f5f5f0', color: '#111', fontFamily: "'MyFont', monospace" },
   header:      { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   backLink:    { fontSize: 12, color: '#666', textDecoration: 'none' },
   title:       { fontSize: 16, fontWeight: 'bold', color: '#111', cursor: 'pointer' },
