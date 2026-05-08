@@ -96,7 +96,7 @@ export function defaultState(): GameState {
   return {
     resources:    { fish: 0, moondust: 0, clank: 0 },
     buildings:    BASE_BUILDINGS.map(b => ({ ...b, count: 0 })),
-    cats:         0,
+    cats:         1,
     maxCats:      5,
     catAttack:    2,
     catHealth:    10,
