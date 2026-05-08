@@ -60,40 +60,46 @@ const ENEMY_POOLS: { name: string; emoji: string; sprite?: string }[][] = [
 
 const BASE_BUILDINGS: Omit<Building, 'count'>[] = [
   {
-    id: 'fish_tank',  name: 'The Feed',    emoji: '📡', desc: 'Generates fish from the cast stream',
+    // Step 1: first thing to buy — passive fish income
+    id: 'fish_tank',  name: 'The Feed',    emoji: '📡', desc: 'Passively generates Fish',
     baseCost: { fish: 0,   moondust: 0,  clank: 10 },
     prod:     { fish: 0.35 },
     unlockAt: { clank: 5 },
   },
   {
-    id: 'cat_trap',   name: 'Cat Recruit', emoji: '🪤', desc: 'Recruit a cat using fish',
+    // Step 2: spend fish to grow your army
+    id: 'cat_trap',   name: 'Cat Recruit', emoji: '🪤', desc: 'Recruit a cat using Fish',
     baseCost: { fish: 50,  moondust: 0,  clank: 0  },
     prod:     {},
     unlockAt: { fish: 10 },
   },
   {
+    // Step 3: expand cat cap + unlock MoonDust
     id: 'moon_base',  name: 'The Hub',     emoji: '🌙', desc: '+5 max cats, generates MoonDust',
     baseCost: { fish: 0,   moondust: 0,  clank: 20 },
     prod:     { moondust: 0.14 },
-    unlockAt: { clank: 15 },
+    unlockAt: { fish: 30 },
   },
   {
+    // Step 4: automate your tap resource
     id: 'clank_mine', name: 'Clank Bot',   emoji: '⚡', desc: 'Auto-generates Clank',
-    baseCost: { fish: 0,   moondust: 20, clank: 0  },
+    baseCost: { fish: 0,   moondust: 0,  clank: 30 },
     prod:     { clank: 0.07 },
-    unlockAt: { moondust: 10 },
+    unlockAt: { fish: 50 },
   },
   {
-    id: 'laser_forge',name: 'Purr Laser',  emoji: '🔫', desc: 'Boosts cat attack',
-    baseCost: { fish: 0,   moondust: 50, clank: 0  },
-    prod:     {},
-    unlockAt: { moondust: 40 },
-  },
-  {
+    // Step 5: toughen up cats
     id: 'shield_gen', name: 'Shield Gen',  emoji: '🛡️', desc: 'Boosts cat armor',
-    baseCost: { fish: 0,   moondust: 0,  clank: 10 },
+    baseCost: { fish: 0,   moondust: 10, clank: 0  },
     prod:     {},
-    unlockAt: { clank: 5 },
+    unlockAt: { moondust: 5 },
+  },
+  {
+    // Step 6: power up cats
+    id: 'laser_forge',name: 'Purr Laser',  emoji: '🔫', desc: 'Boosts cat attack',
+    baseCost: { fish: 0,   moondust: 30, clank: 0  },
+    prod:     {},
+    unlockAt: { moondust: 20 },
   },
 ]
 
