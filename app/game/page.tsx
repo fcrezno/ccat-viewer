@@ -312,6 +312,7 @@ function CombatPanel({ state, onToggle, onHeal }: { state: GameState; onToggle: 
     if (!enemy) { prevHp.current = 0; return }
     if (enemy.hp < prevHp.current) {
       const delta = Math.round(prevHp.current - enemy.hp)
+      if (delta <= 0) { prevHp.current = enemy.hp; return }
       setFlash(true)
       setTimeout(() => setFlash(false), 200)
       const id = ++dmgId.current
