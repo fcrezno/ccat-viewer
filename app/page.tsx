@@ -273,6 +273,7 @@ function CatDetail({ upeg, onBack }: { upeg: Upeg; onBack: () => void }) {
       {showSend && <SendPanel upeg={upeg} meta={meta} onClose={() => setShowSend(false)} />}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <a href={`/tama/${upeg.id}?seed=${upeg.seed}`} style={s.tamaPlayBtn}>🐾 TamoCatch</a>
         <button style={s.shareBtn} onClick={share}>Cast this CCat 🐱</button>
         <button style={s.sendBtn} onClick={() => setShowSend(v => !v)}>
           {showSend ? '✕ Cancel Send' : '📤 Send CCat'}
@@ -406,6 +407,7 @@ const s: Record<string, React.CSSProperties> = {
   trait:        { background: '#0a0a14', border: '1px solid #1a1a2e', borderRadius: 8, padding: '8px 10px' },
   traitKey:     { fontSize: 10, color: '#555', textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 3 },
   traitVal:     { fontSize: 13, color: '#ccc', fontWeight: 'bold' },
+  tamaPlayBtn:  { display: 'block', padding: 14, background: '#12122a', border: '2px solid #7c3aed', color: '#a78bfa', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 'bold', textAlign: 'center' as const, textDecoration: 'none' },
   shareBtn:     { padding: 14, background: '#7c3aed', color: 'white', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 'bold' },
   sendBtn:      { padding: 12, background: 'transparent', color: '#ccc', border: '1px solid #3a3a4e', borderRadius: 10, cursor: 'pointer', fontSize: 13 },
   explorerBtn:  { padding: 12, background: 'transparent', color: '#555', border: '1px solid #2a2a3e', borderRadius: 10, cursor: 'pointer', fontSize: 13 },

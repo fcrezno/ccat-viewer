@@ -38,3 +38,44 @@ body {
   0%   { transform: translateY(0);    opacity: 1; }
   100% { transform: translateY(-60px); opacity: 0; }
 }
+
+@keyframes tama-bounce {
+  0%, 100% { transform: translateY(0); }
+  30%       { transform: translateY(-12px); }
+  60%       { transform: translateY(-6px); }
+}
+
+@keyframes tama-shake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-6px); }
+  40%       { transform: translateX(6px); }
+  60%       { transform: translateX(-4px); }
+  80%       { transform: translateX(4px); }
+}
+
+@keyframes tama-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.6; transform: scale(0.97); }
+}
+
+@keyframes tama-sway {
+  0%, 100% { transform: rotate(-3deg); }
+  50%       { transform: rotate(3deg); }
+}
+
+@keyframes tama-float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-5px); }
+}
+
+@keyframes tama-bubble {
+  0%   { opacity: 0; transform: translateY(6px) scale(0.95); }
+  100% { opacity: 1; transform: translateY(0)  scale(1); }
+}
+
+.tama-happy  { animation: tama-bounce 0.7s ease-in-out infinite; }
+.tama-hungry { animation: tama-shake  0.5s ease-in-out infinite; }
+.tama-tired  { animation: tama-pulse  2s   ease-in-out infinite; }
+.tama-sad    { animation: tama-sway   2.5s ease-in-out infinite; }
+.tama-neutral{ animation: tama-float  3s   ease-in-out infinite; }
+.tama-bubble { animation: tama-bubble 0.25s ease-out forwards; }
