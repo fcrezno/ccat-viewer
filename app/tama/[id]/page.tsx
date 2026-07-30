@@ -2,24 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
-import { useReadContract } from 'wagmi'
 import { loadStats, saveStats, feed, pet, play, mood, catLine, type Stats } from '@/lib/tamagotchi'
-
-const RENDERER = '0x2fE5bf2aB284bc71B261Ea6d32aaadfcA987Eeb8' as `0x${string}`
-const RENDERER_ABI = [
-  {
-    name: 'tokenURI', type: 'function', stateMutability: 'view',
-    inputs: [{ name: 'upegId', type: 'uint256' }, { name: 'seed', type: 'uint256' }],
-    outputs: [{ type: 'string' }],
-  },
-] as const
-
-type CatMeta = { name: string; image: string }
-
-function decodeMeta(uri: string): CatMeta | null {
-  try { return JSON.parse(atob(uri.split(',')[1])) }
-  catch { return null }
-}
+import { makeUid, getCollection, type CatMeta } from '@/lib/collection'
 
 function StatBar({ label, value, color }: { label: string; value: number; color: string }) {
   return (
@@ -47,18 +31,24 @@ export default function TamaPage() {
   const searchParams = useSearchParams()
   const router       = useRouter()
 
-  const catId   = params.id as string
-  const seedStr = searchParams.get('seed') ?? '0'
+  const tokenId = params.id as string
+  const col     = getCollection(searchParams.get('c'))
+  // Tamagotchi state is keyed per collection — ids repeat across V1 and V2.
+  const catId   = makeUid(col.key, tokenId)
 
   const [stats,      setStats]      = useState<Stats | null>(null)
   const [flash,      setFlash]      = useState<string | null>(null)
   const [lastAction, setLastAction] = useState(0)
+  const [meta,       setMeta]       = useState<CatMeta | null>(null)
 
-  const { data: uri } = useReadContract({
-    address: RENDERER, abi: RENDERER_ABI, functionName: 'tokenURI',
-    args: [BigInt(catId), BigInt(seedStr)],
-  })
-  const meta = uri ? decodeMeta(uri as string) : null
+  useEffect(() => {
+    let cancelled = false
+    fetch(`/api/meta?id=${tokenId}&c=${col.key}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(m => { if (!cancelled) setMeta(m) })
+      .catch(() => { if (!cancelled) setMeta(null) })
+    return () => { cancelled = true }
+  }, [tokenId, col.key])
 
   useEffect(() => { setStats(loadStats(catId)) }, [catId])
 

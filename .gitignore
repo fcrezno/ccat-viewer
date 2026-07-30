@@ -20,6 +20,9 @@
 # production
 /build
 
+# V2 art pipeline — derived from art/, regenerate with prep-layers.mjs
+/layers
+
 # misc
 .DS_Store
 *.pem
@@ -39,3 +42,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+.vercel
+.env*.local

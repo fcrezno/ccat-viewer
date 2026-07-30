@@ -1,56 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createPublicClient, http, fallback } from 'viem'
-import { base } from 'viem/chains'
 import sharp from 'sharp'
+import { fetchMeta, getCollection, kernelFor } from '@/lib/collection'
 
-const client = createPublicClient({
-  chain: base,
-  transport: fallback([
-    http('https://mainnet.base.org'),
-    http('https://base.llamarpc.com'),
-    http('https://rpc.ankr.com/base'),
-  ]),
-})
-
-const RENDERER = '0x2fE5bf2aB284bc71B261Ea6d32aaadfcA987Eeb8' as `0x${string}`
-
-const RENDERER_ABI = [
-  {
-    name: 'tokenURI',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [
-      { name: 'upegId', type: 'uint256' },
-      { name: 'seed',   type: 'uint256' },
-    ],
-    outputs: [{ type: 'string' }],
-  },
-] as const
-
+// GET /api/cat?id=46&c=v1 → 800x800 PNG, for share embeds and og:image.
+// `seed` is accepted and ignored — it was only meaningful for the old on-chain renderer.
 export async function GET(req: NextRequest) {
-  const id   = req.nextUrl.searchParams.get('id')
-  const seed = req.nextUrl.searchParams.get('seed')
+  const id  = req.nextUrl.searchParams.get('id')
+  const col = getCollection(req.nextUrl.searchParams.get('c'))
 
-  if (!id || !seed) return new NextResponse('Missing id or seed', { status: 400 })
+  if (!id || !/^\d+$/.test(id)) return new NextResponse('Missing or invalid id', { status: 400 })
 
   try {
-    const uri = await client.readContract({
-      address: RENDERER,
-      abi: RENDERER_ABI,
-      functionName: 'tokenURI',
-      args: [BigInt(id), BigInt(seed)],
-    }) as string
+    const meta = await fetchMeta(col, id)
+    if (!meta?.image) return new NextResponse('Cat not found', { status: 404 })
 
-    const json = JSON.parse(Buffer.from(uri.split(',')[1], 'base64').toString('utf8'))
-    const svg  = Buffer.from((json.image as string).split(',')[1], 'base64')
-    const png  = await sharp(svg, { density: 300 })
-      .resize(800, 800, { kernel: 'nearest', fit: 'contain', background: { r: 10, g: 10, b: 20, alpha: 1 } })
+    const res = await fetch(meta.image)
+    if (!res.ok) return new NextResponse('Image unavailable', { status: 502 })
+    const src = Buffer.from(await res.arrayBuffer())
+
+    // nearest-neighbour keeps pixel art crisp instead of smearing it
+    const png = await sharp(src)
+      .resize(800, 800, { kernel: kernelFor(col), fit: 'contain', background: { r: 10, g: 10, b: 20, alpha: 1 } })
       .png()
       .toBuffer()
 
     return new NextResponse(png, {
       headers: {
-        'Content-Type': 'image/png',
+        'Content-Type':  'image/png',
         'Cache-Control': 'public, max-age=31536000, immutable',
       },
     })
