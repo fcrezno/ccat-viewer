@@ -19,7 +19,7 @@
 import sharp from 'sharp'
 import { mkdirSync, writeFileSync, readdirSync, existsSync, rmSync } from 'fs'
 import { join, basename, extname } from 'path'
-import { SUPPLY, MYSTERY_COUNT, NAME, DESC } from './traits.config.mjs'
+import { SUPPLY, MYSTERY_COUNT, NAME, DESC, FACE_ONLY_ON } from './traits.config.mjs'
 
 const LAYERS_DIR  = 'layers'
 const OUT_DIR     = 'out'
@@ -63,10 +63,25 @@ if (!hasMystery && MYSTERY_COUNT > 0)
   console.warn(`⚠️  ${MYSTERY_ART} missing — generating without the super rare.\n`)
 
 const needed = SUPPLY - mysteryN
-const space  = axes.reduce((n, a) => n * a.values.length, 1)
+
+// Restricted faces shrink the space: they're unavailable on every body except
+// the one they're tied to. The body itself stays free to wear anything.
+const restricted = FACE_ONLY_ON ?? {}
+
+const bgCount   = axes.find(a => a.dir === 'Background').values.length
+const bodyNames = axes.find(a => a.dir === 'Body').values.map(v => v.name)
+const faceNames = axes.find(a => a.dir === 'Face').values.map(v => v.name)
+
+// Per body: every unrestricted face, plus any face pinned to this body.
+const space = bodyNames.reduce((total, body) => {
+  const usable = faceNames.filter(f => !restricted[f] || restricted[f] === body).length
+  return total + usable * bgCount
+}, 0)
 
 console.log('Layers:')
 for (const a of axes) console.log(`  ${a.dir.padEnd(11)} ${String(a.values.length).padStart(3)}`)
+for (const [face, body] of Object.entries(restricted))
+  console.log(`  ${face} only on ${body}  (max ${bgCount} such cats)`)
 console.log(`  ${'space'.padEnd(11)} ${space}`)
 
 if (space < needed) {
@@ -84,15 +99,49 @@ function weightedPick(values) {
   return values[values.length - 1]
 }
 
-/** Distinct combinations only — rolling independently would produce visible twins. */
+const bgAxis   = axes.findIndex(a => a.dir === 'Background')
+const bodyAxis = axes.findIndex(a => a.dir === 'Body')
+const faceAxis = axes.findIndex(a => a.dir === 'Face')
+
+/**
+ * Distinct combinations only — rolling independently would produce visible twins.
+ * Body is drawn first, then a face from those allowed on that body: all the
+ * unrestricted ones, plus any face pinned to this particular body.
+ */
 function sampleUnique(n) {
+  const faceValues = axes[faceAxis].values
+
+  // Precompute the legal face pool per body so the hot loop stays cheap.
+  const facesFor = new Map(
+    axes[bodyAxis].values.map(b => [
+      b.name,
+      faceValues.filter(f => !restricted[f.name] || restricted[f.name] === b.name),
+    ]),
+  )
+
+  for (const [face, body] of Object.entries(restricted))
+    if (!axes[bodyAxis].values.some(b => b.name === body)) {
+      console.error(`❌ ${face} is restricted to "${body}", which is not a body layer.`)
+      process.exit(1)
+    }
+
   const seen = new Set()
   const out  = []
   let guard  = 0
+
   while (out.length < n) {
-    if (++guard > n * 2000) { console.error('❌ Sampling stalled.'); process.exit(1) }
-    const pick = axes.map(a => weightedPick(a.values))
-    const key  = pick.map(p => p.name).join('|')
+    if (++guard > n * 5000) {
+      console.error(`❌ Sampling stalled at ${out.length}/${n}.`)
+      console.error('   A restriction or a very low weight has run out of distinct combinations.')
+      process.exit(1)
+    }
+
+    const pick = []
+    pick[bgAxis]   = weightedPick(axes[bgAxis].values)
+    pick[bodyAxis] = weightedPick(axes[bodyAxis].values)
+    pick[faceAxis] = weightedPick(facesFor.get(pick[bodyAxis].name))
+
+    const key = pick.map(p => p.name).join('|')
     if (seen.has(key)) continue
     seen.add(key)
     out.push(pick)

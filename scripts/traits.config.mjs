@@ -70,7 +70,51 @@ export const BG_TINTS = {
  * HashLips rarity weights, by trait name. Anything unlisted gets DEFAULT_WEIGHT.
  * These become the `#N` suffix on the layer filenames.
  */
+/**
+ * Faces restricted to a single body — one-directional.
+ *
+ * Aliem (the alien face) only ever appears on Gleep (the alien body), because
+ * alien eyes on an ordinary cat read as a mistake. Gleep is NOT restricted in
+ * return: it can wear any face, which is what lets the alien body be reasonably
+ * common while the alien face stays rare.
+ *
+ * Ceiling: an alien-faced cat can only vary by background, so Aliem can never
+ * exceed the background count (23).
+ */
+export const FACE_ONLY_ON = {
+  Aliem: 'Gleep',
+}
+
 export const DEFAULT_WEIGHT = 100
 export const WEIGHTS = {
-  // e.g. Alium: 30,  ← makes Alium rarer than the other faces
+  // ── bodies ────────────────────────────────────────────────────────────────
+  // Uncommon — roughly half as likely as the other six.
+  'King of the jungle': 55,
+  'Tom':                55,
+
+  // Alien body — free to wear any face, so it isn't capped by the pairing.
+  'Gleep':              40,
+
+  // ── faces ─────────────────────────────────────────────────────────────────
+  // Rare.
+  'chupa':              28,
+  'silly':              28,
+
+  // Alien face — only drawn when the body is Gleep, so this weight competes
+  // against the other faces within that ~6% slice, not across the whole supply.
+  'Aliem':             300,
+
+  // ── backgrounds ───────────────────────────────────────────────────────────
+  // Solid colours stay common at DEFAULT_WEIGHT — they're the bulk of the set.
+
+  // Rare — the new illustrated scenes.
+  'Gmod':             28,
+  'Pool':             28,
+  'The moon':         28,
+  'Farcaster gate':   28,
+
+  // Very rare — the Classic backgrounds carried over from V1.
+  'Beach Classic':    10,
+  'Mountains Classic':10,
+  'Mochi Classic':    10,
 }
