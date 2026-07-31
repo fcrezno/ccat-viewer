@@ -14,18 +14,27 @@ export async function GET(req: NextRequest) {
 
   if (!id || !/^\d+$/.test(id)) return new NextResponse('Missing or invalid id', { status: 400 })
 
-  const imageUrl = `${APP}/api/cat?id=${id}&c=${col.key}`
-  const meta     = await fetchMeta(col, id)
-  const title    = meta?.name ?? `Clanker Cat #${id}`
+  const meta  = await fetchMeta(col, id)
+  const title = meta?.name ?? `Clanker Cat #${id}`
+
+  /**
+   * Prefer the metadata's own image, which is a plain static path with no query
+   * string. The /api/cat fallback carries ?id=&c=, and a scraper that mishandles
+   * the ampersand drops the collection — which silently defaults to V1 and shows
+   * a completely different cat, since V1 has ids in the same range.
+   */
+  const imageUrl = meta?.image ?? `${APP}/api/cat?id=${id}&c=${col.key}`
 
   const frame = JSON.stringify({
     version: '1',
     imageUrl,
     button: {
-      title: 'View My Cats',
+      // Someone seeing a shared cat is a potential minter — send them to the
+      // mint, not the collection viewer.
+      title: 'Mint a Cat',
       action: {
         type: 'launch_frame',
-        url: APP,
+        url: `${APP}/mint`,
         name: 'Clanker Cats',
         splashImageUrl: `${APP}/splash.png`,
         splashBackgroundColor: '#0a0a14',
@@ -40,11 +49,11 @@ export async function GET(req: NextRequest) {
   <title>${esc(title)}</title>
   <meta property="og:title" content="${esc(title)}" />
   <meta property="og:description" content="A Clanker Cat on Base · clankercats.com" />
-  <meta property="og:image" content="${imageUrl}" />
+  <meta property="og:image" content="${esc(imageUrl)}" />
   <meta property="og:image:width" content="800" />
   <meta property="og:image:height" content="800" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:image" content="${imageUrl}" />
+  <meta name="twitter:image" content="${esc(imageUrl)}" />
   <meta name="fc:frame" content='${frame}' />
 </head>
 <body></body>
