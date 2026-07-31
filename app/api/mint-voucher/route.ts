@@ -60,9 +60,22 @@ async function neynarScore(fid: number): Promise<number | null> {
  * people discover the gate by being refused. Nothing here is secret.
  */
 export async function GET() {
+  const signer = process.env.MINT_SIGNER_KEY
+
   return NextResponse.json(
-    { minScore: MIN_SCORE, phase: MIN_SCORE > 0 ? 'premint' : 'public' },
-    { headers: { 'Cache-Control': 'public, max-age=30' } },
+    {
+      minScore: MIN_SCORE,
+      phase: MIN_SCORE > 0 ? 'premint' : 'public',
+      // Presence and shape only — never the values. Launch-day diagnostics:
+      // tells apart "not set", "set but empty", and "set but not a key".
+      config: {
+        contract:   V2,
+        signerKey:  signer ? (/^0x[0-9a-fA-F]{64}$/.test(signer) ? 'ok' : `set but malformed (len ${signer.length})`) : 'missing',
+        neynarKey:  process.env.NEYNAR_API_KEY ? 'ok' : 'missing',
+        appDomain:  DOMAIN,
+      },
+    },
+    { headers: { 'Cache-Control': 'no-store' } },
   )
 }
 
