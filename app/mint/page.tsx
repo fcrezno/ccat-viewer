@@ -125,13 +125,6 @@ export default function MintPage() {
 
       <div style={s.hero}>🐱</div>
       <div style={s.title}>{gate?.phase === 'premint' ? 'Premint' : 'Free Mint'}</div>
-      <div style={s.subtitle}>One cat per Farcaster account.</div>
-
-      {gate?.phase === 'premint' && (
-        <div style={s.gateBadge}>
-          Neynar score {gate.minScore}+ · opens to everyone after
-        </div>
-      )}
 
       {!enabled ? (
         <div style={s.notice}>Mint opens soon. Follow @crezno for the drop.</div>
