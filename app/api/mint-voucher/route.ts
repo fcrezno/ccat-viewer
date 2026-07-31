@@ -21,13 +21,16 @@ const DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? 'ccat-viewer.vercel.app'
 const TTL    = 15 * 60 // voucher lifetime, seconds
 
 /**
- * Minimum Neynar user score, 0–1. Set MIN_NEYNAR_SCORE to change it without a
- * redeploy; set it to 0 to disable the gate entirely if the mint stalls.
+ * Minimum Neynar user score, 0–1. Zero disables the gate entirely.
  *
- * For reference, Neynar's own suggested starting point is 0.55. Higher numbers
- * cut deep: only a low five-figure count of accounts network-wide clear 0.7.
+ * The premint ran at 0.75 — established accounts only, to keep bots out of the
+ * early window. Now 0.5: still filters the obvious throwaway accounts, but opens
+ * it to genuine smaller ones. Neynar's own suggested starting point is 0.55.
+ *
+ * One-per-FID and the 1111 cap are unaffected — both are enforced on chain.
+ * MIN_NEYNAR_SCORE overrides this without a code change.
  */
-const MIN_SCORE = Number(process.env.MIN_NEYNAR_SCORE ?? '0.75')
+const MIN_SCORE = Number(process.env.MIN_NEYNAR_SCORE ?? '0.5')
 
 /**
  * The signer key, normalised.
