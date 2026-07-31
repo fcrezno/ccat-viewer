@@ -30,6 +30,21 @@ const TTL    = 15 * 60 // voucher lifetime, seconds
 const MIN_SCORE = Number(process.env.MIN_NEYNAR_SCORE ?? '0.75')
 
 /**
+ * The signer key, normalised.
+ *
+ * Pasting a private key into a dashboard drops the `0x` prefix often enough
+ * that requiring it is a needless failure mode — and the failure is opaque,
+ * since privateKeyToAccount throws at request time rather than at deploy.
+ * Accept either form, and reject anything that isn't 32 bytes of hex.
+ */
+function signerKey(): `0x${string}` | null {
+  const raw = process.env.MINT_SIGNER_KEY?.trim()
+  if (!raw) return null
+  const hex = raw.startsWith('0x') ? raw.slice(2) : raw
+  return /^[0-9a-fA-F]{64}$/.test(hex) ? (`0x${hex}` as `0x${string}`) : null
+}
+
+/**
  * Neynar's quality score for an account, 0–1. Lives at
  * `experimental.neynar_user_score`; `score` is checked too in case it graduates
  * out of experimental.
@@ -60,7 +75,7 @@ async function neynarScore(fid: number): Promise<number | null> {
  * people discover the gate by being refused. Nothing here is secret.
  */
 export async function GET() {
-  const signer = process.env.MINT_SIGNER_KEY
+  const raw = process.env.MINT_SIGNER_KEY
 
   return NextResponse.json(
     {
@@ -70,7 +85,7 @@ export async function GET() {
       // tells apart "not set", "set but empty", and "set but not a key".
       config: {
         contract:   V2,
-        signerKey:  signer ? (/^0x[0-9a-fA-F]{64}$/.test(signer) ? 'ok' : `set but malformed (len ${signer.length})`) : 'missing',
+        signerKey:  !raw ? 'missing' : signerKey() ? 'ok' : `set but malformed (len ${raw.length})`,
         neynarKey:  process.env.NEYNAR_API_KEY ? 'ok' : 'missing',
         appDomain:  DOMAIN,
       },
@@ -82,7 +97,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   if (!V2) return NextResponse.json({ error: 'mint not configured' }, { status: 503 })
 
-  const key = process.env.MINT_SIGNER_KEY
+  const key = signerKey()
   if (!key) return NextResponse.json({ error: 'signer not configured' }, { status: 503 })
 
   // ── authenticate the Farcaster user ────────────────────────────────────────
@@ -137,7 +152,7 @@ export async function POST(req: NextRequest) {
   }
 
   // ── sign the voucher ───────────────────────────────────────────────────────
-  const account  = privateKeyToAccount(key as `0x${string}`)
+  const account  = privateKeyToAccount(key)
   const deadline = BigInt(Math.floor(Date.now() / 1000) + TTL)
 
   const signature = await account.signTypedData({
