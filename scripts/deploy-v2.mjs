@@ -14,18 +14,32 @@
 import { createWalletClient, createPublicClient, http } from 'viem'
 import { base } from 'viem/chains'
 import { privateKeyToAccount } from 'viem/accounts'
-import { readFileSync } from 'fs'
+import { readFileSync, existsSync } from 'fs'
 import solc from 'solc'
 
-const {
-  DEPLOYER_KEY,
-  MINT_SIGNER_ADDRESS,
-  BASE_URI,
-  CONTRACT_URI,
-  ROYALTY_RECEIVER,
-  ROYALTY_BPS = '800',
-  MAX_SUPPLY  = '1111',
-} = process.env
+/**
+ * Read a setting from the environment, falling back to .env.local.
+ * .env* is gitignored, so values can be pasted into a file instead of typed
+ * into a terminal. Delete DEPLOYER_KEY from that file once you've deployed —
+ * a private key sitting in plaintext on disk is fine for one run, not forever.
+ */
+function cfg(key) {
+  if (process.env[key]) return process.env[key]
+  if (!existsSync('.env.local')) return undefined
+  for (const line of readFileSync('.env.local', 'utf8').split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)$/i)
+    if (m && m[1] === key) return m[2].trim().replace(/^["']|["']$/g, '')
+  }
+  return undefined
+}
+
+const DEPLOYER_KEY        = cfg('DEPLOYER_KEY')
+const MINT_SIGNER_ADDRESS = cfg('MINT_SIGNER_ADDRESS')
+const BASE_URI            = cfg('BASE_URI')
+const CONTRACT_URI        = cfg('CONTRACT_URI')
+const ROYALTY_RECEIVER    = cfg('ROYALTY_RECEIVER')
+const ROYALTY_BPS         = cfg('ROYALTY_BPS') ?? '800'
+const MAX_SUPPLY          = cfg('MAX_SUPPLY')  ?? '1111'
 
 function require_(name, value) {
   if (!value) {
@@ -39,8 +53,22 @@ require_('DEPLOYER_KEY', DEPLOYER_KEY)
 require_('MINT_SIGNER_ADDRESS', MINT_SIGNER_ADDRESS)
 require_('BASE_URI', BASE_URI)
 
-if (!BASE_URI.endsWith('/'))
-  console.warn('⚠️  BASE_URI has no trailing slash — tokenURI will concatenate straight onto it.')
+if (!BASE_URI.endsWith('/')) {
+  console.error('❌ BASE_URI must end with a slash — tokenURI is BASE_URI + tokenId,')
+  console.error(`   so "${BASE_URI}" would produce "${BASE_URI}1" instead of "${BASE_URI}/1".`)
+  process.exit(1)
+}
+
+// Deploying straight onto the real metadata exposes which token ids are Mystery,
+// and ids are handed out in mint order — so they can be sniped. Refuse by default.
+if (/\/v2\/metadata\/?$/.test(BASE_URI) && !process.argv.includes('--reveal-now')) {
+  console.error('❌ BASE_URI points at the real metadata.')
+  console.error('   Deploy with the placeholder instead:')
+  console.error('     https://ccat-viewer.vercel.app/v2/placeholder/')
+  console.error('   then setBaseURI to the metadata once the mint closes.')
+  console.error('   (pass --reveal-now if you really mean to skip the delayed reveal)')
+  process.exit(1)
+}
 
 console.log('Compiling ClankerCatsV2…')
 const source = readFileSync('./contracts/ClankerCatsV2.sol', 'utf8')
