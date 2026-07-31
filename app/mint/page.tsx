@@ -14,7 +14,7 @@ export default function MintPage() {
   const [ready,  setReady]  = useState(false)
   const [phase,  setPhase]  = useState<Phase>('idle')
   const [error,  setError]  = useState<string | null>(null)
-  const [mintedId, setMintedId] = useState<string | null>(null)
+  const [gate,   setGate]   = useState<{ minScore: number; phase: string } | null>(null)
 
   const { writeContractAsync } = useWriteContract()
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>()
@@ -25,6 +25,12 @@ export default function MintPage() {
     setReady(true)
     const fc = connectors.find(c => c.id === 'farcaster-frame')
     if (fc) connect({ connector: fc })
+
+    // Which phase are we in — premint or open to all?
+    fetch('/api/mint-voucher')
+      .then(r => r.ok ? r.json() : null)
+      .then(g => setGate(g))
+      .catch(() => {})
   }, [])
 
   const enabled = !!V2
@@ -118,8 +124,14 @@ export default function MintPage() {
       </div>
 
       <div style={s.hero}>🐱</div>
-      <div style={s.title}>Free Mint</div>
+      <div style={s.title}>{gate?.phase === 'premint' ? 'Premint' : 'Free Mint'}</div>
       <div style={s.subtitle}>One cat per Farcaster account.</div>
+
+      {gate?.phase === 'premint' && (
+        <div style={s.gateBadge}>
+          Neynar score {gate.minScore}+ · opens to everyone after
+        </div>
+      )}
 
       {!enabled ? (
         <div style={s.notice}>Mint opens soon. Follow @crezno for the drop.</div>
@@ -187,6 +199,7 @@ const s: Record<string, React.CSSProperties> = {
   secondaryBtn: { width: '100%', maxWidth: 320, padding: '12px 24px', borderRadius: 12, background: '#1e1e2e', color: '#ccc', border: 'none', cursor: 'pointer', fontSize: 14, fontFamily: 'monospace', textAlign: 'center', textDecoration: 'none' },
   successBox:   { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, width: '100%', maxWidth: 320 },
   notice:       { fontSize: 13, color: '#666', textAlign: 'center', padding: '12px 0' },
+  gateBadge:    { fontSize: 11, color: '#7c3aed', border: '1px solid #2a2a4e', background: '#12122a', padding: '5px 12px', borderRadius: 20, letterSpacing: 0.4, marginTop: -4 },
   error:        { fontSize: 12, color: '#ef4444', textAlign: 'center', maxWidth: 320 },
   footnote:     { fontSize: 11, color: '#333', marginTop: 'auto', paddingTop: 24 },
 }

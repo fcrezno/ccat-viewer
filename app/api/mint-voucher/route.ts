@@ -55,6 +55,17 @@ async function neynarScore(fid: number): Promise<number | null> {
   }
 }
 
+/**
+ * Current mint phase, so the UI can say which one it's in rather than letting
+ * people discover the gate by being refused. Nothing here is secret.
+ */
+export async function GET() {
+  return NextResponse.json(
+    { minScore: MIN_SCORE, phase: MIN_SCORE > 0 ? 'premint' : 'public' },
+    { headers: { 'Cache-Control': 'public, max-age=30' } },
+  )
+}
+
 export async function POST(req: NextRequest) {
   if (!V2) return NextResponse.json({ error: 'mint not configured' }, { status: 503 })
 
