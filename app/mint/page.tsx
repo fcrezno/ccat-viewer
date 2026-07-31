@@ -18,7 +18,8 @@ export default function MintPage() {
 
   const { writeContractAsync } = useWriteContract()
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>()
-  const { isSuccess, isLoading: isConfirming } = useWaitForTransactionReceipt({ hash: txHash })
+  const [mintedId, setMintedId] = useState<string | null>(null)
+  const { data: receipt, isSuccess, isLoading: isConfirming } = useWaitForTransactionReceipt({ hash: txHash })
 
   useEffect(() => {
     try { sdk.actions.ready() } catch {}
@@ -51,11 +52,22 @@ export default function MintPage() {
   const total  = max    !== undefined ? Number(max)    : null
 
   useEffect(() => {
-    if (isSuccess) {
-      setPhase('done')
-      refetchSupply()
-    }
-  }, [isSuccess])
+    if (!isSuccess) return
+    setPhase('done')
+    refetchSupply()
+
+    // Pull the token id out of the mint's Transfer(from,to,tokenId) log so the
+    // share can show the actual cat rather than a generic link. tokenId is the
+    // third indexed topic; from is the zero address on a mint.
+    const TRANSFER = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
+    const log = receipt?.logs?.find(l =>
+      l.address.toLowerCase() === (V2 as string).toLowerCase() &&
+      l.topics[0] === TRANSFER &&
+      l.topics.length === 4 &&
+      /^0x0+$/.test(l.topics[1] ?? ''),
+    )
+    if (log?.topics[3]) setMintedId(BigInt(log.topics[3]).toString())
+  }, [isSuccess, receipt])
 
   const mint = useCallback(async () => {
     if (!address) return
@@ -105,9 +117,18 @@ export default function MintPage() {
   }, [address, writeContractAsync])
 
   async function share() {
-    const text  = encodeURIComponent('just minted a Clanker Cat 🐱')
-    const embed = encodeURIComponent('https://ccat-viewer.vercel.app')
-    const url   = `https://warpcast.com/~/compose?text=${text}&embeds[]=${embed}`
+    // $CLKCAT renders as a token chip in the cast, so every share surfaces the
+    // ticker alongside the cat.
+    const label = mintedId ? ` — Clanker Cats V2 #${mintedId}` : ''
+    const text  = encodeURIComponent(`I just clanked my cat 🐱${label} $CLKCAT`)
+
+    // Share the cat itself when we know which one — /api/share renders its image
+    // as the embed. Falls back to the mint page if the token id wasn't readable.
+    const target = mintedId
+      ? `https://ccat-viewer.vercel.app/api/share?id=${mintedId}&c=v2`
+      : 'https://ccat-viewer.vercel.app/mint'
+
+    const url = `https://warpcast.com/~/compose?text=${text}&embeds[]=${encodeURIComponent(target)}`
     try { await sdk.actions.openUrl(url) } catch { window.open(url, '_blank') }
   }
 
