@@ -61,7 +61,12 @@ if (!cmd)     { console.error('Usage: node scripts/admin.mjs <status|open|close|
 const CONTRACT = getAddress(address)
 const pub = createPublicClient({
   chain: base,
-  transport: fallback([http('https://base.llamarpc.com'), http('https://mainnet.base.org')]),
+  transport: fallback([
+    http('https://base-rpc.publicnode.com'),
+    http('https://1rpc.io/base'),
+    http('https://mainnet.base.org'),
+    http('https://base.llamarpc.com'),
+  ]),
 })
 
 const sleep = ms => new Promise(r => setTimeout(r, ms))
@@ -132,13 +137,13 @@ switch (cmd) {
     const uri = cmd === 'reveal' ? METADATA_URI : arg
     if (!uri) { console.error('\n❌ set-base-uri needs a URL'); process.exit(1) }
     if (!uri.endsWith('/')) { console.error('\n❌ base URI must end with a slash'); process.exit(1) }
-    // Revealing while the mint is open exposes which ids are Mystery, and ids
-    // are handed out in mint order — so they can be timed and sniped.
-    if (s.mintOpen && uri === METADATA_URI && !force) {
-      console.error('\n❌ mint is still open — revealing now lets the Mystery ids be sniped.')
-      console.error('   Close the mint first, or pass --force.')
-      process.exit(1)
-    }
+    // The drop no longer uses a delayed reveal — every cat is revealed. Setting
+    // the full metadata while the mint is open does mean the 11 Mystery ids are
+    // readable before they are minted, so they can be timed. That is a known and
+    // accepted trade, not something to block on.
+    if (s.mintOpen && uri === METADATA_URI)
+      console.warn('\n⚠️  mint is open — the Mystery ids become readable ahead of being minted.')
+
     fn = 'setBaseURI'; args = [uri]; describe = `set baseURI to ${uri}`
     break
   }
