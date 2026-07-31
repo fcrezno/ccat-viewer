@@ -30,15 +30,13 @@ export const COLLECTIONS: CollectionDef[] = [
     opensea:  'https://opensea.io/collection/clanker-cats',
     pixelArt: true,
   },
-  // V2 — uncomment and fill in once the contract is deployed.
-  // Same pixel art style as V1, entirely new images. V1's assets are not reused.
-  // {
-  //   key:      'v2',
-  //   address:  '0x…',
-  //   label:    'Clanker Cats V2',
-  //   opensea:  'https://opensea.io/collection/clanker-cats-v2',
-  //   pixelArt: true,
-  // },
+  {
+    key:      'v2',
+    address:  '0x5C5b928f937F63656BE62d0A45f4Db756b79934B',
+    label:    'Clanker Cats V2',
+    opensea:  'https://opensea.io/assets/base/0x5C5b928f937F63656BE62d0A45f4Db756b79934B',
+    pixelArt: true,
+  },
 ]
 
 /** sharp resize kernel appropriate to a collection's art style. */
