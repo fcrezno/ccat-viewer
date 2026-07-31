@@ -59,18 +59,32 @@ async function neynarScore(fid: number): Promise<number | null> {
   const key = process.env.NEYNAR_API_KEY
   if (!key) return null
 
-  try {
-    const res = await fetch(`https://api.neynar.com/v2/farcaster/user/bulk?fids=${fid}`, {
-      headers: { api_key: key, 'x-api-key': key },
-    })
-    if (!res.ok) return null
+  // The gate fails closed, so a single flaky response would block a legitimate
+  // minter. Retry briefly before giving up.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(`https://api.neynar.com/v2/farcaster/user/bulk?fids=${fid}`, {
+        headers: { api_key: key, 'x-api-key': key },
+      })
 
-    const user = (await res.json())?.users?.[0]
-    const score = user?.experimental?.neynar_user_score ?? user?.score
-    return typeof score === 'number' ? score : null
-  } catch {
-    return null
+      if (res.ok) {
+        const user = (await res.json())?.users?.[0]
+        const score = user?.experimental?.neynar_user_score ?? user?.score
+        if (typeof score === 'number') return score
+        // A real user with no score yet — brand new accounts have none. Treat
+        // that as zero rather than an outage, so the refusal names the reason.
+        if (user) return 0
+        return null
+      }
+
+      // 4xx other than rate limiting won't succeed on a retry.
+      if (res.status !== 429 && res.status < 500) return null
+    } catch {
+      // network blip — fall through to retry
+    }
+    if (attempt < 2) await new Promise(r => setTimeout(r, 400 * (attempt + 1)))
   }
+  return null
 }
 
 /**
