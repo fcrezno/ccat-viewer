@@ -1,0 +1,24 @@
+{
+  "name": "Clanker Cats V2 #1075",
+  "description": "Clanker Cats V2 — free mint on Base.",
+  "image": "https://ccat-viewer.vercel.app/v2/images/1075.png",
+  "edition": 1075,
+  "attributes": [
+    {
+      "trait_type": "Background",
+      "value": "rust"
+    },
+    {
+      "trait_type": "Body Color",
+      "value": "King of the jungle"
+    },
+    {
+      "trait_type": "Face",
+      "value": "whyy"
+    },
+    {
+      "trait_type": "Type",
+      "value": "Standard"
+    }
+  ]
+}

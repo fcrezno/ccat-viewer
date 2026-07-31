@@ -1,0 +1,24 @@
+{
+  "name": "Clanker Cats V2 #506",
+  "description": "Clanker Cats V2 — free mint on Base.",
+  "image": "https://ccat-viewer.vercel.app/v2/images/506.png",
+  "edition": 506,
+  "attributes": [
+    {
+      "trait_type": "Background",
+      "value": "olive"
+    },
+    {
+      "trait_type": "Body Color",
+      "value": "White cat"
+    },
+    {
+      "trait_type": "Face",
+      "value": "uwu"
+    },
+    {
+      "trait_type": "Type",
+      "value": "Standard"
+    }
+  ]
+}

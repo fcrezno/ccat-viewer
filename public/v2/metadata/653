@@ -1,0 +1,24 @@
+{
+  "name": "Clanker Cats V2 #653",
+  "description": "Clanker Cats V2 — free mint on Base.",
+  "image": "https://ccat-viewer.vercel.app/v2/images/653.png",
+  "edition": 653,
+  "attributes": [
+    {
+      "trait_type": "Background",
+      "value": "Mochi Classic"
+    },
+    {
+      "trait_type": "Body Color",
+      "value": "dore"
+    },
+    {
+      "trait_type": "Face",
+      "value": "huh"
+    },
+    {
+      "trait_type": "Type",
+      "value": "Standard"
+    }
+  ]
+}

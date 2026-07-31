@@ -1,0 +1,12 @@
+{
+  "name": "Clanker Cats V2 #330",
+  "description": "Clanker Cats V2 — free mint on Base.",
+  "image": "https://ccat-viewer.vercel.app/v2/images/330.png",
+  "edition": 330,
+  "attributes": [
+    {
+      "trait_type": "Type",
+      "value": "Mystery"
+    }
+  ]
+}

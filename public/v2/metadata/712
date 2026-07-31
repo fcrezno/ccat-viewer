@@ -1,0 +1,24 @@
+{
+  "name": "Clanker Cats V2 #712",
+  "description": "Clanker Cats V2 — free mint on Base.",
+  "image": "https://ccat-viewer.vercel.app/v2/images/712.png",
+  "edition": 712,
+  "attributes": [
+    {
+      "trait_type": "Background",
+      "value": "Farcaster gate"
+    },
+    {
+      "trait_type": "Body Color",
+      "value": "dore"
+    },
+    {
+      "trait_type": "Face",
+      "value": "Wont u"
+    },
+    {
+      "trait_type": "Type",
+      "value": "Standard"
+    }
+  ]
+}
