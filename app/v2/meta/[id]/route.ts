@@ -20,8 +20,10 @@ import { join } from 'path'
  * The contract's baseURI points here.
  */
 
-const REVEAL_CACHE      = 'public, max-age=31536000, immutable'  // minted: never changes
-const UNREVEALED_CACHE  = 'public, max-age=15'                   // must flip promptly on mint
+const REVEAL_CACHE = 'public, max-age=31536000, immutable'  // minted: never changes
+// Never cache "unrevealed". Marketplaces fetch metadata the moment they see the
+// Transfer event, and a cached miss would freeze a minted cat as a "?" card.
+const UNREVEALED_CACHE = 'no-store, max-age=0, must-revalidate'
 
 export async function GET(
   _req: NextRequest,
@@ -35,18 +37,34 @@ export async function GET(
   const tokenId = Number(id)
   const origin  = process.env.NEXT_PUBLIC_APP_URL ?? 'https://ccat-viewer.vercel.app'
 
-  let minted = 0
-  try {
-    minted = Number(await publicClient.readContract({
-      address: V2, abi: V2_ABI, functionName: 'totalSupply',
-    }))
-  } catch {
-    // If the chain read fails, stay unrevealed. Failing closed can only delay a
-    // reveal; failing open would leak the Mystery positions permanently.
-    return unrevealed(tokenId, origin)
+  if (tokenId < 1) return unrevealed(tokenId, origin)
+
+  /**
+   * Reveal iff the token exists — ownerOf reverts for an unminted id.
+   *
+   * This used to compare against totalSupply, which raced: marketplaces fetch
+   * metadata the instant they see the Transfer event, and an RPC lagging one
+   * block behind reported a supply that didn't include the token yet, so a
+   * freshly minted cat was served (and cached) as unrevealed.
+   *
+   * Existence is the property we actually care about, and it can't be read as
+   * "not yet" for a token that has already been transferred. The retry covers
+   * an RPC that is simply behind.
+   */
+  let exists = false
+  for (let attempt = 0; attempt < 3 && !exists; attempt++) {
+    try {
+      await publicClient.readContract({ address: V2, abi: V2_ABI, functionName: 'ownerOf', args: [BigInt(tokenId)] })
+      exists = true
+    } catch (e) {
+      // A revert means unminted; anything else is an RPC problem worth retrying.
+      const msg = String((e as Error)?.message ?? '')
+      if (/NonexistentToken|reverted|execution reverted/i.test(msg) && attempt > 0) break
+      if (attempt < 2) await new Promise(r => setTimeout(r, 350 * (attempt + 1)))
+    }
   }
 
-  if (tokenId < 1 || tokenId > minted) return unrevealed(tokenId, origin)
+  if (!exists) return unrevealed(tokenId, origin)
 
   // Minted — serve the real metadata from the generated set.
   try {
