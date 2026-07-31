@@ -20,6 +20,41 @@ const quickAuth = createClient()
 const DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? 'ccat-viewer.vercel.app'
 const TTL    = 15 * 60 // voucher lifetime, seconds
 
+/**
+ * Minimum Neynar user score, 0–1. Set MIN_NEYNAR_SCORE to change it without a
+ * redeploy; set it to 0 to disable the gate entirely if the mint stalls.
+ *
+ * For reference, Neynar's own suggested starting point is 0.55. Higher numbers
+ * cut deep: only a low five-figure count of accounts network-wide clear 0.7.
+ */
+const MIN_SCORE = Number(process.env.MIN_NEYNAR_SCORE ?? '0.75')
+
+/**
+ * Neynar's quality score for an account, 0–1. Lives at
+ * `experimental.neynar_user_score`; `score` is checked too in case it graduates
+ * out of experimental.
+ *
+ * Returns null when the score can't be determined — the caller decides what to
+ * do with that rather than a lookup failure silently reading as "eligible".
+ */
+async function neynarScore(fid: number): Promise<number | null> {
+  const key = process.env.NEYNAR_API_KEY
+  if (!key) return null
+
+  try {
+    const res = await fetch(`https://api.neynar.com/v2/farcaster/user/bulk?fids=${fid}`, {
+      headers: { api_key: key, 'x-api-key': key },
+    })
+    if (!res.ok) return null
+
+    const user = (await res.json())?.users?.[0]
+    const score = user?.experimental?.neynar_user_score ?? user?.score
+    return typeof score === 'number' ? score : null
+  } catch {
+    return null
+  }
+}
+
 export async function POST(req: NextRequest) {
   if (!V2) return NextResponse.json({ error: 'mint not configured' }, { status: 503 })
 
@@ -37,6 +72,22 @@ export async function POST(req: NextRequest) {
     fid = payload.sub
   } catch {
     return NextResponse.json({ error: 'invalid auth token' }, { status: 401 })
+  }
+
+  // ── quality gate ───────────────────────────────────────────────────────────
+  // Checked against the Quick Auth fid, so it can't be spoofed by the client.
+  if (MIN_SCORE > 0) {
+    const score = await neynarScore(fid)
+
+    if (score === null)
+      // Fail closed: an outage or a missing key must not become an open door.
+      return NextResponse.json({ error: 'score_unavailable' }, { status: 503 })
+
+    if (score < MIN_SCORE)
+      return NextResponse.json(
+        { error: 'low_score', score: Number(score.toFixed(2)), required: MIN_SCORE },
+        { status: 403 },
+      )
   }
 
   // ── the wallet that will call mint() ───────────────────────────────────────

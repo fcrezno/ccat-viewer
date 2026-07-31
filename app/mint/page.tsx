@@ -69,7 +69,12 @@ export default function MintPage() {
       const data = await res.json()
 
       if (!res.ok) {
-        setError(MINT_ERRORS[data?.error] ?? 'Could not authorise the mint. Try again.')
+        // The score refusal is worth being specific about — a vague failure
+        // reads as a bug, and people retry it forever.
+        const msg = data?.error === 'low_score' && typeof data.score === 'number'
+          ? `Your Neynar score is ${data.score} — this mint needs ${data.required}.`
+          : MINT_ERRORS[data?.error] ?? 'Could not authorise the mint. Try again.'
+        setError(msg)
         setPhase('error')
         return
       }
