@@ -76,18 +76,36 @@ async function neynarScore(fid: number): Promise<number | null> {
  */
 export async function GET() {
   const raw = process.env.MINT_SIGNER_KEY
+  const key = signerKey()
+
+  // Derived address is public — it's already readable on-chain via signer().
+  // Comparing the two catches the failure where a valid-looking key belongs to
+  // the wrong wallet, which would otherwise revert every mint with BadSignature.
+  let signerAddress: string | null = null
+  let matchesChain: boolean | null = null
+
+  if (key) {
+    try {
+      signerAddress = privateKeyToAccount(key).address
+      const onChain = await publicClient.readContract({ address: V2, abi: V2_ABI, functionName: 'signer' })
+      matchesChain = String(onChain).toLowerCase() === signerAddress.toLowerCase()
+    } catch {
+      matchesChain = null
+    }
+  }
 
   return NextResponse.json(
     {
       minScore: MIN_SCORE,
       phase: MIN_SCORE > 0 ? 'premint' : 'public',
-      // Presence and shape only — never the values. Launch-day diagnostics:
-      // tells apart "not set", "set but empty", and "set but not a key".
+      // Presence and shape only — never the key itself.
       config: {
-        contract:   V2,
-        signerKey:  !raw ? 'missing' : signerKey() ? 'ok' : `set but malformed (len ${raw.length})`,
-        neynarKey:  process.env.NEYNAR_API_KEY ? 'ok' : 'missing',
-        appDomain:  DOMAIN,
+        contract:      V2,
+        signerKey:     !raw ? 'missing' : key ? 'ok' : `set but malformed (len ${raw.length})`,
+        signerAddress,
+        matchesChain,
+        neynarKey:     process.env.NEYNAR_API_KEY ? 'ok' : 'missing',
+        appDomain:     DOMAIN,
       },
     },
     { headers: { 'Cache-Control': 'no-store' } },
