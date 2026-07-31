@@ -44,9 +44,17 @@ const ABI = [
 const args = process.argv.slice(2).filter(a => a !== '--dry-run')
 const dry  = process.argv.includes('--dry-run')
 
-const CONTRACT = getAddress(cfg('NEXT_PUBLIC_V2_ADDRESS') ?? '')
-const key = cfg('DEPLOYER_KEY')
-if (!key) { console.error('❌ DEPLOYER_KEY not in .env.local'); process.exit(1) }
+const CONTRACT = getAddress(cfg('NEXT_PUBLIC_V2_ADDRESS') ?? '0x5C5b928f937F63656BE62d0A45f4Db756b79934B')
+/** Private keys paste without the 0x prefix often enough to just tolerate it. */
+function privKey(name) {
+  const raw = cfg(name)?.trim()
+  if (!raw) return undefined
+  const hex = raw.startsWith('0x') ? raw.slice(2) : raw
+  return /^[0-9a-fA-F]{64}$/.test(hex) ? `0x${hex}` : undefined
+}
+
+const key = privKey('DEPLOYER_KEY')
+if (!key) { console.error('❌ DEPLOYER_KEY missing or malformed in .env.local'); process.exit(1) }
 
 const sender = privateKeyToAccount(key)
 const pub = createPublicClient({

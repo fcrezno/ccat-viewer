@@ -53,15 +53,23 @@ const ABI = [
 
 const count  = Number(process.argv[2])
 const dry    = process.argv.includes('--dry-run')
-const CONTRACT = getAddress(cfg('NEXT_PUBLIC_V2_ADDRESS') ?? '')
+const CONTRACT = getAddress(cfg('NEXT_PUBLIC_V2_ADDRESS') ?? '0x5C5b928f937F63656BE62d0A45f4Db756b79934B')
 
 if (!Number.isInteger(count) || count < 1 || count > 200) {
   console.error('Usage: node scripts/reserve.mjs <count 1-200> [--dry-run]')
   process.exit(1)
 }
 
-const signerKey = cfg('MINT_SIGNER_KEY') ?? cfg('DEPLOYER_KEY')
-const senderKey = cfg('DEPLOYER_KEY')
+/** Private keys paste without the 0x prefix often enough to just tolerate it. */
+function privKey(name) {
+  const raw = cfg(name)?.trim()
+  if (!raw) return undefined
+  const hex = raw.startsWith('0x') ? raw.slice(2) : raw
+  return /^[0-9a-fA-F]{64}$/.test(hex) ? `0x${hex}` : undefined
+}
+
+const signerKey = privKey('MINT_SIGNER_KEY') ?? privKey('DEPLOYER_KEY')
+const senderKey = privKey('DEPLOYER_KEY')
 if (!signerKey || !senderKey) {
   console.error('❌ need MINT_SIGNER_KEY and DEPLOYER_KEY in .env.local')
   process.exit(1)
@@ -126,9 +134,21 @@ if (dry) {
   process.exit(0)
 }
 
-const wallet = createWalletClient({ account: sender, chain: base, transport: http('https://mainnet.base.org') })
+// Public RPCs drop writes under load, so spread them and retry rather than
+// abandoning a half-finished reserve.
+const wallet = createWalletClient({
+  account: sender,
+  chain: base,
+  transport: fallback([
+    http('https://base-rpc.publicnode.com'),
+    http('https://mainnet.base.org'),
+    http('https://1rpc.io/base'),
+  ]),
+})
+
 const deadline = BigInt(Math.floor(Date.now() / 1000) + TTL)
 let minted = 0
+let failed = 0
 
 console.log('')
 for (const fid of fids) {
@@ -139,17 +159,26 @@ for (const fid of fids) {
     message: { to: sender.address, fid, deadline },
   })
 
-  try {
-    const hash = await wallet.writeContract({ address: CONTRACT, abi: ABI, functionName: 'mint', args: [fid, deadline, signature] })
-    await pub.waitForTransactionReceipt({ hash })
-    minted++
-    if (minted % 5 === 0 || minted === count) console.log(`  minted ${minted}/${count}`)
-  } catch (e) {
-    console.error(`  ❌ fid ${fid}: ${String(e.shortMessage ?? e.message).split('\n')[0]}`)
-    break
+  let ok = false
+  for (let attempt = 1; attempt <= 4 && !ok; attempt++) {
+    try {
+      const hash = await wallet.writeContract({ address: CONTRACT, abi: ABI, functionName: 'mint', args: [fid, deadline, signature] })
+      await pub.waitForTransactionReceipt({ hash })
+      ok = true
+      minted++
+      if (minted % 5 === 0 || minted === count) console.log(`  minted ${minted}/${count}`)
+    } catch (e) {
+      const msg = String(e.shortMessage ?? e.message).split('\n')[0]
+      // AlreadyMinted means this fid landed on a previous run — not a failure.
+      if (/AlreadyMinted|already/i.test(msg)) { ok = true; break }
+      if (attempt === 4) { failed++; console.error(`  ❌ fid ${fid}: ${msg}`) }
+      else await sleep(1500 * attempt)
+    }
   }
-  await sleep(250)
+  await sleep(600)
 }
+
+if (failed) console.log(`\n⚠️  ${failed} failed — rerun to pick them up`)
 
 const after = await read('totalSupply')
 console.log(`\n✅ reserved ${minted} — supply now ${after} / ${max}`)

@@ -42,8 +42,16 @@ const ABI = [
   { name: 'transferOwnership', type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'o',    type: 'address' }],   outputs: [] },
 ]
 
-const address = cfg('NEXT_PUBLIC_V2_ADDRESS')
-const key     = cfg('DEPLOYER_KEY')
+/** Private keys paste without the 0x prefix often enough to just tolerate it. */
+function privKey(name) {
+  const raw = cfg(name)?.trim()
+  if (!raw) return undefined
+  const hex = raw.startsWith('0x') ? raw.slice(2) : raw
+  return /^[0-9a-fA-F]{64}$/.test(hex) ? `0x${hex}` : undefined
+}
+
+const address = cfg('NEXT_PUBLIC_V2_ADDRESS') ?? '0x5C5b928f937F63656BE62d0A45f4Db756b79934B'
+const key     = privKey('DEPLOYER_KEY')
 const [cmd, arg] = process.argv.slice(2)
 const force = process.argv.includes('--force')
 
