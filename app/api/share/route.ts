@@ -62,7 +62,9 @@ export async function GET(req: NextRequest) {
   return new NextResponse(html, {
     headers: {
       'Content-Type':  'text/html',
-      'Cache-Control': 'public, max-age=3600',
+      // Short: a cat can flip from unrevealed to revealed, and a cast embed
+      // scraped during that window would otherwise be frozen for an hour.
+      'Cache-Control': 'public, max-age=60',
     },
   })
 }

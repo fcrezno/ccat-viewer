@@ -144,7 +144,15 @@ export async function fetchMeta(col: CollectionDef, id: number | string): Promis
     if (uri.startsWith('data:'))
       return JSON.parse(Buffer.from(uri.split(',')[1], 'base64').toString('utf8'))
 
-    const res = await fetch(uri, { next: { revalidate: 86400 } })
+    /**
+     * Not cached. V2 metadata flips from unrevealed to revealed the moment a cat
+     * is minted, and a day-long cache pinned that transition — share embeds and
+     * the viewer kept serving the "?" placeholder long after the cat existed.
+     *
+     * The upstream route sets its own headers: revealed responses are immutable,
+     * unrevealed ones are no-store. Caching again here can only get it wrong.
+     */
+    const res = await fetch(uri, { cache: 'no-store' })
     if (!res.ok) return null
     return await res.json()
   } catch {
