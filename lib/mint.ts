@@ -1,11 +1,16 @@
 /**
  * Clanker Cats V2 mint config.
  *
- * Set NEXT_PUBLIC_V2_ADDRESS once the contract is deployed (scripts/deploy-v2.mjs
- * prints it). Until then the mint UI shows a "coming soon" state instead of a
- * broken button, and the voucher API returns 503.
+ * The contract address is public and version-controlled, same as the entry in
+ * lib/collection.ts — it does not belong in an env var. Keeping it here means a
+ * deploy can't silently come up unconfigured because a NEXT_PUBLIC_ value was
+ * missing from the build.
+ *
+ * NEXT_PUBLIC_V2_ADDRESS still overrides it, which is useful for pointing a
+ * preview deployment at a test contract.
  */
-export const V2 = (process.env.NEXT_PUBLIC_V2_ADDRESS ?? '') as `0x${string}` | ''
+export const V2 = (process.env.NEXT_PUBLIC_V2_ADDRESS
+  || '0x5C5b928f937F63656BE62d0A45f4Db756b79934B') as `0x${string}`
 
 export const V2_ABI = [
   { name: 'mintOpen',    type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'bool'    }] },
