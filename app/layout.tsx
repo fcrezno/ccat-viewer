@@ -1,26 +1,18 @@
 import type { Metadata } from 'next'
 import { Providers } from '@/lib/providers'
+import { embedTags, APP_URL } from '@/lib/miniapp'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'ClankerCats Viewer',
-  description: 'View your on-chain ClankerCat NFTs',
-  other: {
-    'fc:frame': JSON.stringify({
-      version: '1',
-      imageUrl: 'https://ccat-viewer.vercel.app/image.png',
-      button: {
-        title: 'View My CCats',
-        action: {
-          type: 'launch_frame',
-          url: 'https://ccat-viewer.vercel.app',
-          name: 'ClankerCats',
-          splashImageUrl: 'https://ccat-viewer.vercel.app/splash.png',
-          splashBackgroundColor: '#0a0a14',
-        }
-      }
-    })
-  }
+  title: 'Clanker Cats',
+  description: '1111 free pixel cats on Base. One per Farcaster account.',
+  openGraph: {
+    title: 'Clanker Cats V2',
+    description: '1111 free pixel cats on Base. One per Farcaster account.',
+    images: [`${APP_URL}/image.png`],
+  },
+  // Casting any page of the app opens straight into the mint.
+  other: embedTags({ button: 'Mint a Cat' }),
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

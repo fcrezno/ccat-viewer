@@ -1,20 +1,43 @@
 {
-  "frame": {
-    "name": "Clanker Cats",
-    "version": "1",
-    "iconUrl": "https://ccat-viewer.vercel.app/icon.png",
-    "homeUrl": "https://ccat-viewer.vercel.app",
-    "imageUrl": "https://ccat-viewer.vercel.app/image.png",
-    "splashImageUrl": "https://ccat-viewer.vercel.app/splash.png",
-    "splashBackgroundColor": "#0a0a14",
-    "webhookUrl": "https://ccat-viewer.vercel.app/api/webhook",
-    "primaryCategory": "art-creativity",
-    "subtitle": "clank your cat!",
-    "description": "Clanker Cats"
-  },
   "accountAssociation": {
     "header": "eyJmaWQiOjM0OTIyOCwidHlwZSI6ImF1dGgiLCJrZXkiOiIweGQ4NjE2MDJmY0I1NTU3MzE0ZkNGMGRDQTU3NjQxNEQyYjNmNjg1OTIifQ",
     "payload": "eyJkb21haW4iOiJjY2F0LXZpZXdlci52ZXJjZWwuYXBwIn0",
     "signature": "OtH1bu+dNDlVPk+hEaj6kcVJA3QZ+95oHNy78RxPeQEKYYIOLwWirZI1QVEqQ+5YGn8PbDxxl2+1OLc0eKH3XRw="
+  },
+  "miniapp": {
+    "version": "1",
+    "name": "Clanker Cats",
+    "homeUrl": "https://ccat-viewer.vercel.app/mint",
+    "iconUrl": "https://ccat-viewer.vercel.app/icon.png",
+    "imageUrl": "https://ccat-viewer.vercel.app/image.png",
+    "buttonTitle": "Mint a Cat",
+    "splashImageUrl": "https://ccat-viewer.vercel.app/splash.png",
+    "splashBackgroundColor": "#0a0a14",
+    "heroImageUrl": "https://ccat-viewer.vercel.app/hero.png",
+    "webhookUrl": "https://ccat-viewer.vercel.app/api/webhook",
+    "subtitle": "1111 free pixel cats",
+    "description": "Mint a Clanker Cat on Base. 1111 hand-drawn pixel cats, free, one per Farcaster account. Eleven of them are Mystery.",
+    "tagline": "One free cat per account",
+    "primaryCategory": "art-creativity",
+    "tags": ["nft", "mint", "pixelart", "base", "free"],
+    "ogTitle": "Clanker Cats V2",
+    "ogDescription": "1111 free pixel cats on Base. One per Farcaster account.",
+    "ogImageUrl": "https://ccat-viewer.vercel.app/image.png",
+    "requiredChains": ["eip155:8453"],
+    "noindex": false
+  },
+  "frame": {
+    "version": "1",
+    "name": "Clanker Cats",
+    "homeUrl": "https://ccat-viewer.vercel.app/mint",
+    "iconUrl": "https://ccat-viewer.vercel.app/icon.png",
+    "imageUrl": "https://ccat-viewer.vercel.app/image.png",
+    "buttonTitle": "Mint a Cat",
+    "splashImageUrl": "https://ccat-viewer.vercel.app/splash.png",
+    "splashBackgroundColor": "#0a0a14",
+    "webhookUrl": "https://ccat-viewer.vercel.app/api/webhook",
+    "subtitle": "1111 free pixel cats",
+    "description": "Mint a Clanker Cat on Base. 1111 hand-drawn pixel cats, free, one per Farcaster account.",
+    "primaryCategory": "art-creativity"
   }
 }
