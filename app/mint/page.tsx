@@ -119,8 +119,8 @@ export default function MintPage() {
   async function share() {
     // $CLKCAT renders as a token chip in the cast, so every share surfaces the
     // ticker alongside the cat.
-    const label = mintedId ? ` — Clanker Cats V2 #${mintedId}` : ''
-    const text  = encodeURIComponent(`I just clanked my cat 🐱${label} $CLKCAT`)
+    const label = mintedId ? ` Clanker Cats V2 #${mintedId}` : ''
+    const text  = encodeURIComponent(`I just clanked my cat 🐱${label}\nby @crezno\n$CLKCAT`)
 
     // Share the cat itself when we know which one — /api/share renders its image
     // as the embed. Falls back to the mint page if the token id wasn't readable.

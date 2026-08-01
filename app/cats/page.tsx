@@ -75,23 +75,59 @@ function TamagotchiPanel({ catId }: { catId: string }) {
   )
 }
 
+type Resolved = { username: string; address: string; pfp: string | null; verified: boolean }
+
 function SendPanel({ cat, onClose }: { cat: Cat; onClose: () => void }) {
   const { address } = useAccount()
   const [to, setTo]         = useState('')
   const [confirmed, setConfirmed] = useState(false)
+  const [resolved, setResolved]   = useState<Resolved | null>(null)
+  const [looking, setLooking]     = useState(false)
+  const [lookupError, setLookupError] = useState<string | null>(null)
   const { writeContract, data: txHash, isPending, isError, error } = useWriteContract()
   const { isSuccess, isLoading: isConfirming } = useWaitForTransactionReceipt({ hash: txHash })
 
-  const meta  = cat.meta
-  const valid = isAddress(to)
+  const meta      = cat.meta
+  const isRawAddr = isAddress(to)
+  // Anything that isn't an address is treated as a Farcaster handle.
+  const asHandle  = !isRawAddr && /^@?[a-z0-9][a-z0-9._-]{0,32}$/i.test(to.trim())
+  const target    = isRawAddr ? to : resolved?.address
+  const valid     = Boolean(target && isAddress(target))
+
+  // Resolve handles as they type, debounced.
+  useEffect(() => {
+    setResolved(null)
+    setLookupError(null)
+    if (!asHandle) return
+
+    const handle = to.trim().replace(/^@/, '')
+    let cancelled = false
+    setLooking(true)
+
+    const t = setTimeout(async () => {
+      try {
+        const res  = await fetch(`/api/resolve?handle=${encodeURIComponent(handle)}`)
+        const data = await res.json()
+        if (cancelled) return
+        if (res.ok) setResolved(data)
+        else setLookupError(data?.error === 'not_found' ? `No Farcaster user @${handle}` : 'Lookup failed')
+      } catch {
+        if (!cancelled) setLookupError('Lookup failed')
+      } finally {
+        if (!cancelled) setLooking(false)
+      }
+    }, 450)
+
+    return () => { cancelled = true; clearTimeout(t); setLooking(false) }
+  }, [to, asHandle])
 
   function send() {
-    if (!valid || !address) return
+    if (!valid || !address || !target) return
     writeContract({
       address: getCollection(cat.collection).address,
       abi: COLLECTION_ABI,
       functionName: 'safeTransferFrom',
-      args: [address, to as `0x${string}`, BigInt(cat.id)],
+      args: [address, target as `0x${string}`, BigInt(cat.id)],
     })
   }
 
@@ -100,7 +136,7 @@ function SendPanel({ cat, onClose }: { cat: Cat; onClose: () => void }) {
       <div style={s.sendPanel}>
         <div style={{ fontSize: 36, textAlign: 'center' as const }}>✅</div>
         <div style={{ fontSize: 15, fontWeight: 'bold', textAlign: 'center' as const }}>{meta?.name ?? `Cat #${cat.id}`} sent!</div>
-        <div style={{ fontSize: 11, color: '#555', textAlign: 'center' as const, wordBreak: 'break-all' as const }}>To: {to}</div>
+        <div style={{ fontSize: 11, color: '#555', textAlign: 'center' as const, wordBreak: 'break-all' as const }}>To: {resolved ? '@' + resolved.username : target}</div>
         <button style={s.sendConfirmBtn} onClick={onClose}>Done</button>
       </div>
     )
@@ -125,16 +161,40 @@ function SendPanel({ cat, onClose }: { cat: Cat; onClose: () => void }) {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <label style={{ fontSize: 11, color: '#555', textTransform: 'uppercase' as const, letterSpacing: 1 }}>Recipient Address</label>
+        <label style={{ fontSize: 11, color: '#555', textTransform: 'uppercase' as const, letterSpacing: 1 }}>Send to</label>
         <input
           value={to}
           onChange={e => setTo(e.target.value)}
-          placeholder="0x..."
+          placeholder="@username or 0x..."
           style={s.sendInput}
           spellCheck={false}
           autoComplete="off"
+          autoCapitalize="none"
         />
-        {to.length > 0 && !valid && <div style={{ fontSize: 11, color: '#ef4444' }}>Invalid address</div>}
+
+        {looking && <div style={{ fontSize: 11, color: '#555' }}>Looking up…</div>}
+
+        {resolved && (
+          <div style={s.resolvedRow}>
+            {resolved.pfp && <img src={resolved.pfp} alt="" style={{ width: 22, height: 22, borderRadius: 11 }} />}
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: 12, color: '#ccc' }}>@{resolved.username}</span>
+              <span style={{ fontSize: 10, color: '#555' }}>{resolved.address.slice(0, 6)}…{resolved.address.slice(-4)}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Custody wallets are often inaccessible in practice — say so plainly. */}
+        {resolved && !resolved.verified && (
+          <div style={{ fontSize: 11, color: '#f2d857' }}>
+            No verified wallet — this goes to their custody address.
+          </div>
+        )}
+
+        {lookupError && <div style={{ fontSize: 11, color: '#ef4444' }}>{lookupError}</div>}
+        {to.length > 0 && !asHandle && !isRawAddr && (
+          <div style={{ fontSize: 11, color: '#ef4444' }}>Enter a Farcaster username or a 0x address</div>
+        )}
       </div>
 
       {!confirmed ? (
@@ -150,7 +210,10 @@ function SendPanel({ cat, onClose }: { cat: Cat; onClose: () => void }) {
           <div style={{ fontSize: 12, color: '#aaa', background: '#0a0a14', border: '1px solid #2a2a3e', borderRadius: 8, padding: '10px 12px' }}>
             <div style={{ color: '#ef4444', fontWeight: 'bold', marginBottom: 4 }}>⚠️ This cannot be undone</div>
             Sending <strong style={{ color: '#ccc' }}>{meta?.name ?? `Cat #${cat.id}`}</strong> to<br />
-            <span style={{ fontSize: 10, color: '#555', wordBreak: 'break-all' as const }}>{to}</span>
+            {resolved && <span style={{ color: '#ccc' }}>@{resolved.username}<br /></span>}
+            {/* Always show the address being sent to, even for a handle — this
+                is the last screen before an irreversible transfer. */}
+            <span style={{ fontSize: 10, color: '#555', wordBreak: 'break-all' as const }}>{target}</span>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button style={{ ...s.sendConfirmBtn, background: '#1e1e2e', flex: 1 }} onClick={() => setConfirmed(false)}>Cancel</button>
@@ -176,9 +239,11 @@ function CatDetail({ cat, onBack }: { cat: Cat; onBack: () => void }) {
 
   async function share() {
     const shareUrl = `https://ccat-viewer.vercel.app/api/share?id=${cat.id}&c=${cat.collection}`
-    const text = encodeURIComponent(`Check out my ${meta?.name ?? `Clanker Cat #${cat.id}`} 🐱 $CLKCAT`)
-    const embed = encodeURIComponent(shareUrl)
-    const url = `https://warpcast.com/~/compose?text=${text}&embeds[]=${embed}`
+    const name = meta?.name ?? `Clanker Cat #${cat.id}`
+    // $CLKCAT renders as a token chip; @crezno makes every share a mention so
+    // the drop collects into one thread instead of scattering.
+    const text = encodeURIComponent(`my cat 🐱 ${name}\nby @crezno\n$CLKCAT`)
+    const url = `https://warpcast.com/~/compose?text=${text}&embeds[]=${encodeURIComponent(shareUrl)}`
     try { await sdk.actions.openUrl(url) }
     catch { window.open(url, '_blank') }
   }
@@ -362,6 +427,7 @@ const s: Record<string, React.CSSProperties> = {
   sendBtn:      { padding: 12, background: 'transparent', color: '#ccc', border: '1px solid #3a3a4e', borderRadius: 10, cursor: 'pointer', fontSize: 13 },
   explorerBtn:  { padding: 12, background: 'transparent', color: '#555', border: '1px solid #2a2a3e', borderRadius: 10, cursor: 'pointer', fontSize: 13 },
   sendPanel:    { display: 'flex', flexDirection: 'column', gap: 14, background: '#0a0a14', border: '1px solid #2a2a3e', borderRadius: 12, padding: '16px' },
+  resolvedRow:  { display: 'flex', alignItems: 'center', gap: 8, background: '#12122a', border: '1px solid #2a2a3e', borderRadius: 8, padding: '7px 10px' },
   sendInput:    { background: '#12122a', border: '1px solid #2a2a3e', borderRadius: 8, padding: '10px 12px', color: 'white', fontSize: 13, fontFamily: 'monospace', width: '100%', boxSizing: 'border-box' as const, outline: 'none' },
   sendConfirmBtn: { padding: '12px 0', background: '#7c3aed', color: 'white', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 'bold', width: '100%' },
   back:         { background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 13, padding: '0 0 4px 0', textAlign: 'left' as const },
