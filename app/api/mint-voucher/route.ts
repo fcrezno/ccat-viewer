@@ -5,6 +5,7 @@ import { base } from 'viem/chains'
 import { createClient } from '@farcaster/quick-auth'
 import { publicClient } from '@/lib/collection'
 import { V2, V2_ABI } from '@/lib/mint'
+import { bonusAllowance, bonusFid } from '@/lib/bonus'
 
 /**
  * Issues an EIP-712 voucher authorising one mint for one Farcaster ID.
@@ -171,6 +172,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'invalid address' }, { status: 400 })
 
   // ── check mint state on-chain before spending a signature ──────────────────
+  // mintFid is what the voucher is signed for. Normally the real fid; for someone
+  // with an unused bonus it becomes a derived fid so the contract's one-per-fid
+  // rule doesn't block the extra.
+  let mintFid = BigInt(fid)
+
   try {
     const [open, minted, supply, max] = await Promise.all([
       publicClient.readContract({ address: V2, abi: V2_ABI, functionName: 'mintOpen' }),
@@ -179,9 +185,26 @@ export async function POST(req: NextRequest) {
       publicClient.readContract({ address: V2, abi: V2_ABI, functionName: 'maxSupply' }),
     ])
 
-    if (!open)                return NextResponse.json({ error: 'mint_closed' },   { status: 403 })
-    if (minted)               return NextResponse.json({ error: 'already_minted' }, { status: 409 })
-    if (supply >= max)        return NextResponse.json({ error: 'sold_out' },      { status: 410 })
+    if (!open)         return NextResponse.json({ error: 'mint_closed' }, { status: 403 })
+    if (supply >= max) return NextResponse.json({ error: 'sold_out' },    { status: 410 })
+
+    if (minted) {
+      // Already used their normal mint — fall through to a bonus slot if they
+      // earned one by sharing.
+      const allowance = bonusAllowance(fid)
+      let granted: bigint | null = null
+
+      for (let slot = 0; slot < allowance; slot++) {
+        const candidate = bonusFid(fid, slot)
+        const used = await publicClient.readContract({
+          address: V2, abi: V2_ABI, functionName: 'fidMinted', args: [candidate],
+        })
+        if (!used) { granted = candidate; break }
+      }
+
+      if (!granted) return NextResponse.json({ error: 'already_minted' }, { status: 409 })
+      mintFid = granted
+    }
   } catch {
     return NextResponse.json({ error: 'chain read failed' }, { status: 502 })
   }
@@ -205,11 +228,11 @@ export async function POST(req: NextRequest) {
       ],
     },
     primaryType: 'Mint',
-    message: { to, fid: BigInt(fid), deadline },
+    message: { to, fid: mintFid, deadline },
   })
 
   return NextResponse.json(
-    { fid, deadline: deadline.toString(), signature },
+    { fid: mintFid.toString(), deadline: deadline.toString(), signature },
     { headers: { 'Cache-Control': 'no-store' } },
   )
 }
