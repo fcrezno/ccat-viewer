@@ -20,6 +20,13 @@ export type CollectionDef = {
   opensea: string
   /** Pixel art is upscaled nearest-neighbour; anything else gets smooth resampling. */
   pixelArt: boolean
+  /**
+   * Where metadata lives, so a token's JSON can be fetched without an RPC call.
+   * This mirrors the contract's baseURI. Reading tokenURI per token meant one
+   * chain call per cat, which is the first thing to fail under rate limiting —
+   * and it failed silently, leaving the viewer with nameless blank cards.
+   */
+  metaBase: string
 }
 
 export const COLLECTIONS: CollectionDef[] = [
@@ -29,6 +36,7 @@ export const COLLECTIONS: CollectionDef[] = [
     label:    'Clanker Cats',
     opensea:  'https://opensea.io/collection/clanker-cats',
     pixelArt: true,
+    metaBase: 'https://arweave.net/aHi9QWrwohsE6nArKZAz0btSUTno5YG50i7AgMV7_6E/',
   },
   {
     key:      'v2',
@@ -36,6 +44,7 @@ export const COLLECTIONS: CollectionDef[] = [
     label:    'Clanker Cats V2',
     opensea:  'https://opensea.io/assets/base/0x5C5b928f937F63656BE62d0A45f4Db756b79934B',
     pixelArt: true,
+    metaBase: 'https://ccat-viewer.vercel.app/v2/metadata/',
   },
 ]
 
@@ -93,12 +102,15 @@ export type Cat = {
   meta:       CatMeta | null
 }
 
+// Ordered by what actually stayed up under load: llamarpc returns 521s and
+// mainnet.base.org rate-limits hard enough to fail a 200-call multicall.
 export const publicClient = createPublicClient({
   chain: base,
   transport: fallback([
-    http('https://base.llamarpc.com'),
+    http('https://base-rpc.publicnode.com'),
+    http('https://1rpc.io/base'),
     http('https://mainnet.base.org'),
-    http('https://rpc.ankr.com/base'),
+    http('https://base.llamarpc.com'),
   ]),
 })
 
@@ -113,51 +125,83 @@ export function parseUid(uid: string): { collection: CollectionKey; id: string }
 
 /** Token ids in `col` held by `owner`, found by scanning the collection via multicall. */
 export async function fetchOwnedIds(col: CollectionDef, owner: string): Promise<number[]> {
-  const supply = Number(await publicClient.readContract({
-    address: col.address, abi: COLLECTION_ABI, functionName: 'totalSupply',
-  }))
-  const ids = Array.from({ length: Math.min(supply, SCAN_LIMIT) }, (_, i) => i + 1)
-  if (ids.length === 0) return []
-
-  const owners = await publicClient.multicall({
-    contracts: ids.map(id => ({
-      address: col.address, abi: COLLECTION_ABI, functionName: 'ownerOf', args: [BigInt(id)],
-    })),
-    allowFailure: true,
-    batchSize: 4096,
-  })
-
   const target = owner.toLowerCase()
-  return ids.filter((_, i) => {
-    const r = owners[i]
-    return r.status === 'success' && String(r.result).toLowerCase() === target
-  })
+
+  // Cheap pre-check: if the wallet holds nothing here, skip the whole scan.
+  const balance = Number(await retry(() => publicClient.readContract({
+    address: col.address, abi: COLLECTION_ABI, functionName: 'balanceOf', args: [owner as `0x${string}`],
+  })))
+  if (balance === 0) return []
+
+  const supply = Number(await retry(() => publicClient.readContract({
+    address: col.address, abi: COLLECTION_ABI, functionName: 'totalSupply',
+  })))
+  const ids = Array.from({ length: Math.min(supply, SCAN_LIMIT) }, (_, i) => i + 1)
+  if (!ids.length) return []
+
+  /**
+   * Scan in chunks and retry. A single multicall over the whole supply was one
+   * failure away from returning nothing — and because allowFailure swallows the
+   * errors, a rate-limited RPC produced an empty result that looked exactly like
+   * "this wallet owns no cats". That silently hid V1 holdings in the viewer.
+   *
+   * Stops early once `balance` matches, so a wallet holding a few low ids does
+   * not scan the whole collection.
+   */
+  const found: number[] = []
+  const CHUNK = 100
+
+  for (let start = 0; start < ids.length && found.length < balance; start += CHUNK) {
+    const slice = ids.slice(start, start + CHUNK)
+    const owners = await retry(() => publicClient.multicall({
+      contracts: slice.map(id => ({
+        address: col.address, abi: COLLECTION_ABI, functionName: 'ownerOf', args: [BigInt(id)],
+      })),
+      allowFailure: true,
+      batchSize: 2048,
+    }))
+
+    slice.forEach((id, i) => {
+      const r = owners[i]
+      if (r.status === 'success' && String(r.result).toLowerCase() === target) found.push(id)
+    })
+  }
+
+  return found
+}
+
+/** Public Base RPCs throttle; a transient failure shouldn't read as "owns nothing". */
+async function retry<T>(fn: () => Promise<T>, tries = 4): Promise<T> {
+  let last: unknown
+  for (let i = 0; i < tries; i++) {
+    try { return await fn() } catch (e) {
+      last = e
+      await new Promise(r => setTimeout(r, 400 * (i + 1)))
+    }
+  }
+  throw last
 }
 
 /** tokenURI → hosted JSON. Null if the token doesn't exist or metadata is unreachable. */
 export async function fetchMeta(col: CollectionDef, id: number | string): Promise<CatMeta | null> {
-  try {
-    const uri = await publicClient.readContract({
-      address: col.address, abi: COLLECTION_ABI, functionName: 'tokenURI', args: [BigInt(id)],
-    }) as string
+  // Built from metaBase rather than read per token from the chain. The RPC read
+  // was one call per cat and the first thing to fail under rate limiting — and it
+  // failed to null, so the viewer showed nameless blank cards.
+  const url = `${col.metaBase}${id}`
 
-    if (uri.startsWith('data:'))
-      return JSON.parse(Buffer.from(uri.split(',')[1], 'base64').toString('utf8'))
-
-    /**
-     * Not cached. V2 metadata flips from unrevealed to revealed the moment a cat
-     * is minted, and a day-long cache pinned that transition — share embeds and
-     * the viewer kept serving the "?" placeholder long after the cat existed.
-     *
-     * The upstream route sets its own headers: revealed responses are immutable,
-     * unrevealed ones are no-store. Caching again here can only get it wrong.
-     */
-    const res = await fetch(uri, { cache: 'no-store' })
-    if (!res.ok) return null
-    return await res.json()
-  } catch {
-    return null
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      // Not cached: V2 metadata can change (unrevealed → revealed), and the
+      // upstream route already sets the right headers for each case.
+      const res = await fetch(url, { cache: 'no-store' })
+      if (res.ok) return await res.json()
+      if (res.status === 404) return null   // genuinely absent, retrying won't help
+    } catch {
+      // network blip — retry
+    }
+    if (attempt < 2) await new Promise(r => setTimeout(r, 250 * (attempt + 1)))
   }
+  return null
 }
 
 /** Every cat `owner` holds, across every configured collection. */
