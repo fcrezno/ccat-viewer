@@ -26,8 +26,14 @@ export async function GET(req: NextRequest) {
       { headers: { api_key: key, 'x-api-key': key }, cache: 'no-store' },
     )
 
-    if (res.status === 404) return NextResponse.json({ error: 'not_found' }, { status: 404 })
-    if (!res.ok)            return NextResponse.json({ error: 'lookup failed' }, { status: 502 })
+    // The handle is regex-validated above, so any 4xx from Neynar means the user
+    // doesn't exist — not a malformed request. Neynar answers a missing username
+    // with 400 rather than 404, and reporting that as "lookup failed" sends
+    // people chasing an outage when they've simply mistyped a name.
+    if (res.status >= 400 && res.status < 500)
+      return NextResponse.json({ error: 'not_found' }, { status: 404 })
+    if (!res.ok)
+      return NextResponse.json({ error: 'lookup failed' }, { status: 502 })
 
     const user = (await res.json())?.user
     const verified = user?.verified_addresses?.eth_addresses?.[0]
