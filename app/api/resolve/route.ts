@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(
       {
+        fid:      user?.fid ?? null,
         username: user?.username ?? raw,
         address,
         pfp:      user?.pfp_url ?? null,
