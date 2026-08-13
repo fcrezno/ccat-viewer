@@ -35,6 +35,19 @@ export const BONUS_MINTS: Record<number, number> = {
   1071216: 1,  // fattylazyboy
 }
 
+/**
+ * An extra mint for anyone who already owns a cat.
+ *
+ * Unlike BONUS_MINTS above this is a RULE rather than a list, so it needs no
+ * maintenance as people mint — the check happens against the chain at request
+ * time. It stacks with a share bonus: someone on the list who also holds a cat
+ * gets both.
+ *
+ * It rides the same derived-fid mechanism, so the one-per-fid rule in the
+ * contract is untouched and every extra stays visible in the Minted event.
+ */
+export const HOLDER_BONUS = 1
+
 const BONUS_FID_BASE = BigInt(800_000_000)
 
 /**

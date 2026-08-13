@@ -25,6 +25,12 @@ export const V2_ABI = [
     name: 'fidMinted', type: 'function', stateMutability: 'view',
     inputs: [{ name: 'fid', type: 'uint256' }], outputs: [{ type: 'bool' }],
   },
+  // How the holder bonus is decided — see HOLDER_BONUS in lib/bonus.ts. Reading
+  // ownership rather than trusting the client is the whole point.
+  {
+    name: 'balanceOf', type: 'function', stateMutability: 'view',
+    inputs: [{ name: 'owner', type: 'address' }], outputs: [{ type: 'uint256' }],
+  },
   {
     name: 'mint', type: 'function', stateMutability: 'nonpayable',
     inputs: [

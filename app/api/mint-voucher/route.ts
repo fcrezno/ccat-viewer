@@ -5,7 +5,7 @@ import { base } from 'viem/chains'
 import { createClient } from '@farcaster/quick-auth'
 import { publicClient } from '@/lib/collection'
 import { V2, V2_ABI } from '@/lib/mint'
-import { bonusAllowance, bonusFid } from '@/lib/bonus'
+import { bonusAllowance, bonusFid, HOLDER_BONUS } from '@/lib/bonus'
 
 /**
  * Issues an EIP-712 voucher authorising one mint for one Farcaster ID.
@@ -189,9 +189,20 @@ export async function POST(req: NextRequest) {
     if (supply >= max) return NextResponse.json({ error: 'sold_out' },    { status: 410 })
 
     if (minted) {
-      // Already used their normal mint — fall through to a bonus slot if they
-      // earned one by sharing.
-      const allowance = bonusAllowance(fid)
+      /*
+       * Already used their normal mint — fall through to a bonus slot.
+       *
+       * Two ways to have one: a share bonus from the list, and the standing
+       * offer of one extra to anyone who already owns a cat. They stack.
+       *
+       * Ownership is read off the chain for the address the cat would go TO,
+       * not claimed by the caller — and because the mint lands in that same
+       * address, naming a wallet you do not control buys you nothing.
+       */
+      const held = await publicClient.readContract({
+        address: V2, abi: V2_ABI, functionName: 'balanceOf', args: [to as `0x${string}`],
+      })
+      const allowance = bonusAllowance(fid) + (held > BigInt(0) ? HOLDER_BONUS : 0)
       let granted: bigint | null = null
 
       for (let slot = 0; slot < allowance; slot++) {
