@@ -8,10 +8,10 @@ import { embedTags, APP_URL } from '@/lib/miniapp'
  */
 export const metadata: Metadata = {
   title: 'Mint a Clanker Cat',
-  description: '1111 free pixel cats on Base. One per Farcaster account. Eleven are Mystery.',
+  description: '1111 free pixel cats on Base. One per Farcaster account, plus one more for holders. Eleven are Mystery.',
   openGraph: {
     title: 'Clanker Cats V2 — Free Mint',
-    description: '1111 free pixel cats on Base. One per Farcaster account.',
+    description: '1111 free pixel cats on Base. One per Farcaster account, plus one more for holders.',
     images: [`${APP_URL}/image.png`],
   },
   other: embedTags({ button: 'Mint a Cat' }),

@@ -51,7 +51,7 @@ export type Voucher = {
 /** Human-readable reasons the mint endpoint can refuse, for UI copy. */
 export const MINT_ERRORS: Record<string, string> = {
   mint_closed:       'Minting hasn’t opened yet.',
-  already_minted:    'This Farcaster account already minted a cat.',
+  already_minted:    'This account has used every mint it has. Holders get one extra — if you own a cat and still see this, the extra is already claimed.',
   sold_out:          'All cats have been claimed.',
   low_score:         'Your Farcaster account doesn’t meet the score needed for this mint.',
   score_unavailable: 'Couldn’t check your account right now. Try again in a minute.',

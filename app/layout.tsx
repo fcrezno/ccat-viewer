@@ -5,10 +5,10 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Clanker Cats',
-  description: '1111 free pixel cats on Base. One per Farcaster account.',
+  description: '1111 free pixel cats on Base. One per Farcaster account, plus one more for holders.',
   openGraph: {
     title: 'Clanker Cats V2',
-    description: '1111 free pixel cats on Base. One per Farcaster account.',
+    description: '1111 free pixel cats on Base. One per Farcaster account, plus one more for holders.',
     images: [`${APP_URL}/image.png`],
   },
   // Casting any page of the app opens straight into the mint.

@@ -16,12 +16,12 @@
     "heroImageUrl": "https://ccat-viewer.vercel.app/hero.png",
     "webhookUrl": "https://ccat-viewer.vercel.app/api/webhook",
     "subtitle": "1111 free pixel cats",
-    "description": "Mint a Clanker Cat on Base. 1111 hand-drawn pixel cats, free, one per Farcaster account. Eleven of them are Mystery.",
-    "tagline": "One free cat per account",
+    "description": "Mint a Clanker Cat on Base. 1111 hand-drawn pixel cats, free, one per Farcaster account — and one more if you already hold one. Eleven of them are Mystery.",
+    "tagline": "Hold a cat, mint another",
     "primaryCategory": "art-creativity",
     "tags": ["nft", "mint", "pixelart", "base", "free"],
     "ogTitle": "Clanker Cats V2",
-    "ogDescription": "1111 free pixel cats on Base. One per Farcaster account.",
+    "ogDescription": "1111 free pixel cats on Base. One per Farcaster account, plus one more for holders.",
     "ogImageUrl": "https://ccat-viewer.vercel.app/image.png",
     "requiredChains": ["eip155:8453"],
     "noindex": false
@@ -37,7 +37,7 @@
     "splashBackgroundColor": "#0a0a14",
     "webhookUrl": "https://ccat-viewer.vercel.app/api/webhook",
     "subtitle": "1111 free pixel cats",
-    "description": "Mint a Clanker Cat on Base. 1111 hand-drawn pixel cats, free, one per Farcaster account.",
+    "description": "Mint a Clanker Cat on Base. 1111 hand-drawn pixel cats, free, one per Farcaster account — and one more if you already hold one.",
     "primaryCategory": "art-creativity"
   }
 }
