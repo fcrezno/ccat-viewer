@@ -99,7 +99,17 @@ const text = (w, h, title, sub, kicker) => Buffer.from(
   const band  = await sharp({ create: { width: W, height: H, channels: 4, background: INK } })
     .composite([
       ...cells.map((input, i) => ({ input, left: i * cellW, top: 0 })),
-      { input: text(W, H - cellH, 'FREE MINT', 'one per Farcaster ID', 'CLANKER CATS V2'), left: 0, top: cellH },
+      /*
+       * The subtitle is the offer, so it has to move when the offer does — it
+       * said "one per Farcaster ID" for a while after holders could take a
+       * second, and it is the largest thing in a cast embed.
+       *
+       * "Farcaster" is dropped to keep one line. The sub is monospace at
+       * H * 0.095 ≈ 58px, whose advance is about 0.55em, so roughly 37
+       * characters span the 1200px card; the full wording ran to 42 and would
+       * have overhung both edges.
+       */
+      { input: text(W, H - cellH, 'FREE MINT', 'one per ID, one more for holders', 'CLANKER CATS V2'), left: 0, top: cellH },
     ])
     .png().toBuffer()
   await sharp(band).toFile(join(OUT, 'image.png'))
