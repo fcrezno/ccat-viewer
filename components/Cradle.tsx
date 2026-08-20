@@ -612,6 +612,7 @@ export function Cradle() {
       <nav style={s.nav}>
         <a href="/game" style={s.navLink}>IDLE GAME</a>
         <a href="/cats" style={s.navLink}>YOUR CATS</a>
+        <a href="/viewer" style={s.navLink}>VIEWER</a>
         <a href="/mint" style={s.navLink}>MINT</a>
       </nav>
 
