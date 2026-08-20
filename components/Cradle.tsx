@@ -102,6 +102,54 @@ function Fighter({ cat, hp, ghost, side, swinging, beat }: {
   )
 }
 
+/**
+ * Confetti over the card.
+ *
+ * Seeded from the fight, so the same result throws the same pieces rather than a
+ * new pattern on every re-render. Drawn LAST and above everything, which is the
+ * renderer's own order: "the pieces pass in front of the portrait, so they have
+ * to be in the same pass."
+ */
+function Confetti({ seed }: { seed: number }) {
+  const pieces = useMemo(() => {
+    let a = seed >>> 0
+    const rnd = () => {
+      a = (a + 0x6d2b79f5) >>> 0
+      let t = Math.imul(a ^ (a >>> 15), 1 | a)
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+    }
+    const ink = ['#e0a33a', '#d1495b', '#5fc27e', '#8b5cf6', '#6b9bd1', '#ffd166']
+    return Array.from({ length: 26 }, () => ({
+      left: rnd() * 100,
+      delay: rnd() * 1.6,
+      dur: 1.6 + rnd() * 1.4,
+      w: 4 + Math.floor(rnd() * 5),
+      h: 6 + Math.floor(rnd() * 7),
+      colour: ink[Math.floor(rnd() * ink.length)],
+    }))
+  }, [seed])
+
+  return (
+    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none', borderRadius: 14 }}>
+      {pieces.map((p, i) => (
+        <div
+          key={i}
+          style={{
+            position: 'absolute',
+            left: `${p.left}%`,
+            top: 0,
+            width: p.w,
+            height: p.h,
+            background: p.colour,
+            animation: `cradle-fall ${p.dur}s linear ${p.delay}s infinite`,
+          }}
+        />
+      ))}
+    </div>
+  )
+}
+
 function RankRow({ r, place, onDrop }: { r: Ranked; place: number; onDrop?: () => void }) {
   const { pct } = ratio(r.record)
   return (
@@ -145,6 +193,7 @@ export function Cradle() {
   const [friendId, setFriendId] = useState('')
   const [nameDraft, setNameDraft] = useState('')
   const [naming, setNaming] = useState(false)
+  const [rowsShown, setRowsShown] = useState(0)
   const sound = useSound()
   const logRef = useRef<HTMLDivElement>(null)
   const counted = useRef<string | null>(null)
@@ -228,6 +277,30 @@ export function Cradle() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shown, result])
 
+  /*
+   * THE CARD, ONE ROW AT A TIME.
+   *
+   * Only once the log has finished — the score is the summing-up, and showing it
+   * while the fight is still being told gives away the ending.
+   *
+   * Each row lands with the `perk` cue, which is the sound the game itself uses
+   * for "home turf, and score rows landing". The final step is the TOTAL, and it
+   * gets `score`.
+   */
+  useEffect(() => {
+    if (!result) return
+    const finished = shown >= result.log.length
+    if (!finished) return
+    if (rowsShown > result.rows.length) return
+
+    const t = setTimeout(() => {
+      sound.play(rowsShown === result.rows.length ? 'score' : 'perk')
+      setRowsShown(n => n + 1)
+    }, rowsShown === 0 ? 500 : 420)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shown, result, rowsShown])
+
   const done = !!result && shown >= result.log.length
   const at = result && shown > 0 ? result.log[shown - 1] : null
   const prev = result && shown > 1 ? result.log[shown - 2] : null
@@ -253,7 +326,7 @@ export function Cradle() {
     sound.prime()
     sound.startMusic()
     setBusy(true); setError(null); setNote(null); setConfirmRetire(false)
-    setResult(null); setShown(0); setView('fight')
+    setResult(null); setShown(0); setRowsShown(0); setView('fight')
     try {
       const res = await fetch('/api/fight', {
         method: 'POST',
@@ -646,6 +719,54 @@ export function Cradle() {
                 {!done && <span style={s.caret}>▌</span>}
               </div>
 
+              {/*
+                THE RESULTS CARD.
+
+                On paper like the log, because it is the same surface in the game
+                — and drawn in the game's BITMAP font, which matters for more than
+                looks: MyFont has no digits at all, so every number in it would
+                fall back to another face. The bitmap sheet carries the full set.
+              */}
+              {done && result.rows.length > 0 && (
+                <section style={s.resultCard}>
+                  {result.youWon && <Confetti seed={result.seed} />}
+
+                  {/*
+                    NAME THE WINNER ON THE CARD.
+
+                    The score belongs to whoever won, which is how the game's
+                    results screen works — but on a loss that put someone else's
+                    Victory and Clutch directly under "Your cat went down.", and
+                    it read as though the points were yours. Saying whose they are
+                    costs one line and removes the whole confusion.
+                  */}
+                  <div style={{ marginBottom: 4 }}>
+                    <BitmapText text="RESULTS" scale={2} color="#a06a10" />
+                  </div>
+                  <div style={{ marginBottom: 12 }}>
+                    <BitmapText
+                      text={(result.youWon ? result.you.label : result.foe.label) + ' TAKES IT'}
+                      scale={1}
+                      color="#6b6b60"
+                    />
+                  </div>
+
+                  {result.rows.slice(0, rowsShown).map((row, i) => (
+                    <div key={i} style={{ ...s.scoreRow, animation: 'cradle-row-in 0.32s ease-out' }}>
+                      <BitmapText text={row.name} scale={1} color={row.colour} />
+                      <BitmapText text={String(row.score)} scale={1} color={row.colour} />
+                    </div>
+                  ))}
+
+                  {rowsShown > result.rows.length && (
+                    <div style={{ ...s.totalRow, animation: 'cradle-total-in 0.4s ease-out' }}>
+                      <BitmapText text="TOTAL" scale={2} color={INK} />
+                      <BitmapText text={String(result.total)} scale={2} color="#a06a10" />
+                    </div>
+                  )}
+                </section>
+              )}
+
               {done && (
                 <section style={s.block}>
                   <p style={{ margin: '0 0 4px', fontSize: 16, color: result.youWon ? '#5fc27e' : '#d1495b' }}>
@@ -803,6 +924,22 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.08)',
   },
   caret: { color: '#8a8a7a', fontSize: 14 },
+
+  // The results card: the same paper as the log, because in the game it is.
+  // NOT `card` — that name already belongs to the cat grid tile above.
+  resultCard: {
+    position: 'relative', overflow: 'hidden',
+    background: PAPER, color: INK, borderRadius: 14, padding: '18px 18px 16px',
+    boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.08)',
+  },
+  scoreRow: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    gap: 12, padding: '3px 0',
+  },
+  totalRow: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    gap: 12, marginTop: 12, paddingTop: 12, borderTop: '2px solid rgba(0,0,0,0.15)',
+  },
 
   rankRow: { display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid #1a1a26' },
   rankPic: { width: 34, height: 34, borderRadius: 6, objectFit: 'cover', imageRendering: 'pixelated', background: '#0b0b13', flexShrink: 0 },

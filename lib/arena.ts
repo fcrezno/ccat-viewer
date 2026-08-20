@@ -1,5 +1,6 @@
 import { deck, type ScriptLine } from '@/lib/script'
 import { movesFor } from '@/lib/moves'
+import { AWARDS } from '@/lib/score'
 
 /**
  * A PREVIEW OF THE FIGHT FROM THE MAIN GAME.
@@ -68,7 +69,12 @@ export type LogLine = {
    * Null for lines that are about nobody in particular.
    */
   actor: 'you' | 'foe' | null
+  /** The move this line names, so the scoring can see what was swung. */
+  move?: string
 }
+
+/** One line of the results card. */
+export type ScoreRow = { name: string; score: number; colour: string }
 
 export type FightResult = {
   seed: number
@@ -78,6 +84,9 @@ export type FightResult = {
   log: LogLine[]
   youWon: boolean
   turns: number
+  /** What the winner earned, and the number that goes under it. */
+  rows: ScoreRow[]
+  total: number
 }
 
 /**
@@ -175,6 +184,81 @@ function say(r: () => number, key: string, vars: Record<string, string>, fallbac
   return { text: fill(e.text, vars), style: e.style }
 }
 
+/*
+ * WHAT THE WINNER EARNED — mirroring earned() in the game's score.mjs.
+ *
+ * The thresholds are HIS and are not re-tuned: they were measured over 120
+ * fights rather than guessed, and his own note says the first guesses were badly
+ * wrong in both directions. So `quick` is 5 turns, `endurance` is 16, `comeback`
+ * is under a quarter health, `minimalist` needs seven swings of one move (one
+ * move alone fires in 42% of fights, which is the default rather than
+ * discipline), and `overkill` is a finishing blow worth half the loser's bar.
+ *
+ * THREE AWARDS ARE DELIBERATELY NOT DETECTED, because this preview cannot see
+ * what they need, and inventing a substitute would make the number a lie:
+ *
+ *   secondWind  needs the Endure perk, which the preview does not model
+ *   homeTurf    needs a cat to have a home zone; there are none here
+ *   closeRange  needs each move's `kind`, and only move NAMES came across
+ */
+function earned(log: LogLine[], you: ArenaCat, foe: ArenaCat, turns: number): ScoreRow[] {
+  const youWon = you.hp > 0
+  const win = youWon ? you : foe
+  const winSide = youWon ? 'you' : 'foe'
+  const loseSide = youWon ? 'foe' : 'you'
+  const hpOf = (l: LogLine, side: string) => (side === 'you' ? l.hpYou : l.hpFoe)
+
+  const rows: ScoreRow[] = []
+  const add = (key: string, n = 1) => {
+    const a = AWARDS[key]
+    if (!a || n <= 0) return
+    rows.push({
+      name: a.per && n > 1 ? `${a.name} x${n}` : a.name,
+      score: a.score * (a.per ? n : 1),
+      colour: a.colour,
+    })
+  }
+
+  // Damage is not on a line, but the health snapshots are — a drop between one
+  // line and the next IS the blow that landed.
+  const blows: { onSide: string; amount: number; at: number }[] = []
+  for (let i = 1; i < log.length; i++) {
+    for (const side of ['you', 'foe']) {
+      const drop = hpOf(log[i - 1], side) - hpOf(log[i], side)
+      if (drop > 0) blows.push({ onSide: side, amount: drop, at: i })
+    }
+  }
+
+  const crits = log.filter(l => l.kind === 'crit' && l.actor === winSide).length
+  const dodged = log.filter(l => l.kind === 'miss' && l.actor === loseSide).length
+  const swings = log.filter(l => l.kind === 'move' && l.actor === winSide)
+  const whiffs = log.filter(l => l.kind === 'miss' && l.actor === winSide).length
+
+  add('win')
+  if (win.hp === win.maxHp) add('flawless')
+  else if (win.hp / win.maxHp < 0.25) add('comeback')
+
+  if (turns <= 5) add('quick')
+  else if (turns >= 16) add('endurance')
+
+  if (swings.length > 2 && whiffs === 0) add('perfectAim')
+  add('crit', crits)
+  add('dodge', dodged)
+
+  const first = blows[0]
+  if (first && first.onSide === loseSide) add('firstBlood')
+
+  const names = new Set(swings.map(l => l.move).filter(Boolean))
+  if (swings.length >= 7 && names.size === 1) add('minimalist')
+
+  const onLoser = blows.filter(b => b.onSide === loseSide)
+  const last = onLoser[onLoser.length - 1]
+  const loser = youWon ? foe : you
+  if (last && loser.maxHp && last.amount >= loser.maxHp * 0.5) add('overkill')
+
+  return rows
+}
+
 /**
  * Run a fight and return the whole story at once.
  *
@@ -187,8 +271,13 @@ export function fight(you: ArenaCat, foe: ArenaCat, seed: number): FightResult {
   const log: LogLine[] = []
   // Read the health AT PUSH TIME — both cats are mutated as the fight runs, so
   // this captures the moment rather than the outcome.
-  const add = (l: { text: string; style: string }, kind: LogLine['kind'], actor: LogLine['actor'] = null) =>
-    log.push({ text: l.text, kind, style: l.style, hpYou: you.hp, hpFoe: foe.hp, actor })
+  const add = (
+    l: { text: string; style: string },
+    kind: LogLine['kind'],
+    actor: LogLine['actor'] = null,
+    move?: string,
+  ) =>
+    log.push({ text: l.text, kind, style: l.style, hpYou: you.hp, hpFoe: foe.hp, actor, move })
 
   const turf = pick(r, TURFS)
   add(say(r, 'arena', { turf, cat: you.label }, 'ARENA: {turf}'), 'info')
@@ -213,7 +302,7 @@ export function fight(you: ArenaCat, foe: ArenaCat, seed: number): FightResult {
 
       const move = pick(r, atk.moves)
       vars.move = move
-      add(say(r, 'move', vars, '{cat} used {move}!'), 'move', who)
+      add(say(r, 'move', vars, '{cat} used {move}!'), 'move', who, move)
 
       if (r() < 0.12) {
         add(say(r, 'miss', { cat: atk.label, foe: def.label }, 'It missed!'), 'miss', who)
@@ -243,5 +332,8 @@ export function fight(you: ArenaCat, foe: ArenaCat, seed: number): FightResult {
   const loser = winner === you ? foe : you
   add(say(r, 'win', { cat: winner.label, foe: loser.label, n: String(turn) }, '{cat} wins!'), 'win')
 
-  return { seed, turf, you, foe, log, youWon: winner === you, turns: turn }
+  const rows = earned(log, you, foe, turn)
+  const total = rows.reduce((n, x) => n + x.score, 0)
+
+  return { seed, turf, you, foe, log, youWon: winner === you, turns: turn, rows, total }
 }
