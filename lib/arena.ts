@@ -1,4 +1,5 @@
 import { deck, type ScriptLine } from '@/lib/script'
+import { movesFor } from '@/lib/moves'
 
 /**
  * A PREVIEW OF THE FIGHT FROM THE MAIN GAME.
@@ -97,26 +98,40 @@ export function seeded(seed: number) {
 
 const TURFS = ['the town', 'the temple', 'the caves', 'the mountain', 'the forest']
 
-/** Preview move names. The real move list lives with the main game. */
-const MOVES = [
-  'Pounce', 'Swipe', 'Headbutt', 'Tail Whip', 'Static Cling',
-  'Hairball', 'Loaf', 'Zoom', 'Knock It Off The Table', 'Slow Blink',
-]
-
 const pick = <T,>(r: () => number, xs: readonly T[]): T => xs[Math.floor(r() * xs.length)]
+
+/*
+ * TWO MOVES A CAT CAN ACTUALLY SWING.
+ *
+ * Drawn from its own TYPE, using the game's real move names — a ZOOMIES cat gets
+ * Zoom, Taze and Live Wire rather than something invented for the preview. Only
+ * the NAMES came across; power, accuracy and the type chart stayed with the game.
+ *
+ * Distinct where the type has moves to spare, so a cat does not spend a whole
+ * fight swinging the same one twice.
+ */
+function twoMoves(r: () => number, type: CatType): string[] {
+  const pool = movesFor(type)
+  if (pool.length < 2) return [pool[0] ?? 'Swipe', pool[0] ?? 'Swipe']
+  const first = Math.floor(r() * pool.length)
+  let second = Math.floor(r() * (pool.length - 1))
+  if (second >= first) second++
+  return [pool[first], pool[second]]
+}
 
 /** A cat invented on the spot. Endless opponents, none of them anyone's property. */
 export function randomCat(r: () => number): ArenaCat {
   const hp = 90 + Math.floor(r() * 50)
+  const type = pick(r, TYPES)
   return {
     label: '#' + (100 + Math.floor(r() * 900)),
-    type: pick(r, TYPES),
+    type,
     hp,
     maxHp: hp,
     atk: 45 + Math.floor(r() * 35),
     def: 40 + Math.floor(r() * 35),
     spd: 40 + Math.floor(r() * 45),
-    moves: [pick(r, MOVES), pick(r, MOVES)],
+    moves: twoMoves(r, type),
     mine: false,
     art: '',
   }
@@ -132,15 +147,16 @@ export function randomCat(r: () => number): ArenaCat {
 export function ownedCat(tokenId: string | number, label: string): ArenaCat {
   const r = seeded(Number(tokenId) * 2654435761)
   const hp = 100 + Math.floor(r() * 45)
+  const type = pick(r, TYPES)
   return {
     label,
-    type: pick(r, TYPES),
+    type,
     hp,
     maxHp: hp,
     atk: 50 + Math.floor(r() * 35),
     def: 45 + Math.floor(r() * 35),
     spd: 45 + Math.floor(r() * 45),
-    moves: [pick(r, MOVES), pick(r, MOVES)],
+    moves: twoMoves(r, type),
     mine: true,
     art: '',
   }
