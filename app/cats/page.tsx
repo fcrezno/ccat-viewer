@@ -302,9 +302,17 @@ function EmptyState() {
     <div style={s.emptyState}>
       <div style={s.heroCat}>🐱</div>
       <div style={s.emptyTitle}>No Clanker Cats yet</div>
+      {/*
+        This page reads BOTH drops — /api/owned scans every collection — but the
+        copy only mentioned the original 200, which read as though V2 were not
+        being looked at. Say what is actually being checked, and say which wallet,
+        because the usual reason for an empty page is a different account being
+        connected rather than an empty one.
+      */}
       <div style={s.emptySubtitle}>
-        The original 200 minted free and sold out.<br />
-        Grab one on the secondary market.
+        Nothing in this wallet, across either drop —<br />
+        the original 200 or the 1111 of V2.<br />
+        If you hold some, check which account is connected.
       </div>
       <button style={s.buyBtn} onClick={openOpenSea}>View on OpenSea →</button>
       <div style={s.emptyHint}>More free mints coming — watch @crezno</div>
