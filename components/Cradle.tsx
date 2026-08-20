@@ -6,6 +6,7 @@ import sdk from '@farcaster/miniapp-sdk'
 import { COLLECTIONS, getCollection, type Cat } from '@/lib/collection'
 import type { FightResult, LogLine } from '@/lib/arena'
 import { GameBar } from '@/components/GameBar'
+import { useSound } from '@/lib/useSound'
 import { BitmapText } from '@/components/BitmapText'
 import {
   addFriend, friends as loadFriends, ladder, noteFight, ratio,
@@ -142,6 +143,7 @@ export function Cradle() {
   const [note, setNote] = useState<string | null>(null)
   const [confirmRetire, setConfirmRetire] = useState(false)
   const [friendId, setFriendId] = useState('')
+  const sound = useSound()
   const logRef = useRef<HTMLDivElement>(null)
   const counted = useRef<string | null>(null)
   const [, bump] = useState(0)
@@ -186,6 +188,44 @@ export function Cradle() {
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: 'smooth' })
   }, [shown])
 
+  /*
+   * ONE CUE PER LINE, mapped the way the game maps them — LogLine.Kind IS the cue
+   * vocabulary, and only `down` -> `ko` differs.
+   *
+   * A `move` line gets the hit sound only when the swing CONNECTED. If the next
+   * line is a miss, a crit or a weak hit, that line carries its own sound and a
+   * hit here would double it up.
+   */
+  useEffect(() => {
+    if (!result || shown === 0) return
+    const l = result.log[shown - 1]
+    const next = result.log[shown]
+
+    const carriesItsOwn = next
+      && (next.kind === 'miss' || next.kind === 'crit' || next.kind === 'weak')
+
+    const cue =
+      l.kind === 'ko' ? 'ko'
+      : l.kind === 'crit' ? 'crit'
+      : l.kind === 'weak' ? 'weak'
+      : l.kind === 'miss' ? 'miss'
+      : l.kind === 'perk' ? 'perk'
+      : l.kind === 'win' ? 'score'
+      : l.kind === 'move' ? (carriesItsOwn ? null : 'hit')
+      : null
+
+    if (cue) sound.play(cue)
+    // `sound` is rebuilt each render; keying on the line is what matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shown, result])
+
+  // The bed belongs to the fight, so it stops when the fight is told. Computed
+  // here rather than using `done`, which is declared further down.
+  useEffect(() => {
+    if (result && shown >= result.log.length) sound.stopMusic()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shown, result])
+
   const done = !!result && shown >= result.log.length
   const at = result && shown > 0 ? result.log[shown - 1] : null
   const prev = result && shown > 1 ? result.log[shown - 2] : null
@@ -208,6 +248,8 @@ export function Cradle() {
   }, [done, result, isDemo, picked])
 
   async function startFight(payload: { uid?: string; demo?: boolean }) {
+    sound.prime()
+    sound.startMusic()
     setBusy(true); setError(null); setNote(null); setConfirmRetire(false)
     setResult(null); setShown(0); setView('fight')
     try {
@@ -347,6 +389,33 @@ export function Cradle() {
         <h1 style={s.title}>CAT&apos;S CRADLE</h1>
         <p style={s.sub}>a preview of Clanker Cats</p>
       </header>
+
+      {/*
+        Sound sits at the top and is always reachable. A game that starts making
+        noise with no visible way to stop it gets closed, not muted — and both
+        settings are remembered, so it does not come back loud next time.
+      */}
+      <div style={s.soundRow}>
+        <button
+          style={s.soundBtn}
+          onClick={() => sound.setMuted(!sound.muted)}
+          aria-label={sound.muted ? 'unmute' : 'mute'}
+          title={sound.muted ? 'unmute' : 'mute'}
+        >
+          {sound.muted ? '🔇' : '🔊'}
+        </button>
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.05}
+          value={sound.volume}
+          onChange={e => sound.setVolume(Number(e.target.value))}
+          style={s.slider}
+          aria-label="volume"
+          disabled={sound.muted}
+        />
+      </div>
 
       {note && <p style={{ ...s.quiet, color: '#7ee081' }}>{note}</p>}
       {error && <p style={{ ...s.quiet, color: '#ff8080' }}>{error}</p>}
@@ -691,6 +760,17 @@ const s: Record<string, React.CSSProperties> = {
   primary: { width: '100%', background: '#8b5cf6', color: '#fff', border: 0, borderRadius: 10, padding: '14px 16px', fontSize: 14, letterSpacing: 1, cursor: 'pointer', fontFamily: 'inherit' },
   ghost:   { width: '100%', background: 'transparent', color: '#7a7a95', border: '1px solid #21212f', borderRadius: 10, padding: '12px 16px', fontSize: 12, letterSpacing: 1, cursor: 'pointer', fontFamily: 'inherit', marginTop: 10 },
   link:    { color: '#a78bfa', fontSize: 14 },
+  soundRow: {
+    display: 'flex', alignItems: 'center', gap: 10,
+    justifyContent: 'flex-end', marginTop: -8,
+  },
+  soundBtn: {
+    background: 'transparent', border: '1px solid #21212f', borderRadius: 999,
+    padding: '4px 9px', fontSize: 13, cursor: 'pointer', lineHeight: 1,
+    color: 'inherit', fontFamily: 'inherit',
+  },
+  slider: { width: 110, accentColor: '#8b5cf6', cursor: 'pointer' },
+
   nav: {
     marginTop: 'auto', display: 'flex', justifyContent: 'center', gap: 8,
     flexWrap: 'wrap', paddingTop: 8,
