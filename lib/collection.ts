@@ -27,6 +27,14 @@ export type CollectionDef = {
    * and it failed silently, leaving the viewer with nameless blank cards.
    */
   metaBase: string
+  /**
+   * How many cats exist, so a token id can be picked at random for discovery.
+   *
+   * Ids run 1..supply. V1 is capped at 200 and sold out; V2 minted 1111. These
+   * are fixed by the contracts — V1's `limitSupply` must never be raised — so a
+   * constant here cannot drift out of step with the chain.
+   */
+  supply: number
 }
 
 export const COLLECTIONS: CollectionDef[] = [
@@ -37,6 +45,7 @@ export const COLLECTIONS: CollectionDef[] = [
     opensea:  'https://opensea.io/collection/clanker-cats',
     pixelArt: true,
     metaBase: 'https://arweave.net/aHi9QWrwohsE6nArKZAz0btSUTno5YG50i7AgMV7_6E/',
+    supply:   200,
   },
   {
     key:      'v2',
@@ -45,6 +54,7 @@ export const COLLECTIONS: CollectionDef[] = [
     opensea:  'https://opensea.io/assets/base/0x5C5b928f937F63656BE62d0A45f4Db756b79934B',
     pixelArt: true,
     metaBase: 'https://ccat-viewer.vercel.app/v2/metadata/',
+    supply:   1111,
   },
 ]
 

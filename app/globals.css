@@ -1,12 +1,24 @@
 @import "tailwindcss";
 
+/*
+ * The game's own font.
+ *
+ * There is no .woff2 in public/fonts — only the .otf and .ttf — so the woff2 line
+ * that used to sit first here 404'd on every page load before falling through.
+ * Removed rather than left to fail quietly. If a .woff2 is ever produced, put it
+ * back at the TOP of this list: it is the smallest format and the browser takes
+ * the first one it understands.
+ *
+ * font-display: swap so the text is readable in the fallback while the file
+ * arrives. Without it a mini app on a phone shows nothing at all for that moment.
+ */
 @font-face {
   font-family: 'MyFont';
-  src: url('/fonts/MyFont-Regular.woff2') format('woff2'),
-       url('/fonts/MyFont-Regular.ttf') format('truetype'),
+  src: url('/fonts/MyFont-Regular.ttf') format('truetype'),
        url('/fonts/MyFont-Regular.otf') format('opentype');
   font-weight: normal;
   font-style: normal;
+  font-display: swap;
 }
 
 :root {
@@ -28,10 +40,167 @@
   }
 }
 
+/*
+ * MyFont was loaded and then never used — the body asked for Arial, so every
+ * screen in the app rendered in the system sans while the game's own face sat
+ * downloaded and idle.
+ */
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'MyFont', Arial, Helvetica, sans-serif;
+}
+
+/*
+ * THE CRADLE'S EFFECTS, taken from the main game rather than invented.
+ *
+ * `cradle-blink` is the CAUTION!/PERIL! warning. render.mjs blinks it on
+ * `Math.floor((phase * RATE) / 11) % 2` — roughly a 0.37s cycle at 60fps — and
+ * it is a hard on/off, not a fade, so the steps here are 0% and 50% with no
+ * easing between them.
+ *
+ * IMPORTANT, and it is written down in render.mjs as a decision: the BAR ITSELF
+ * does not pulse. "Pulsing the fill fought with the damage trail for the same
+ * piece of screen, and a word states the case outright instead of asking you to
+ * notice a shade." So the warning is a word, and the bar stays plain.
+ *
+ * `cradle-shake` is the crit jolt — the renderer shakes the whole screen a few
+ * pixels on a critical hit.
+ *
+ * `cradle-crit` is the flash. script.json's own README says crit and critBoth
+ * "shake and flash red/yellow".
+ */
+@keyframes cradle-blink {
+  0%, 49.9%   { opacity: 1; }
+  50%, 100%   { opacity: 0; }
+}
+
+@keyframes cradle-shake {
+  0%   { transform: translate(0, 0); }
+  20%  { transform: translate(-3px, 1px); }
+  40%  { transform: translate(3px, -1px); }
+  60%  { transform: translate(-2px, -1px); }
+  80%  { transform: translate(2px, 1px); }
+  100% { transform: translate(0, 0); }
+}
+
+@keyframes cradle-crit {
+  0%   { color: #c2410c; transform: translateX(0); }
+  25%  { color: #e0a010; transform: translateX(-2px); }
+  50%  { color: #c2410c; transform: translateX(2px); }
+  75%  { color: #e0a010; transform: translateX(-1px); }
+  100% { color: #c2410c; transform: translateX(0); }
+}
+
+/*
+ * THE SWING. render.mjs lunges the attacker toward its opponent and flashes it
+ * white on the frame it commits — "near-solid, the way Smash flashes a hit".
+ *
+ * Two directions because the lunge goes toward the middle either way, and the
+ * left and right cats therefore travel opposite ways.
+ */
+/*
+ * THE LUNGE, sampled straight off Beat.Lunge in the game:
+ *
+ *   LungePx = 12
+ *   12 * (t < 0.4 ? t / 0.4 : (1 - (t - 0.4) / 0.6)^2)
+ *
+ * It RISES over the first 40% and settles back over the remaining 60% on a
+ * squared falloff — not a symmetric bounce, which is what this used to be. The
+ * curve is baked into the stops, so the animation must run LINEAR or it would be
+ * eased twice.
+ */
+@keyframes cradle-lunge-left {
+  0%  { transform: translateX(0.00px); }
+  10%  { transform: translateX(3.00px); }
+  20%  { transform: translateX(6.00px); }
+  30%  { transform: translateX(9.00px); }
+  40%  { transform: translateX(12.00px); }
+  50%  { transform: translateX(8.33px); }
+  60%  { transform: translateX(5.33px); }
+  70%  { transform: translateX(3.00px); }
+  80%  { transform: translateX(1.33px); }
+  90%  { transform: translateX(0.33px); }
+  100%  { transform: translateX(0.00px); }
+}
+
+@keyframes cradle-lunge-right {
+  0%  { transform: translateX(0.00px); }
+  10%  { transform: translateX(-3.00px); }
+  20%  { transform: translateX(-6.00px); }
+  30%  { transform: translateX(-9.00px); }
+  40%  { transform: translateX(-12.00px); }
+  50%  { transform: translateX(-8.33px); }
+  60%  { transform: translateX(-5.33px); }
+  70%  { transform: translateX(-3.00px); }
+  80%  { transform: translateX(-1.33px); }
+  90%  { transform: translateX(-0.33px); }
+  100%  { transform: translateX(0.00px); }
+}
+
+/* The white flash, on the portrait itself rather than a whole extra image. */
+@keyframes cradle-swing {
+  0%   { filter: none; }
+  18%  { filter: brightness(3) saturate(0.2); }
+  45%  { filter: none; }
+  100% { filter: none; }
+}
+
+/*
+ * THE SAME ANIMATIONS AGAIN, UNDER A SECOND NAME. Not a copy-paste mistake.
+ *
+ * A CSS animation only restarts when something about it CHANGES. The obvious way
+ * to replay one each turn is to remount the element with a new React key — and
+ * that is exactly what broke the health bar: a remounted element has no previous
+ * value to transition FROM, so the bar's `clip-path` transition never ran and the
+ * health jumped instead of draining.
+ *
+ * So nothing remounts any more. The animation NAME alternates instead, flipping
+ * between these and the originals on each line, which restarts the animation and
+ * leaves the element — and therefore its transitions — alive.
+ */
+@keyframes cradle-shake-b {
+  0%   { transform: translate(0, 0); }
+  20%  { transform: translate(-3px, 1px); }
+  40%  { transform: translate(3px, -1px); }
+  60%  { transform: translate(-2px, -1px); }
+  80%  { transform: translate(2px, 1px); }
+  100% { transform: translate(0, 0); }
+}
+
+@keyframes cradle-lunge-left-b {
+  0%  { transform: translateX(0.00px); }
+  10%  { transform: translateX(3.00px); }
+  20%  { transform: translateX(6.00px); }
+  30%  { transform: translateX(9.00px); }
+  40%  { transform: translateX(12.00px); }
+  50%  { transform: translateX(8.33px); }
+  60%  { transform: translateX(5.33px); }
+  70%  { transform: translateX(3.00px); }
+  80%  { transform: translateX(1.33px); }
+  90%  { transform: translateX(0.33px); }
+  100%  { transform: translateX(0.00px); }
+}
+
+@keyframes cradle-lunge-right-b {
+  0%  { transform: translateX(0.00px); }
+  10%  { transform: translateX(-3.00px); }
+  20%  { transform: translateX(-6.00px); }
+  30%  { transform: translateX(-9.00px); }
+  40%  { transform: translateX(-12.00px); }
+  50%  { transform: translateX(-8.33px); }
+  60%  { transform: translateX(-5.33px); }
+  70%  { transform: translateX(-3.00px); }
+  80%  { transform: translateX(-1.33px); }
+  90%  { transform: translateX(-0.33px); }
+  100%  { transform: translateX(0.00px); }
+}
+
+@keyframes cradle-swing-b {
+  0%   { filter: none; }
+  18%  { filter: brightness(3) saturate(0.2); }
+  45%  { filter: none; }
+  100% { filter: none; }
 }
 
 @keyframes floatDmg {
