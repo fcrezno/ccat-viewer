@@ -10,7 +10,7 @@ import { useSound } from '@/lib/useSound'
 import { BitmapText } from '@/components/BitmapText'
 import {
   addFriend, friends as loadFriends, ladder, noteFight, ratio,
-  recordFor, recordLine, removeFriend, setRetired,
+  recordFor, recordLine, removeFriend, setRetired, nameFor, setName, NAME_LIMIT,
   type Friend, type Ranked,
 } from '@/lib/stable'
 
@@ -143,6 +143,8 @@ export function Cradle() {
   const [note, setNote] = useState<string | null>(null)
   const [confirmRetire, setConfirmRetire] = useState(false)
   const [friendId, setFriendId] = useState('')
+  const [nameDraft, setNameDraft] = useState('')
+  const [naming, setNaming] = useState(false)
   const sound = useSound()
   const logRef = useRef<HTMLDivElement>(null)
   const counted = useRef<string | null>(null)
@@ -256,7 +258,12 @@ export function Cradle() {
       const res = await fetch('/api/fight', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wallet: address, ...payload }),
+        body: JSON.stringify({
+          wallet: address,
+          ...payload,
+          // Whatever the holder called this cat, so the log uses their name.
+          name: payload.uid ? nameFor(payload.uid) ?? undefined : undefined,
+        }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error ?? 'that did not work'); return }
@@ -426,7 +433,7 @@ export function Cradle() {
 
           {isConnected && pickable.length > 0 && (
             <section style={s.block}>
-              <p style={s.label}>YOUR CATS — pick one to fight</p>
+              <p style={s.label}>SELECT YOUR CLANKER CAT!</p>
               <div style={s.grid}>
                 {pickable.map(c => {
                   const col = getCollection(c.collection)
@@ -443,7 +450,8 @@ export function Cradle() {
                             imageRendering: col.pixelArt ? 'pixelated' : 'auto',
                           }} />
                         : <div style={s.placeholder}>🐱</div>}
-                      <div style={s.cardLabel}>{c.meta?.name ?? `#${c.id}`}</div>
+                      {/* The holder's own name wins over the collection's. */}
+                      <div style={s.cardLabel}>{nameFor(c.uid) ?? c.meta?.name ?? `#${c.id}`}</div>
                       <div style={s.cardRec}>{recordLine(recordFor(c.uid))}</div>
                     </button>
                   )
@@ -662,6 +670,52 @@ export function Cradle() {
                     FIGHT AGAIN
                   </button>
 
+                  {/*
+                    NAMING IS FOR HOLDERS. A demo cat is nobody's, so there is
+                    nothing to name — and the name is what makes the cat yours
+                    rather than a token number, so it belongs to the person who
+                    actually holds it.
+                  */}
+                  {picked && !isDemo && (
+                    naming ? (
+                      <div style={{ marginTop: 10 }}>
+                        <p style={s.fine0}>What is this cat called?</p>
+                        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                          <input
+                            value={nameDraft}
+                            onChange={e => setNameDraft(e.target.value)}
+                            maxLength={NAME_LIMIT}
+                            placeholder={picked.meta?.name ?? `#${picked.id}`}
+                            style={s.input}
+                            autoFocus
+                          />
+                          <button
+                            style={{ ...s.primary, width: 'auto', padding: '10px 14px' }}
+                            onClick={() => {
+                              const saved = setName(picked.uid, nameDraft)
+                              setNaming(false)
+                              setNote(saved ? `Now called ${saved}.` : 'Name cleared.')
+                              bump(n => n + 1)
+                            }}
+                          >
+                            SAVE
+                          </button>
+                        </div>
+                        <p style={s.fine}>Leave it empty to go back to the collection name.</p>
+                      </div>
+                    ) : (
+                      <button
+                        style={s.ghost}
+                        onClick={() => {
+                          setNameDraft(nameFor(picked.uid) ?? '')
+                          setNaming(true)
+                        }}
+                      >
+                        {nameFor(picked.uid) ? 'RENAME THIS CAT' : 'NAME THIS CAT'}
+                      </button>
+                    )
+                  )}
+
                   {picked && !isDemo && !recordFor(picked.uid).retired && (
                     confirmRetire ? (
                       <div style={{ marginTop: 10 }}>
@@ -707,7 +761,6 @@ export function Cradle() {
       <nav style={s.nav}>
         <a href="/game" style={s.navLink}>IDLE GAME</a>
         <a href="/cats" style={s.navLink}>YOUR CATS</a>
-        <a href="/viewer" style={s.navLink}>VIEWER</a>
         <a href="/mint" style={s.navLink}>MINT</a>
       </nav>
 

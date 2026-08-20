@@ -7,12 +7,26 @@ export const metadata: Metadata = {
   title: 'Clanker Cats',
   description: '1111 free pixel cats on Base. One per Farcaster account, plus one more for holders.',
   openGraph: {
-    title: 'Clanker Cats V2',
-    description: '1111 free pixel cats on Base. One per Farcaster account, plus one more for holders.',
-    images: [`${APP_URL}/image.png`],
+    title: "Cat's Cradle — Clanker Cats",
+    description: 'Your Clanker Cat fights. You watch. A preview of the game.',
+    images: [`${APP_URL}/cradle.png`],
   },
-  // Casting any page of the app opens straight into the mint.
-  other: embedTags({ button: 'Mint a Cat' }),
+  /*
+   * A CAST OF THIS APP NOW OPENS THE GAME, not the mint.
+   *
+   * `embed()` defaults its url to /mint, which was right when the mint was the
+   * thing being launched. The Cradle is the front door now, so the card
+   * advertises it and the button lands on it. The mint is still at /mint and
+   * still linked from the game.
+   *
+   * The image must be 3:2 — public/cradle.png is 1200x800, drawn by
+   * scripts/make-cradle-card.mjs in the game's own bitmap font.
+   */
+  other: embedTags({
+    button: "Play Cat's Cradle",
+    url: APP_URL,
+    image: `${APP_URL}/cradle.png`,
+  }),
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

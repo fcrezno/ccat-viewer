@@ -83,9 +83,25 @@ export function GameBar({
   const lastHp = useRef(hp)
   const raf = useRef<number | undefined>(undefined)
 
+  /*
+   * `ghost` IS READ, NOT DEPENDED ON — and that distinction was a real bug.
+   *
+   * With `ghost` in the dependency list this effect re-ran on EVERY revealed
+   * line, because the caller passes the previous line's health. On a line where
+   * the health had not changed the effect returned early, but its CLEANUP had
+   * already run and cancelled the queued animation frame — so the retraction
+   * never fired and the dark red trail froze on the bar, still sitting there
+   * after the fight was over.
+   *
+   * So: the effect keys on `hp` alone, `ghost` comes from a ref, and the frame
+   * is only cancelled when the component actually goes away.
+   */
+  const ghostRef = useRef(ghost)
+  ghostRef.current = ghost
+
   useEffect(() => {
     if (hp === lastHp.current) return
-    const from = Math.max(ghost, hp)
+    const from = Math.max(ghostRef.current, hp)
     lastHp.current = hp
 
     // Frame one: sit at the old health, no transition.
@@ -100,11 +116,12 @@ export function GameBar({
         setTrail(hp)
       })
     })
+  }, [hp])
 
-    return () => {
-      if (raf.current !== undefined) cancelAnimationFrame(raf.current)
-    }
-  }, [hp, ghost])
+  // Only on the way out.
+  useEffect(() => () => {
+    if (raf.current !== undefined) cancelAnimationFrame(raf.current)
+  }, [])
 
   const barW = side === 'left' ? 176 : 172
   const barH = side === 'left' ? 15 : 13

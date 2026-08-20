@@ -29,7 +29,7 @@ import { fight, ownedCat, randomCat, seeded } from '@/lib/arena'
 const art = (seed: number) => `/api/cat-art?seed=${seed >>> 0}`
 
 export async function POST(req: NextRequest) {
-  let body: { wallet?: string; uid?: string; demo?: boolean }
+  let body: { wallet?: string; uid?: string; demo?: boolean; name?: string }
 
   try {
     body = await req.json()
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'expected a JSON body' }, { status: 400 })
   }
 
-  const { wallet, uid, demo } = body
+  const { wallet, uid, demo, name } = body
 
   /*
    * A DEMO FIGHT, FOR SOMEBODY WHO DOES NOT OWN A CAT YET.
@@ -90,7 +90,18 @@ export async function POST(req: NextRequest) {
   // The opponent is invented here and belongs to nobody, so a preview fight can
   // never put somebody else's cat on the losing end of a public result. Its own
   // stream, so rolling an opponent cannot disturb the fight's rolls.
-  const you = ownedCat(cat.id, cat.meta?.name ?? `#${cat.id}`)
+  /*
+   * A NAME THE HOLDER CHOSE, cleaned HERE as well as in the browser.
+   *
+   * It goes straight into the battle log and into a cast, so it is never taken on
+   * trust. Whitespace is collapsed, because a newline would split a log line in
+   * half, and it is cut to 32 — the limit the main game uses, which it took from
+   * Steam so a cat named here still fits when the full game gets hold of it.
+   *
+   * The cat's own collection name is the fallback, never a blank.
+   */
+  const given = (name ?? '').replace(/\s+/g, ' ').trim().slice(0, 32)
+  const you = ownedCat(cat.id, given || cat.meta?.name || `#${cat.id}`)
   // A real cat already has a picture; the made-up one gets composed.
   you.art = cat.meta?.image ?? ''
   const foe = randomCat(seeded((seed ^ 0x9e3779b9) >>> 0))

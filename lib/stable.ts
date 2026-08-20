@@ -22,6 +22,40 @@
 
 const RECORDS = 'cradle.records.v1'
 const FRIENDS = 'cradle.friends.v1'
+const NAMES = 'cradle.names.v1'
+
+/*
+ * HOW LONG A CAT'S NAME MAY BE.
+ *
+ * 32, the same as the main game — which took it from Steam, where a profile name
+ * is 2 to 32. Keeping the two the same means a cat named here still fits when the
+ * full game gets hold of it.
+ */
+export const NAME_LIMIT = 32
+
+/** Trim a typed name to something safe to draw and to put in a cast. */
+export function cleanName(raw: string): string {
+  return (raw ?? '')
+    // A newline would break a log line in half and a cast into two paragraphs.
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, NAME_LIMIT)
+}
+
+export const names = (): { [uid: string]: string } => read(NAMES, {})
+
+/** The name the player gave this cat, or null to fall back to the token's own. */
+export const nameFor = (uid: string): string | null => names()[uid] ?? null
+
+/** Setting an empty name REMOVES it, so the collection name comes back. */
+export function setName(uid: string, raw: string): string | null {
+  const all = names()
+  const clean = cleanName(raw)
+  if (clean) all[uid] = clean
+  else delete all[uid]
+  write(NAMES, all)
+  return clean || null
+}
 
 export type Record = {
   wins: number
