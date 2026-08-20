@@ -31,6 +31,10 @@ export const SFX: Record<string, Cue> = {
   score: { layers: [["points.mp3"]], gain: 1 },
   // the rankings, and the camera arriving
   climb: { layers: [["enter.mp3"]], gain: 0.8 },
+  // the 3, 2 and 1 of the countdown, on the SET PIECE clip rather than the fight — `mapscreen
+  count: { layers: [["enter.mp3"]], gain: 0.9 },
+  // FIGHT!, the fourth beat of the countdown
+  go: { layers: [["levelup_s.mp3"]], gain: 1 },
 }
 
 /*

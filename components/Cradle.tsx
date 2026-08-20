@@ -194,8 +194,10 @@ export function Cradle() {
   const [nameDraft, setNameDraft] = useState('')
   const [naming, setNaming] = useState(false)
   const [rowsShown, setRowsShown] = useState(0)
+  const [count, setCount] = useState<number | null>(null)
   const sound = useSound()
   const logRef = useRef<HTMLDivElement>(null)
+  const cardRef = useRef<HTMLElement>(null)
   const counted = useRef<string | null>(null)
   const [, bump] = useState(0)
 
@@ -229,11 +231,31 @@ export function Cradle() {
     return () => { live = false }
   }, [address])
 
+  /*
+   * THE COUNTDOWN, then the fight.
+   *
+   * 3, 2, 1 and then FIGHT!, which is how the game opens a bout — sound.json even
+   * names the beats: `count` is "the 3, 2 and 1", `go` is "FIGHT!, the fourth
+   * beat of the countdown". Nothing of the log is told until it has run.
+   */
   useEffect(() => {
+    if (count === null) return
+    const t = setTimeout(() => {
+      if (count > 1) { sound.play('count'); setCount(count - 1) }
+      else if (count === 1) { sound.play('go'); setCount(0) }
+      else setCount(null)
+    }, count === 3 ? 250 : count === 0 ? 700 : 620)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [count])
+
+  useEffect(() => {
+    // Nothing is told until the countdown has finished.
+    if (count !== null) return
     if (!result || shown >= result.log.length) return
     const t = setTimeout(() => setShown(n => n + 1), LINE_MS)
     return () => clearTimeout(t)
-  }, [result, shown])
+  }, [result, shown, count])
 
   useEffect(() => {
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: 'smooth' })
@@ -293,10 +315,22 @@ export function Cradle() {
     if (!finished) return
     if (rowsShown > result.rows.length) return
 
+    /*
+     * BRING THE CARD INTO VIEW BEFORE THE FIRST ROW LANDS.
+     *
+     * The log box is 320 tall and the card sits under it, so on a phone the whole
+     * card was below the fold — the rows landed, the total popped and the confetti
+     * fell where nobody could see any of it. An animation nobody watches is not an
+     * animation.
+     */
+    if (rowsShown === 0) {
+      cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+
     const t = setTimeout(() => {
       sound.play(rowsShown === result.rows.length ? 'score' : 'perk')
       setRowsShown(n => n + 1)
-    }, rowsShown === 0 ? 500 : 420)
+    }, rowsShown === 0 ? 700 : 420)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shown, result, rowsShown])
@@ -326,7 +360,7 @@ export function Cradle() {
     sound.prime()
     sound.startMusic()
     setBusy(true); setError(null); setNote(null); setConfirmRetire(false)
-    setResult(null); setShown(0); setRowsShown(0); setView('fight')
+    setResult(null); setShown(0); setRowsShown(0); setCount(null); setView('fight')
     try {
       const res = await fetch('/api/fight', {
         method: 'POST',
@@ -341,6 +375,8 @@ export function Cradle() {
       const data = await res.json()
       if (!res.ok) { setError(data.error ?? 'that did not work'); return }
       setResult(data)
+      // The fight opens on 3, 2, 1, FIGHT! — the log waits for it.
+      setCount(3)
     } catch {
       setError('could not reach the arena')
     } finally {
@@ -701,6 +737,23 @@ export function Cradle() {
                   />
                 </div>
                 <p style={s.turf}>{result.turf}</p>
+
+                {/*
+                  3, 2, 1, FIGHT! over the stage, in the game's font because
+                  MyFont has no digits — a countdown is nothing but digits.
+                  Keyed on the beat so each one replays the drop.
+                */}
+                {count !== null && (
+                  <div style={s.countWrap}>
+                    <div key={count} style={{ animation: 'cradle-count 0.45s ease-out' }}>
+                      <BitmapText
+                        text={count === 0 ? 'FIGHT!' : String(count)}
+                        scale={count === 0 ? 4 : 6}
+                        color={count === 0 ? '#ffd166' : '#f0f0f5'}
+                      />
+                    </div>
+                  </div>
+                )}
               </section>
 
               <div ref={logRef} style={s.log}>
@@ -728,7 +781,7 @@ export function Cradle() {
                 fall back to another face. The bitmap sheet carries the full set.
               */}
               {done && result.rows.length > 0 && (
-                <section style={s.resultCard}>
+                <section ref={cardRef} style={s.resultCard}>
                   {result.youWon && <Confetti seed={result.seed} />}
 
                   {/*
@@ -913,7 +966,13 @@ const s: Record<string, React.CSSProperties> = {
   cardRec: { fontSize: 9, padding: '0 4px 5px', color: '#7a7a95' },
   placeholder: { width: '100%', aspectRatio: '1', display: 'grid', placeItems: 'center', fontSize: 22, background: '#0b0b13' },
 
-  stage:  { background: '#12121c', border: '1px solid #21212f', borderRadius: 14, padding: '14px 16px' },
+  // `position: relative` so the countdown can sit over it.
+  stage:  { position: 'relative', background: '#12121c', border: '1px solid #21212f', borderRadius: 14, padding: '14px 16px' },
+  countWrap: {
+    position: 'absolute', inset: 0, display: 'flex',
+    alignItems: 'center', justifyContent: 'center',
+    background: 'rgba(11,11,19,0.72)', borderRadius: 14, pointerEvents: 'none',
+  },
   versus: { display: 'flex', alignItems: 'flex-start', gap: 12 },
   vs:     { color: '#4a4a63', fontSize: 11, letterSpacing: 1, paddingTop: 16 },
   turf:   { textAlign: 'center', color: '#63637d', fontSize: 11, margin: '12px 0 0' },
