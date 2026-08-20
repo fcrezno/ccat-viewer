@@ -146,7 +146,24 @@ export function Cradle() {
   const counted = useRef<string | null>(null)
   const [, bump] = useState(0)
 
-  useEffect(() => { sdk.actions.ready().catch(() => {}) }, [])
+  /*
+   * CONNECTING, THE WAY THE REST OF THE APP DOES IT.
+   *
+   * Inside a Farcaster client the `farcaster-frame` connector connects on its own
+   * with no prompt, so the wallet is simply there. Everywhere else it does
+   * nothing at all — which is why the button used to be dead in a desktop
+   * browser: it called `connectors[0]`, and that IS the frame connector.
+   *
+   * So: try the frame connector once on mount, and offer every OTHER connector as
+   * a button for people who are not in a Farcaster client.
+   */
+  useEffect(() => {
+    sdk.actions.ready().catch(() => {})
+    const fc = connectors.find(c => c.id === 'farcaster-frame')
+    if (fc) connect({ connector: fc })
+    // Once, on mount — reconnecting on every render would fight the user.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   useEffect(() => { setFriends(loadFriends()) }, [])
 
   useEffect(() => {
@@ -383,9 +400,18 @@ export function Cradle() {
               </button>
               <p style={s.fine}>a real fight, with a cat that is not yours — no wallet needed</p>
               {!isConnected && (
-                <button style={s.ghost} onClick={() => connect({ connector: connectors[0] })}>
-                  CONNECT WALLET TO USE YOUR OWN CAT
-                </button>
+                <>
+                  <p style={{ ...s.fine, marginTop: 14 }}>
+                    Open in Farcaster to connect on its own, or pick a wallet:
+                  </p>
+                  {connectors
+                    .filter(c => c.id !== 'farcaster-frame')
+                    .map(c => (
+                      <button key={c.id} style={s.ghost} onClick={() => connect({ connector: c })}>
+                        {c.name.toUpperCase()}
+                      </button>
+                    ))}
+                </>
               )}
             </section>
           )}
