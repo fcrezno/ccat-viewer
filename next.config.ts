@@ -1,6 +1,21 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  /*
+   * THE LAYER ART HAS TO BE SHIPPED WITH THE FUNCTION.
+   *
+   * /api/cat-art composes an opponent by reading `layers/` at runtime. Next
+   * traces a route's dependencies STATICALLY, and a `readdir(join(cwd(),
+   * 'layers'))` is invisible to that — so on Vercel the folder was simply not in
+   * the bundle and the route returned 500 in production while working perfectly
+   * on a local dev server, where the whole repo is on disk.
+   *
+   * Keys are route globs; values are globs resolved from the project root.
+   */
+  outputFileTracingIncludes: {
+    "/api/cat-art": ["./layers/**"],
+  },
+
   async headers() {
     return [
       {
