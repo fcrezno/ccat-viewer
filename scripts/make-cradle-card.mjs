@@ -106,7 +106,13 @@ const run = async () => {
   const sub = await text('A PREVIEW OF CLANKER CATS', 3, '#8b5cf6')
   layers.push({ input: sub.buf, left: Math.round((W - sub.width) / 2), top: 300 })
 
-  const tag = await text('YOUR CAT FIGHTS. YOU WATCH.', 2, '#7a7a95')
+  /*
+   * THE SLOGAN, in his own words and his own casing.
+   *
+   * Lowercase on purpose — it is set that way on the game's title screen, and the
+   * line reads as an aside rather than a shout, which is the point of it.
+   */
+  const tag = await text('playing with bots has never been this fun.', 2, '#7a7a95')
   layers.push({ input: tag.buf, left: Math.round((W - tag.width) / 2), top: 380 })
 
   await sharp({ create: { width: W, height: H, channels: 4, background: BG } })
