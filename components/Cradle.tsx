@@ -33,6 +33,66 @@ const LINE_MS = 850
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://ccat-viewer.vercel.app'
 
 /*
+ * THE COUNTDOWN'S BEATS, taken from the game rather than guessed at.
+ *
+ * sound.json states the timing outright, in the note on the `count` cue: "the
+ * countdown is 2.6s split into four equal beats, so the numbers land at 0.00,
+ * 0.65 and 1.30, and FIGHT! at 1.95". That is 650ms a beat, all four the same.
+ *
+ * This used to open on a 250ms "3" — shorter than the 450ms animation that draws
+ * it, so the first number was cut off part-way through its own landing and the
+ * whole intro read as a stumble.
+ *
+ * FIGHT! then holds for its own beat PLUS the game's 0.6s clear-arena pause
+ * before the fight joins, which is the "1.25s of clip left to run in" the `go`
+ * cue is written against.
+ */
+const BEAT_MS = 650
+const GO_MS = BEAT_MS + 600
+
+/*
+ * PLAYBACK SPEED, WHICH IS A PRIZE RATHER THAN A PREFERENCE.
+ *
+ * Everyone plays at x1. x2 and x4 are won by taking a season, so they are shown
+ * to everybody — locked — because a reward nobody can see is not a reward.
+ *
+ * Every wait in the reveal is divided by the multiplier: the countdown, the log,
+ * the lunges, and the health bar's drain. x4 is the same fight told four times as
+ * fast, not a different fight.
+ *
+ * ── WHAT COUNTS AS A WINNER ──────────────────────────────────────────────────
+ *
+ * The season's own mechanism, not a new one. `scripts/champion.mjs` awards a cat
+ * a `Title` trait — "Season 1 Champion" — by editing the metadata this app
+ * serves, and the contract's baseURI points here, so a title costs no gas.
+ *
+ * So the multiplier is read off THE CAT, not the wallet. That is the right unit:
+ * the title is earned by the cat that won, it travels with the cat if it is ever
+ * sold, and a person who owns two cats gets the speed on the one that earned it.
+ *
+ * Nothing is applied yet — Season 1 is still running and no metadata carries a
+ * Title — so this is x1 for everybody today. The moment `champion.mjs --apply`
+ * runs for the winners, their buttons light up with no code change.
+ */
+const SPEEDS = [1, 2, 4] as const
+const BASE_SPEED = 1
+const TITLE_TRAIT = 'Title'
+
+/** The title a cat has won, if any. The demo cat can never have one. */
+function titleOf(cat: Cat | null): string | null {
+  const t = cat?.meta?.attributes?.find(a => a.trait_type === TITLE_TRAIT)
+  return t?.value?.trim() || null
+}
+
+/**
+ * The multipliers this cat has earned. A title is a season win, and a season win
+ * is worth x2 and x4.
+ */
+function unlockedSpeeds(cat: Cat | null): readonly number[] {
+  return titleOf(cat) ? SPEEDS : [BASE_SPEED]
+}
+
+/*
  * LOW HEALTH, the way render.mjs does it. Below a fifth a cat gets a blinking
  * CAUTION!, and on its last point that becomes PERIL!. The BAR does not pulse —
  * a pulsing fill fought with the damage trail for the same pixels, so the game
@@ -52,9 +112,9 @@ const KIND_INK: Record<LogLine['kind'], string> = {
   weak: '#3f6ea8', perk: '#2f7a44', ko: '#a01b1b', win: '#a06a10',
 }
 
-function Fighter({ cat, hp, ghost, side, swinging, beat }: {
+function Fighter({ cat, hp, ghost, side, swinging, beat, speed }: {
   cat: FightResult['you']; hp: number; ghost: number
-  side: 'left' | 'right'; swinging: boolean; beat: number
+  side: 'left' | 'right'; swinging: boolean; beat: number; speed: number
 }) {
   // Alternate the animation NAME to replay it. Remounting would restart the
   // element and kill the health bar's clip-path transition with it.
@@ -77,7 +137,10 @@ function Fighter({ cat, hp, ghost, side, swinging, beat }: {
           animation: swinging && hp > 0
             // LINEAR: Beat.Lunge is already baked into the keyframe stops, so an
             // easing function here would ease an eased curve.
-            ? `cradle-lunge-${side}${alt} 0.35s linear, cradle-swing${alt} 0.35s ease-out`
+            // Scaled with the reveal: a 0.35s lunge inside a 212ms line at x4
+            // would be cut off part-way, which is what made the old countdown
+            // stumble.
+            ? `cradle-lunge-${side}${alt} ${0.35 / speed}s linear, cradle-swing${alt} ${0.35 / speed}s ease-out`
             : undefined,
         }}
       />
@@ -97,7 +160,7 @@ function Fighter({ cat, hp, ghost, side, swinging, beat }: {
           </span>
         )}
       </div>
-      <GameBar hp={hp} ghost={ghost} max={cat.maxHp} side={side} />
+      <GameBar hp={hp} ghost={ghost} max={cat.maxHp} side={side} speed={speed} />
     </div>
   )
 }
@@ -184,6 +247,8 @@ export function Cradle() {
   const [cats, setCats] = useState<Cat[] | null>(null)
   const [friends, setFriends] = useState<Friend[]>([])
   const [picked, setPicked] = useState<Cat | null>(null)
+  // The speeds the SELECTED cat has earned — a title travels with the cat.
+  const unlocked = useMemo(() => unlockedSpeeds(picked), [picked])
   const [result, setResult] = useState<FightResult | null>(null)
   const [shown, setShown] = useState(0)
   const [busy, setBusy] = useState(false)
@@ -195,6 +260,7 @@ export function Cradle() {
   const [naming, setNaming] = useState(false)
   const [rowsShown, setRowsShown] = useState(0)
   const [count, setCount] = useState<number | null>(null)
+  const [speed, setSpeed] = useState(BASE_SPEED)
   const sound = useSound()
   const logRef = useRef<HTMLDivElement>(null)
   const cardRef = useRef<HTMLElement>(null)
@@ -232,6 +298,17 @@ export function Cradle() {
   }, [address])
 
   /*
+   * A SPEED CANNOT OUTLIVE THE CAT THAT EARNED IT.
+   *
+   * Pick a titled cat, take x4, then switch to a cat with no title: the button
+   * would go back to locked while the fight kept running at four times speed.
+   * Falling back to x1 keeps what is shown and what is played the same thing.
+   */
+  useEffect(() => {
+    if (!unlocked.includes(speed)) setSpeed(BASE_SPEED)
+  }, [unlocked, speed])
+
+  /*
    * THE COUNTDOWN, then the fight.
    *
    * 3, 2, 1 and then FIGHT!, which is how the game opens a bout — sound.json even
@@ -244,18 +321,18 @@ export function Cradle() {
       if (count > 1) { sound.play('count'); setCount(count - 1) }
       else if (count === 1) { sound.play('go'); setCount(0) }
       else setCount(null)
-    }, count === 3 ? 250 : count === 0 ? 700 : 620)
+    }, (count === 0 ? GO_MS : BEAT_MS) / speed)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [count])
+  }, [count, speed])
 
   useEffect(() => {
     // Nothing is told until the countdown has finished.
     if (count !== null) return
     if (!result || shown >= result.log.length) return
-    const t = setTimeout(() => setShown(n => n + 1), LINE_MS)
+    const t = setTimeout(() => setShown(n => n + 1), LINE_MS / speed)
     return () => clearTimeout(t)
-  }, [result, shown, count])
+  }, [result, shown, count, speed])
 
   useEffect(() => {
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: 'smooth' })
@@ -512,6 +589,42 @@ export function Cradle() {
         settings are remembered, so it does not come back loud next time.
       */}
       <div style={s.soundRow}>
+        {/*
+          SPEED sits with the sound because both are settings about HOW the fight
+          is delivered rather than what happens in it, and because this row is the
+          one thing on screen during a bout — the speed can be changed while the
+          log is still running, which is when a person actually wants it.
+        */}
+        <div style={s.speedGroup} role="group" aria-label="playback speed">
+          {SPEEDS.map(v => {
+            const locked = !unlocked.includes(v)
+            return (
+              <button
+                key={v}
+                /*
+                  A locked speed is NOT `disabled`. A disabled button takes no tap,
+                  so on a phone it would sit there greyed out with no way to learn
+                  why — and a tooltip is no use without a mouse. It stays tappable
+                  and says what it is instead.
+                */
+                onClick={() => {
+                  if (locked) { setNote(`x${v} is won by taking a season.`); return }
+                  setSpeed(v)
+                }}
+                style={{
+                  ...s.soundBtn,
+                  ...(locked ? s.speedLocked : null),
+                  ...(speed === v ? s.speedOn : null),
+                }}
+                aria-pressed={speed === v}
+                aria-disabled={locked}
+                title={locked ? `x${v} — won by taking a season` : `play at x${v}`}
+              >
+                {locked ? '🔒' : ''}x{v}
+              </button>
+            )
+          })}
+        </div>
         <button
           style={s.soundBtn}
           onClick={() => sound.setMuted(!sound.muted)}
@@ -713,7 +826,7 @@ export function Cradle() {
                 style={{
                   ...s.stage,
                   animation: at?.kind === 'crit' || at?.kind === 'ko'
-                    ? `cradle-shake${shown % 2 === 1 ? '-b' : ''} 0.3s ease-out`
+                    ? `cradle-shake${shown % 2 === 1 ? '-b' : ''} ${0.3 / speed}s ease-out`
                     : undefined,
                 }}
               >
@@ -725,6 +838,7 @@ export function Cradle() {
                     side="left"
                     swinging={at?.actor === 'you'}
                     beat={shown}
+                    speed={speed}
                   />
                   <span style={s.vs}>VS</span>
                   <Fighter
@@ -734,6 +848,7 @@ export function Cradle() {
                     side="right"
                     swinging={at?.actor === 'foe'}
                     beat={shown}
+                    speed={speed}
                   />
                 </div>
                 <p style={s.turf}>{result.turf}</p>
@@ -745,7 +860,7 @@ export function Cradle() {
                 */}
                 {count !== null && (
                   <div style={s.countWrap}>
-                    <div key={count} style={{ animation: 'cradle-count 0.45s ease-out' }}>
+                    <div key={count} style={{ animation: `cradle-count ${0.45 / speed}s ease-out` }}>
                       <BitmapText
                         text={count === 0 ? 'FIGHT!' : String(count)}
                         scale={count === 0 ? 4 : 6}
@@ -760,7 +875,7 @@ export function Cradle() {
                 {result.log.slice(0, shown).map((l, i) => (
                   <div key={i} style={{
                     margin: '0 0 6px',
-                    animation: l.kind === 'crit' ? 'cradle-crit 0.45s ease-out' : undefined,
+                    animation: l.kind === 'crit' ? `cradle-crit ${0.45 / speed}s ease-out` : undefined,
                   }}>
                     <BitmapText
                       text={l.text}
@@ -896,7 +1011,10 @@ export function Cradle() {
                         <p style={s.fine0}>Retiring keeps the record and stops the fighting. Sure?</p>
                         <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                           <button
-                            style={{ ...s.ghost, marginTop: 0, borderColor: '#d1495b', color: '#d1495b' }}
+                            // `border`, not `borderColor`: s.ghost sets the
+                            // shorthand, so the longhand was being dropped and
+                            // this destructive button kept the plain grey edge.
+                            style={{ ...s.ghost, marginTop: 0, border: '1px solid #d1495b', color: '#d1495b' }}
                             onClick={retire}
                           >
                             YES, RETIRE
@@ -1013,6 +1131,13 @@ const s: Record<string, React.CSSProperties> = {
     display: 'flex', alignItems: 'center', gap: 10,
     justifyContent: 'flex-end', marginTop: -8,
   },
+  // Tight against each other so the three read as one control, not three buttons.
+  speedGroup: { display: 'flex', gap: 4, marginRight: 'auto' },
+  // The full `border` shorthand, not `borderColor`: soundBtn sets the shorthand,
+  // and React warns that mixing the two on one element can style unpredictably.
+  speedOn: { border: '1px solid #8b5cf6', color: '#8b5cf6' },
+  // Dimmed, but still clearly a button — it has something to say when tapped.
+  speedLocked: { opacity: 0.45, fontSize: 11, padding: '4px 7px' },
   soundBtn: {
     background: 'transparent', border: '1px solid #21212f', borderRadius: 999,
     padding: '4px 9px', fontSize: 13, cursor: 'pointer', lineHeight: 1,

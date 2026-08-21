@@ -62,12 +62,19 @@ export function GameBar({
   ghost,
   max,
   side,
+  speed = 1,
 }: {
   hp: number
   /** Health before this line — where the trail starts from. */
   ghost: number
   max: number
   side: 'left' | 'right'
+  /**
+   * Playback speed. The trail's clock is the game's, but at x4 the log moves on
+   * four times as fast, and a drain still running at x1 would be retracting for a
+   * blow two lines old — so the whole curve is divided down with everything else.
+   */
+  speed?: number
 }) {
   /*
    * THE TRAIL IS ITS OWN LITTLE STATE MACHINE.
@@ -138,7 +145,7 @@ export function GameBar({
   const trim = (p: number) =>
     side === 'left' ? `inset(0 0 0 ${100 - p}%)` : `inset(0 ${100 - p}% 0 0)`
 
-  const secs = drainSecs(Math.max(0, trail - hp) || Math.max(0, ghost - hp))
+  const secs = drainSecs(Math.max(0, trail - hp) || Math.max(0, ghost - hp)) / speed
 
   const layer: React.CSSProperties = {
     position: 'absolute',
