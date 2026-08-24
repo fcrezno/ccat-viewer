@@ -312,6 +312,9 @@ function GauntletLadder({ run }: { run: RunView }) {
   )
 }
 
+/** How many rows the board shows. Champions are rare, so this is generous. */
+const BOARD_MAX = 20
+
 /** One row of the season board. */
 type BoardRow = {
   uid: string; rank: number
@@ -334,6 +337,8 @@ function SeasonBoard({ mine }: { mine: Set<string> }) {
   const [rows, setRows] = useState<BoardRow[] | null>(null)
   const [season, setSeason] = useState<number | null>(null)
   const [failed, setFailed] = useState(false)
+  /** uid -> the cat's picture. Filled in after the board arrives. */
+  const [faces, setFaces] = useState<Record<string, string>>({})
 
   useEffect(() => {
     let live = true
@@ -344,49 +349,157 @@ function SeasonBoard({ mine }: { mine: Set<string> }) {
     return () => { live = false }
   }, [])
 
+  /*
+   * THE PICTURES COME SEPARATELY, on purpose.
+   *
+   * The board itself is a search across Farcaster and is slow enough already;
+   * making it also fetch metadata for every cat would hold the whole thing back
+   * for the sake of some thumbnails. So the ranking paints first and the faces
+   * arrive after, the way shuffle() already loads cats.
+   *
+   * A face that never arrives leaves the placeholder. It is a picture.
+   */
+  useEffect(() => {
+    if (!rows?.length) return
+    let live = true
+
+    Promise.all(rows.slice(0, BOARD_MAX).map(async r => {
+      const { collection, id } = parseUid(r.uid)
+      try {
+        const res = await fetch(`/api/meta?id=${id}&c=${collection}`)
+        if (!res.ok) return null
+        const meta = await res.json()
+        return [r.uid, meta?.image ?? ''] as const
+      } catch { return null }
+    })).then(pairs => {
+      if (!live) return
+      setFaces(Object.fromEntries(pairs.filter(Boolean) as (readonly [string, string])[]))
+    })
+
+    return () => { live = false }
+  }, [rows])
+
+  /** A cat's picture at any size, or the placeholder. */
+  const Face = ({ uid, size }: { uid: string; size: number }) => {
+    const src = faces[uid]
+    const col = getCollection(parseUid(uid).collection)
+    return src
+      ? <img src={src} alt="" style={{
+          width: size, height: size, borderRadius: size > 80 ? 14 : 8, display: 'block',
+          objectFit: 'cover', flexShrink: 0,
+          imageRendering: col.pixelArt ? 'pixelated' : 'auto',
+        }} />
+      : <div style={{
+          width: size, height: size, borderRadius: size > 80 ? 14 : 8, flexShrink: 0,
+          background: '#12121c', display: 'grid', placeItems: 'center',
+          fontSize: Math.round(size * 0.45),
+        }}>🐱</div>
+  }
+
+  const label = (uid: string) => nameFor(uid) ?? `#${parseUid(uid).id}`
+
+  if (failed)
+    return (
+      <section style={s.block}>
+        <p style={s.label}>SEASON</p>
+        <p style={s.quiet}>could not reach the season board just now.</p>
+      </section>
+    )
+
+  if (!rows)
+    return (
+      <section style={s.block}>
+        <p style={s.label}>SEASON</p>
+        <p style={s.quiet}>reading the season board…</p>
+      </section>
+    )
+
+  if (rows.length === 0)
+    return (
+      <section style={s.block}>
+        <p style={s.label}>{season ? `SEASON ${season}` : 'SEASON'}</p>
+        <p style={s.quiet}>nobody has taken all five yet.</p>
+        <p style={s.fine}>Take the gauntlet, cast the run, and this is where it goes.</p>
+      </section>
+    )
+
+  const [top, ...rest] = rows.slice(0, BOARD_MAX)
+  // Second and third stand under the champion; everything after is a list.
+  const podium = rest.slice(0, 2)
+  const list   = rest.slice(2)
+
   return (
     <section style={s.block}>
       <p style={s.label}>{season ? `SEASON ${season}` : 'SEASON'}</p>
 
-      {failed
-        ? <p style={s.quiet}>could not reach the season board just now.</p>
-        : !rows
-          ? <p style={s.quiet}>reading the season board…</p>
-          : rows.length === 0
-            ? (
-              <>
-                <p style={s.quiet}>nobody has taken all five yet.</p>
-                <p style={s.fine}>
-                  Take the gauntlet, cast the run, and this is where it goes.
-                </p>
-              </>
-            )
-            : rows.slice(0, 20).map(r => (
-              <div
-                key={r.uid}
-                style={mine.has(r.uid) ? { ...s.boardRow, ...s.boardRowMine } : s.boardRow}
-              >
-                <span style={s.boardRank}>{r.rank}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  {/* The names log wins here too, when this device has one. */}
-                  <div style={{ fontSize: 12, color: mine.has(r.uid) ? '#ffd166' : '#f0f0f5' }}>
-                    {nameFor(r.uid) ?? `#${parseUid(r.uid).id}`}
-                  </div>
-                  <div style={{ fontSize: 10, color: '#63637d' }}>
-                    {r.uid} · {r.wins}W {r.losses}L
-                    {r.runs > 1 ? ` · ${r.runs} runs` : ''}
-                  </div>
-                </div>
-                <span style={s.boardPts}>{r.points}</span>
-              </div>
-            ))}
+      {/*
+        THE CHAMPION GETS THE VICTORY TREATMENT — portrait up, confetti falling,
+        the same Confetti that lands on a won fight. Taking all five is the rarest
+        thing in the app (about one run in eleven) and the board should look like
+        somebody won something rather than like a table with a first row.
+      */}
+      <div style={mine.has(top.uid) ? { ...s.champCard, ...s.champCardMine } : s.champCard}>
+        <Confetti seed={top.points} />
+        <div style={{ position: 'relative', display: 'grid', justifyItems: 'center', gap: 8 }}>
+          <Face uid={top.uid} size={132} />
+          <BitmapText text="CHAMPION" scale={2} color="#e0a72c" />
+          <div style={{ fontSize: 15, color: mine.has(top.uid) ? '#ffd166' : '#f0f0f5' }}>
+            {label(top.uid)}
+          </div>
+          <div style={{ fontSize: 22, color: '#e0a72c', fontVariantNumeric: 'tabular-nums' }}>
+            {top.points}
+          </div>
+          <div style={{ fontSize: 10, color: '#63637d' }}>
+            {top.uid} · {top.wins}W {top.losses}L{top.runs > 1 ? ` · ${top.runs} runs` : ''}
+          </div>
+        </div>
+      </div>
 
-      {rows && rows.length > 0 && (
-        <p style={s.fine}>
-          Champions only — falling loses the pot. Counted from cast runs, so this
-          is a floor.
-        </p>
-      )}
+      {/*
+        Second and third, in the tower's own row so the top three read together.
+        Wrapped in the tower's container because towerRow carries no margin of its
+        own — the gauntlet spaces them with the parent's `gap`, and borrowing the
+        row without the container would leave these two stuck to each other.
+      */}
+      <div style={{ ...s.tower, marginBottom: 6 }}>
+      {podium.map(r => (
+        <div key={r.uid} style={mine.has(r.uid) ? { ...s.towerRow, ...s.towerNext } : s.towerRow}>
+          <span style={s.boardRank}>{r.rank}</span>
+          <Face uid={r.uid} size={40} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, color: mine.has(r.uid) ? '#ffd166' : '#f0f0f5' }}>
+              {label(r.uid)}
+            </div>
+            <div style={{ fontSize: 10, color: '#63637d' }}>
+              {r.uid} · {r.wins}W {r.losses}L{r.runs > 1 ? ` · ${r.runs} runs` : ''}
+            </div>
+          </div>
+          <span style={s.boardPts}>{r.points}</span>
+        </div>
+      ))}
+      </div>
+
+      {/* Fourth down: the plain row, with the cat's face on it. */}
+      {list.map(r => (
+        <div key={r.uid} style={mine.has(r.uid) ? { ...s.boardRow, ...s.boardRowMine } : s.boardRow}>
+          <span style={s.boardRank}>{r.rank}</span>
+          <Face uid={r.uid} size={28} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 12, color: mine.has(r.uid) ? '#ffd166' : '#f0f0f5' }}>
+              {label(r.uid)}
+            </div>
+            <div style={{ fontSize: 10, color: '#63637d' }}>
+              {r.uid} · {r.wins}W {r.losses}L{r.runs > 1 ? ` · ${r.runs} runs` : ''}
+            </div>
+          </div>
+          <span style={s.boardPts}>{r.points}</span>
+        </div>
+      ))}
+
+      <p style={s.fine}>
+        Champions only — falling loses the pot. Counted from cast runs, so this is
+        a floor.
+      </p>
     </section>
   )
 }
@@ -1694,6 +1807,19 @@ const s: Record<string, React.CSSProperties> = {
   towerNext:  { borderColor: '#7a5c18', background: 'rgba(224,167,44,0.08)' },
   towerNum:   { width: 14, textAlign: 'center', fontSize: 11, color: '#4a4a5e' },
   ladderLine: { color: '#63637d', fontSize: 11, margin: '10px 0 0', textAlign: 'center' },
+
+  /*
+   * THE CHAMPION'S CARD. `position: relative` and `overflow: hidden` are load
+   * bearing — the confetti is absolutely positioned to its parent and would
+   * otherwise fall down the whole page.
+   */
+  champCard: {
+    position: 'relative', overflow: 'hidden',
+    borderRadius: 14, border: '1px solid #7a5c18',
+    background: 'linear-gradient(180deg, rgba(224,167,44,0.10), rgba(224,167,44,0.02))',
+    padding: '18px 16px 16px', marginBottom: 10,
+  },
+  champCardMine: { borderColor: '#e0a72c', boxShadow: '0 0 0 2px rgba(224,167,44,0.25)' },
 
   /* The season board. Your own cats are lit, so you can find yourself in it. */
   boardRow:     { display: 'flex', alignItems: 'center', gap: 10, padding: '7px 8px', borderRadius: 10, border: '1px solid #21212f', background: '#0b0b13', marginBottom: 6 },
