@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { SEASON, readTags, tally, type Pair } from '@/lib/season'
+import { SEASON, board, readTags, tally, type Run } from '@/lib/season'
 
 /**
  * GET /api/ticker            →  every cat's season record
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
   if (!key) return NextResponse.json({ error: 'no key' }, { status: 500 })
 
   const uid = req.nextUrl.searchParams.get('uid')
-  const results: { seed: string; season: number; pairs: Pair[] }[] = []
+  const results: Run[] = []
   let cursor: string | null = null
 
   try {
@@ -95,14 +95,30 @@ export async function GET(req: NextRequest) {
   }
 
   const map = tally(results, SEASON)
+  /*
+   * THE BOARD is ranked on POINTS, which only a champion banks — falling loses
+   * the pot. So this is a list of cats that took all five, not the collection.
+   */
+  const ranked = board(map)
 
   if (uid) {
-    const t = map.get(uid) ?? { wins: 0, losses: 0 }
-    return NextResponse.json({ season: SEASON, uid, ...t, partial: true })
+    const t = map.get(uid) ?? { wins: 0, losses: 0, points: 0, runs: 0 }
+    const row = ranked.find(r => r.uid === uid) ?? null
+    return NextResponse.json({
+      season: SEASON,
+      uid,
+      ...t,
+      // Where this cat stands, and out of how many. Null when it has never
+      // banked anything, which is not the same as being last.
+      rank: row?.rank ?? null,
+      of: ranked.length,
+      partial: true,
+    })
   }
 
   return NextResponse.json({
     season: SEASON,
+    board: ranked,
     cats: Object.fromEntries(map),
     partial: true,
   })

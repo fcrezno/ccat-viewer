@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAccount, useConnect } from 'wagmi'
 import sdk from '@farcaster/miniapp-sdk'
-import { COLLECTIONS, getCollection, type Cat } from '@/lib/collection'
+import { COLLECTIONS, getCollection, parseUid, type Cat } from '@/lib/collection'
 import type { FightResult, LogLine } from '@/lib/arena'
 import { GameBar } from '@/components/GameBar'
 import { useSound } from '@/lib/useSound'
@@ -309,6 +309,85 @@ function GauntletLadder({ run }: { run: RunView }) {
         {!run.recorded && ' · not recorded'}
       </p>
     </div>
+  )
+}
+
+/** One row of the season board. */
+type BoardRow = {
+  uid: string; rank: number
+  wins: number; losses: number; points: number; runs: number
+}
+
+/**
+ * THE SEASON BOARD — where every cat stands, the same for everybody.
+ *
+ * Rebuilt from casts by /api/ticker, because there is no database. Two things
+ * follow from that and both are said on screen rather than hidden:
+ *
+ *   only runs somebody CAST are counted, so this is a floor
+ *   only a CHAMPION banks points, because falling loses the pot
+ *
+ * So an empty board is the normal state on day one, and it says what to do about
+ * it instead of showing nothing.
+ */
+function SeasonBoard({ mine }: { mine: Set<string> }) {
+  const [rows, setRows] = useState<BoardRow[] | null>(null)
+  const [season, setSeason] = useState<number | null>(null)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    let live = true
+    fetch('/api/ticker')
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error('ticker'))))
+      .then(d => { if (live) { setRows(d.board ?? []); setSeason(d.season ?? null) } })
+      .catch(() => { if (live) setFailed(true) })
+    return () => { live = false }
+  }, [])
+
+  return (
+    <section style={s.block}>
+      <p style={s.label}>{season ? `SEASON ${season}` : 'SEASON'}</p>
+
+      {failed
+        ? <p style={s.quiet}>could not reach the season board just now.</p>
+        : !rows
+          ? <p style={s.quiet}>reading the season board…</p>
+          : rows.length === 0
+            ? (
+              <>
+                <p style={s.quiet}>nobody has taken all five yet.</p>
+                <p style={s.fine}>
+                  Take the gauntlet, cast the run, and this is where it goes.
+                </p>
+              </>
+            )
+            : rows.slice(0, 20).map(r => (
+              <div
+                key={r.uid}
+                style={mine.has(r.uid) ? { ...s.boardRow, ...s.boardRowMine } : s.boardRow}
+              >
+                <span style={s.boardRank}>{r.rank}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  {/* The names log wins here too, when this device has one. */}
+                  <div style={{ fontSize: 12, color: mine.has(r.uid) ? '#ffd166' : '#f0f0f5' }}>
+                    {nameFor(r.uid) ?? `#${parseUid(r.uid).id}`}
+                  </div>
+                  <div style={{ fontSize: 10, color: '#63637d' }}>
+                    {r.uid} · {r.wins}W {r.losses}L
+                    {r.runs > 1 ? ` · ${r.runs} runs` : ''}
+                  </div>
+                </div>
+                <span style={s.boardPts}>{r.points}</span>
+              </div>
+            ))}
+
+      {rows && rows.length > 0 && (
+        <p style={s.fine}>
+          Champions only — falling loses the pot. Counted from cast runs, so this
+          is a floor.
+        </p>
+      )}
+    </section>
   )
 }
 
@@ -1157,14 +1236,29 @@ export function Cradle() {
       )}
 
       {view === 'ranks' && (
-        <section style={s.block}>
-          <p style={s.label}>RANKINGS</p>
-          {ranked.length === 0
-            ? <p style={s.quiet}>no cats yet — connect a wallet or add a friend.</p>
-            : ranked.map((r, i) => <RankRow key={r.uid} r={r} place={i + 1} />)}
-          <p style={s.fine}>Records are kept on this device. The public version of a result is a cast.</p>
-          <button style={s.ghost} onClick={() => setView('home')}>BACK</button>
-        </section>
+        <>
+          {/*
+            TWO BOARDS, and they are not the same thing.
+
+            The GLOBAL one is the season: every cat that took all five, ranked on
+            the pot it banked, rebuilt from casts. It is the same for everybody.
+
+            The one below it is this device's own record of every fight it has
+            watched. Keeping them apart matters — one is a public standing and the
+            other is a private tally, and running them together would imply the
+            local numbers were being compared against anybody else's.
+          */}
+          <SeasonBoard mine={new Set((cats ?? []).map(c => c.uid))} />
+
+          <section style={s.block}>
+            <p style={s.label}>ON THIS DEVICE</p>
+            {ranked.length === 0
+              ? <p style={s.quiet}>no cats yet — connect a wallet or add a friend.</p>
+              : ranked.map((r, i) => <RankRow key={r.uid} r={r} place={i + 1} />)}
+            <p style={s.fine}>Records are kept on this device. The public version of a result is a cast.</p>
+            <button style={s.ghost} onClick={() => setView('home')}>BACK</button>
+          </section>
+        </>
       )}
 
       {view === 'fight' && (
@@ -1600,6 +1694,12 @@ const s: Record<string, React.CSSProperties> = {
   towerNext:  { borderColor: '#7a5c18', background: 'rgba(224,167,44,0.08)' },
   towerNum:   { width: 14, textAlign: 'center', fontSize: 11, color: '#4a4a5e' },
   ladderLine: { color: '#63637d', fontSize: 11, margin: '10px 0 0', textAlign: 'center' },
+
+  /* The season board. Your own cats are lit, so you can find yourself in it. */
+  boardRow:     { display: 'flex', alignItems: 'center', gap: 10, padding: '7px 8px', borderRadius: 10, border: '1px solid #21212f', background: '#0b0b13', marginBottom: 6 },
+  boardRowMine: { borderColor: '#7a5c18', background: 'rgba(224,167,44,0.08)' },
+  boardRank:    { width: 22, textAlign: 'center', fontSize: 12, color: '#63637d' },
+  boardPts:     { fontSize: 13, color: '#e0a72c', fontVariantNumeric: 'tabular-nums' },
   link:    { color: '#a78bfa', fontSize: 14 },
   soundRow: {
     display: 'flex', alignItems: 'center', gap: 10,

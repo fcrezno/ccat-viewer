@@ -244,7 +244,14 @@ function SendPanel({ cat, onClose }: { cat: Cat; onClose: () => void }) {
  * and did not win, and it did not fight.
  */
 function SeasonRecord({ uid }: { uid: string }) {
-  const [rec, setRec] = useState<{ wins: number; losses: number; season: number } | null>(null)
+  const [rec, setRec] = useState<{
+    wins: number; losses: number; season: number
+    points: number
+    /** Null when this cat has never banked anything — not the same as being last. */
+    rank: number | null
+    /** How many cats are on the board at all. */
+    of: number
+  } | null>(null)
   const [failed, setFailed] = useState(false)
 
   useEffect(() => {
@@ -275,15 +282,32 @@ function SeasonRecord({ uid }: { uid: string }) {
           <div style={s.traitKey}>Lost to</div>
           <div style={s.traitVal}>{fought ? rec!.losses : '—'}</div>
         </div>
+        <div style={s.trait}>
+          <div style={s.traitKey}>Points</div>
+          <div style={s.traitVal}>{rec && rec.points > 0 ? rec.points : '—'}</div>
+        </div>
+        {/*
+          WHERE IT STANDS. Only a champion banks points, so a rank means this cat
+          took all five at least once. A cat with none is not "last" — it is not
+          on the board, which is a different thing and is said differently below.
+        */}
+        <div style={s.trait}>
+          <div style={s.traitKey}>Rank</div>
+          <div style={s.traitVal}>
+            {rec?.rank ? `${rec.rank} of ${rec.of}` : '—'}
+          </div>
+        </div>
       </div>
       <div style={{ fontSize: 11, color: '#555', marginTop: 6, lineHeight: 1.5 }}>
         {failed
           ? 'could not reach the season board just now'
           : !rec
             ? 'reading the season board…'
-            : fought
-              ? 'counted from cast fights only, so this is a floor'
-              : 'no cast fights yet — cast one and it counts'}
+            : rec.rank
+              ? `champion · ranked on points, counted from cast runs only`
+              : fought
+                ? 'take all five to bank points and get on the board'
+                : 'no cast runs yet — cast one and it counts'}
       </div>
     </>
   )

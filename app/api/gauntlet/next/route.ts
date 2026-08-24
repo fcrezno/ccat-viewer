@@ -67,7 +67,14 @@ export async function POST(req: NextRequest) {
      * twice still counts once. A demo runner has no uid and signs nothing.
      */
     tag: !out.won || champion
-      ? tagFor(runPairs(next, out.won ? null : out.foe), next.seed)
+      ? tagFor(
+          runPairs(next, out.won ? null : out.foe),
+          next.seed,
+          // ONLY A CHAMPION BANKS ANYTHING. Falling loses the pot, which is the
+          // other half of "double or nothing" — so a fallen run scores nil and
+          // the board is a list of cats that took all five.
+          champion ? { uid: next.you.uid, points: next.pot } : null,
+        )
       : null,
     pot: next.pot,
     choices: next.choices,

@@ -171,7 +171,8 @@ export async function POST(req: NextRequest) {
      * here unless they fell at the first cat. A demo runner has no uid and
      * signs nothing.
      */
-    tag: out.won ? null : tagFor(runPairs(next, out.foe), seed),
+    // A run cannot be won at round one, so nothing is ever banked here.
+    tag: out.won ? null : tagFor(runPairs(next, out.foe), seed, null),
     pot: next.pot,
     choices: next.choices,
     champion: isChampion(next),

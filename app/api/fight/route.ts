@@ -3,7 +3,6 @@ import { isAddress } from 'viem'
 import { fetchCats } from '@/lib/collection'
 import { fight, ownedCat, randomCat, seeded, type ArenaCat } from '@/lib/arena'
 import { pickRoster } from '@/lib/roster'
-import { tagFor } from '@/lib/season'
 
 /**
  * POST /api/fight  { wallet, uid }  →  the whole fight, already decided.
@@ -156,7 +155,6 @@ export async function POST(req: NextRequest) {
   you.art = cat.meta?.image ?? ''
 
   let foe: ArenaCat | null = null
-  let foeUid = ''
   if (exhibition) {
     // Their whole shelf is excluded, not just the cat they entered — an
     // exhibition against your own second cat is not an exhibition.
@@ -172,7 +170,6 @@ export async function POST(req: NextRequest) {
         { status: 503 },
       )
     foe = drawn.cat
-    foeUid = drawn.uid
   } else {
     foe = randomCat(seeded((seed ^ 0x9e3779b9) >>> 0))
     foe.art = art((seed ^ 0x5bf03635) >>> 0)
@@ -185,18 +182,19 @@ export async function POST(req: NextRequest) {
    * fight against a real cat and looks exactly like a quick fight on screen, so
    * the only thing keeping it out of the record is this flag being read.
    *
-   * `tag` is the signed line for a cast. Only a fight between two REAL cats gets
-   * one — the ordinary quick fight's opponent is invented and belongs to nobody,
-   * so there is no record for the result to go on and no way to farm one.
+   * NO SINGLE FIGHT CARRIES A TAG, so nothing here reaches the season board.
+   *
+   * A quick fight's opponent is invented and belongs to nobody, so there is no
+   * record for the result to go on. An exhibition IS two real cats — but the
+   * whole definition of an exhibition is that it does not count, and a fight
+   * that quietly moved somebody else's seasonal record would be counting.
+   *
+   * The season record is therefore the GAUNTLET record, which is the one place
+   * a cat is put at stake on purpose.
    */
   return NextResponse.json({
     ...decided,
     recorded: !exhibition,
-    tag: foeUid
-      ? tagFor(
-          [decided.youWon ? { w: cat.uid, l: foeUid } : { w: foeUid, l: cat.uid }],
-          seed,
-        )
-      : null,
+    tag: null,
   })
 }
