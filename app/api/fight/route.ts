@@ -146,10 +146,12 @@ export async function POST(req: NextRequest) {
    * half, and it is cut to 32 — the limit the main game uses, which it took from
    * Steam so a cat named here still fits when the full game gets hold of it.
    *
-   * The cat's own collection name is the fallback, never a blank.
+   * THE NUMBER IS THE FALLBACK, never a blank and never the collection's name
+   * for it: V1's metadata names do not match its token ids, so "Clanker Cats
+   * #100" is token v1:195 and putting that on screen names the wrong cat.
    */
   const given = (name ?? '').replace(/\s+/g, ' ').trim().slice(0, 32)
-  const you = ownedCat(cat.id, given || cat.meta?.name || `#${cat.id}`)
+  const you = ownedCat(cat.id, given || `#${cat.id}`)
   // A real cat already has a picture; the made-up one gets composed.
   you.art = cat.meta?.image ?? ''
 

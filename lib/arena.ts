@@ -128,12 +128,34 @@ function twoMoves(r: () => number, type: CatType): string[] {
   return [pool[first], pool[second]]
 }
 
+/*
+ * NAMES FOR CATS THAT ARE NOT CLANKER CATS.
+ *
+ * An invented opponent used to be called "#412", which is the same shape as a
+ * real token's name — so a made-up cat read exactly like somebody's property,
+ * and the number pointed at a token it had nothing to do with.
+ *
+ * A cat that belongs to nobody gets a CAT'S NAME instead. It cannot be mistaken
+ * for a token, and it says what it is: a stray, not a holding.
+ *
+ * Ordinary names on purpose. These sit next to real cats in the same log, and a
+ * joke name would make the invented ones the loud ones.
+ */
+const STRAY_NAMES = [
+  'Mittens', 'Socks', 'Tabby', 'Smudge', 'Pepper', 'Biscuit', 'Marmalade', 'Nutmeg',
+  'Domino', 'Patches', 'Freckles', 'Bandit', 'Clover', 'Pumpkin', 'Sable', 'Ash',
+  'Willow', 'Juniper', 'Poppy', 'Hazel', 'Olive', 'Maple', 'Cinder', 'Dusty',
+  'Boots', 'Ziggy', 'Pickles', 'Waffles', 'Noodle', 'Dumpling', 'Bean', 'Peanut',
+  'Shadow', 'Midnight', 'Storm', 'Comet', 'Rocket', 'Pebble', 'Flint', 'Slate',
+  'Ginger', 'Saffron', 'Honey', 'Toffee', 'Custard', 'Muffin', 'Crumpet', 'Scone',
+] as const
+
 /** A cat invented on the spot. Endless opponents, none of them anyone's property. */
 export function randomCat(r: () => number): ArenaCat {
   const hp = 90 + Math.floor(r() * 50)
   const type = pick(r, TYPES)
   return {
-    label: '#' + (100 + Math.floor(r() * 900)),
+    label: pick(r, STRAY_NAMES),
     type,
     hp,
     maxHp: hp,

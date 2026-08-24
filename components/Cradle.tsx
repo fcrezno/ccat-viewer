@@ -262,11 +262,20 @@ function GauntletLadder({ run }: { run: RunView }) {
                 : <div style={{ ...s.rankPic, display: 'grid', placeItems: 'center' }}>🐱</div>}
 
               <div style={{ flex: 1, minWidth: 0 }}>
+                {/*
+                  THE NAMES LOG WINS, when there is anything in it.
+
+                  A holder's name for a cat lives in localStorage, so the SERVER
+                  cannot know it and sends the number. Here in the page the log is
+                  readable, so a cat the viewer has named shows that name —
+                  usually their own cat, or a friend's they named after adopting.
+                  Everything else stays the number, which is the honest answer.
+                */}
                 <div style={{
                   fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                   color: fell ? '#d1495b' : done ? '#5a6b5f' : next ? '#ffd166' : '#f0f0f5',
                 }}>
-                  {f.label}
+                  {nameFor(f.uid) ?? f.label}
                 </div>
                 {/*
                   THE UID, THEN WHOSE IT IS.

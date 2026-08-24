@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
     // Cleaned here as well as in the browser, for the reason /api/fight gives:
     // it goes into the log and into a cast, so it is never taken on trust.
     const given = (name ?? '').replace(/\s+/g, ' ').trim().slice(0, 32)
-    const label = given || cat.meta?.name || `#${cat.id}`
+    const label = given || `#${cat.id}`
     const built = ownedCat(cat.id, label)
 
     you = {

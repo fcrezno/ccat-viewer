@@ -138,7 +138,19 @@ export async function pickRoster(
 
   const opponents: Opponent[] = found.map((f, i) => {
     const meta = metas[i]
-    const label = meta?.name || `#${f.id}`
+    /*
+     * JUST THE NUMBER, not the collection's name for it.
+     *
+     * `meta.name` looked like the obvious label and it is the wrong one. V1'S
+     * NAMES DO NOT MATCH ITS TOKEN IDS — token v1:195 is called "Clanker Cats
+     * #100" — so using it put a number on screen that pointed at a different
+     * cat, while the seasonal record was being kept against the real uid.
+     *
+     * A holder's own name for a cat lives in the names log, which is on THEIR
+     * device, so the server cannot know it. The page fills it in when it is the
+     * viewer's own cat; otherwise the number is the honest answer.
+     */
+    const label = `#${f.id}`
     const cat = ownedCat(f.id, label)
     // ownedCat marks the player's cat; this one is somebody else's.
     cat.mine = false
