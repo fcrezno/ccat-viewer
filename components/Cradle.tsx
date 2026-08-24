@@ -268,9 +268,19 @@ function GauntletLadder({ run }: { run: RunView }) {
                 }}>
                   {f.label}
                 </div>
-                {/* Whose cat it is — the whole point of the mode is that it is somebody's. */}
+                {/*
+                  THE UID, THEN WHOSE IT IS.
+
+                  The owner is here because the whole point of the mode is that
+                  these cats are somebody's. The uid is here because V1's
+                  METADATA NAMES DO NOT MATCH ITS TOKEN IDS — token v1:195 is
+                  called "Clanker Cats #100" — so the name above is not enough to
+                  say which cat this was. The season record is kept by uid, so
+                  without this a player cannot match a cat they beat to the cat
+                  whose record went up.
+                */}
                 <div style={{ fontSize: 10, color: '#63637d' }}>
-                  {f.owner ? `${f.owner.slice(0, 6)}…${f.owner.slice(-4)}` : 'on chain'}
+                  {f.uid}{f.owner ? ` · ${f.owner.slice(0, 6)}…${f.owner.slice(-4)}` : ''}
                 </div>
               </div>
 
@@ -316,6 +326,19 @@ function RankRow({ r, place, onDrop }: { r: Ranked; place: number; onDrop?: () =
     </div>
   )
 }
+
+/**
+ * WHAT EVERY CAST CARRIES.
+ *
+ * The same three things the viewer's own share uses, and for the reason written
+ * there: "$CLKCAT renders as a token chip; @crezno makes every share a mention so
+ * the drop collects into one thread instead of scattering."
+ *
+ * `#ClankerCats` is the new one and it is not decoration — /api/ticker FINDS the
+ * casts by searching for it, and a cat's seasonal record is rebuilt from what
+ * that search returns. Drop the hashtag and the records stop being countable.
+ */
+const SEASON_TAG = 'by @crezno\n$CLKCAT #ClankerCats'
 
 /** One cat on the ladder, as the server describes it. */
 type FoeRef = {
@@ -377,6 +400,15 @@ export function Cradle() {
    * true so a response without the field behaves as fights always have.
    */
   const [recorded, setRecorded] = useState(true)
+  /*
+   * THE SIGNED LINE FOR A CAST, from the server, or null when this fight cannot
+   * count towards a seasonal record — a demo cat, or a quick fight whose
+   * opponent was invented and belongs to nobody.
+   *
+   * For a run it arrives ONLY on the last round, and covers all five, so sharing
+   * mid-run is not a thing that can happen by accident.
+   */
+  const [tag, setTag] = useState<string | null>(null)
   const [shown, setShown] = useState(0)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -577,7 +609,7 @@ export function Cradle() {
     setBusy(true); setError(null); setNote(null); setConfirmRetire(false)
     setResult(null); setShown(0); setRowsShown(0); setCount(null); setView('fight')
     // A single fight is never part of a run, so anything left over goes.
-    setRun(null); setRecorded(true)
+    setRun(null); setRecorded(true); setTag(null)
     try {
       const res = await fetch('/api/fight', {
         method: 'POST',
@@ -593,6 +625,7 @@ export function Cradle() {
       if (!res.ok) { setError(data.error ?? 'that did not work'); return }
       setResult(data)
       setRecorded(data.recorded !== false)
+      setTag(data.tag ?? null)
       // The fight opens on 3, 2, 1, FIGHT! — the log waits for it.
       setCount(3)
     } catch {
@@ -672,10 +705,13 @@ export function Cradle() {
   /** Both endpoints answer the same shape, so both land here. */
   function takeRound(data: {
     recorded: boolean; foes: FoeRef[]; pot: number; ticket: string | null
+    /** Only on the final round of a run, and null when it cannot count. */
+    tag: string | null
     champion: boolean; over: boolean
     round: { round: number; won: boolean; fight: FightResult }
   }) {
     setRecorded(data.recorded)
+    setTag(data.tag ?? null)
     setRun({
       recorded: data.recorded,
       foes:     data.foes,
@@ -693,22 +729,48 @@ export function Cradle() {
 
   /** Leave a run behind. Used by every way out of the fight view. */
   function clearRun() {
-    setRun(null); setResult(null); setShown(0); setChoosing(false)
+    setRun(null); setResult(null); setShown(0); setChoosing(false); setTag(null)
   }
 
-  /** Post the result as a cast. A boast goes in the open or not at all. */
+  /**
+   * Post the result as a cast. A boast goes in the open or not at all.
+   *
+   * ── THE CAST IS ALSO THE RECORD ──────────────────────────────────────────
+   *
+   * There is no database, so a cat's seasonal record is rebuilt by reading these
+   * casts back — see lib/season.ts. Two things make that work, and neither is
+   * allowed to spoil the sentence:
+   *
+   *   the HASHTAG makes the cast findable. A search cannot index a signature.
+   *   the TAG rides in the LINK, not the words. It is 138 characters of base64
+   *   and the cast already carries a link, so the reader never sees it.
+   *
+   * No tag means the fight cannot count — a demo cat, or a quick fight, whose
+   * opponent was invented and belongs to nobody. The cast still goes out; it just
+   * carries the plain link.
+   */
   async function share() {
     if (!result) return
     const rec = picked && !isDemo ? recordFor(picked.uid) : null
-    const line = result.youWon
-      ? `${result.you.label} beat ${result.foe.label} in ${result.turf}.`
-      : `${result.foe.label} put ${result.you.label} down in ${result.turf}.`
-    const tail = rec && rec.wins + rec.losses > 0 ? ` Now ${recordLine(rec)}.` : ''
+
+    // A run gets its own sentence: "beat X in the caves" is true of one round and
+    // says nothing about the four before it.
+    const line = run
+      ? run.champion
+        ? `${result.you.label} took the whole tower. ${run.foes.length} cats, all of them somebody's.`
+        : `${result.you.label} went ${run.roundNo - 1} deep in the tower before ${run.foes[run.roundNo - 1]?.label ?? 'the next cat'} stopped it.`
+      : result.youWon
+        ? `${result.you.label} beat ${result.foe.label} in ${result.turf}.`
+        : `${result.foe.label} put ${result.you.label} down in ${result.turf}.`
+
+    const tail = run
+      ? run.pot > 0 ? ` Pot ${run.pot}.` : ''
+      : rec && rec.wins + rec.losses > 0 ? ` Now ${recordLine(rec)}.` : ''
 
     try {
       await sdk.actions.composeCast({
-        text: `${line}${tail}\n\nCat's Cradle — a preview of Clanker Cats.`,
-        embeds: [`${APP_URL}/cradle`],
+        text: `${line}${tail}\n\nCat's Cradle — a preview of Clanker Cats. ${SEASON_TAG}`,
+        embeds: [tag ? `${APP_URL}/cradle?r=${encodeURIComponent(tag)}` : `${APP_URL}/cradle`],
       })
     } catch {
       setError('could not open the composer — are you in a Farcaster client?')

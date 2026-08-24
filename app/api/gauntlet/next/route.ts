@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import {
-  ROUNDS, afterRound, applyChoice, isChampion, playRound,
+  ROUNDS, afterRound, applyChoice, isChampion, playRound, runPairs,
   type Choice, type RunState,
 } from '@/lib/gauntlet'
 import { TICKET_TTL_MS, sign, verify } from '@/lib/ticket'
+import { tagFor } from '@/lib/season'
 
 /**
  * POST /api/gauntlet/next  { ticket, choice }  →  the next round.
@@ -60,6 +61,14 @@ export async function POST(req: NextRequest) {
     you: next.you,
     foes: next.foes,
     round: out,
+    /*
+     * ONE TAG FOR THE WHOLE RUN, signed only when the run ends — either they
+     * fell here or they took all five. Keyed on the RUN's seed, so a run cast
+     * twice still counts once. A demo runner has no uid and signs nothing.
+     */
+    tag: !out.won || champion
+      ? tagFor(runPairs(next, out.won ? null : out.foe), next.seed)
+      : null,
     pot: next.pot,
     choices: next.choices,
     champion,

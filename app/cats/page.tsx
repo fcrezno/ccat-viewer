@@ -232,6 +232,63 @@ function SendPanel({ cat, onClose }: { cat: Cat; onClose: () => void }) {
   )
 }
 
+/**
+ * THIS SEASON'S RECORD — how this cat has done against everybody else's.
+ *
+ * Rebuilt from Farcaster by /api/ticker, because there is no database in this
+ * app. That has a consequence the number cannot hide, so it does not try to:
+ * ONLY FIGHTS SOMEBODY CAST ARE COUNTED, which makes this a floor rather than a
+ * total. The line underneath says so.
+ *
+ * A cat nobody has cast about shows a dash, not a zero — "0-0" claims it fought
+ * and did not win, and it did not fight.
+ */
+function SeasonRecord({ uid }: { uid: string }) {
+  const [rec, setRec] = useState<{ wins: number; losses: number; season: number } | null>(null)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    let live = true
+    setRec(null); setFailed(false)
+
+    fetch(`/api/ticker?uid=${encodeURIComponent(uid)}`)
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error('ticker'))))
+      .then(d => { if (live) setRec(d) })
+      .catch(() => { if (live) setFailed(true) })
+
+    return () => { live = false }
+  }, [uid])
+
+  const fought = !!rec && rec.wins + rec.losses > 0
+
+  return (
+    <>
+      <div style={s.sectionLabel}>
+        {rec ? `Season ${rec.season}` : 'Season'}
+      </div>
+      <div style={s.traits}>
+        <div style={s.trait}>
+          <div style={s.traitKey}>Beaten</div>
+          <div style={s.traitVal}>{fought ? rec!.wins : '—'}</div>
+        </div>
+        <div style={s.trait}>
+          <div style={s.traitKey}>Lost to</div>
+          <div style={s.traitVal}>{fought ? rec!.losses : '—'}</div>
+        </div>
+      </div>
+      <div style={{ fontSize: 11, color: '#555', marginTop: 6, lineHeight: 1.5 }}>
+        {failed
+          ? 'could not reach the season board just now'
+          : !rec
+            ? 'reading the season board…'
+            : fought
+              ? 'counted from cast fights only, so this is a floor'
+              : 'no cast fights yet — cast one and it counts'}
+      </div>
+    </>
+  )
+}
+
 function CatDetail({ cat, onBack }: { cat: Cat; onBack: () => void }) {
   const [showSend, setShowSend] = useState(false)
   const meta = cat.meta
@@ -277,6 +334,8 @@ function CatDetail({ cat, onBack }: { cat: Cat; onBack: () => void }) {
           </div>
         </>
       )}
+      <SeasonRecord uid={cat.uid} />
+
       <TamagotchiPanel catId={cat.uid} />
 
       {showSend && <SendPanel cat={cat} onClose={() => setShowSend(false)} />}

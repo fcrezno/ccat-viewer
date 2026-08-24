@@ -3,10 +3,11 @@ import { isAddress } from 'viem'
 import { fetchCats } from '@/lib/collection'
 import { ownedCat } from '@/lib/arena'
 import {
-  ROUNDS, afterRound, isChampion, playRound,
+  ROUNDS, afterRound, isChampion, playRound, runPairs,
   type RunState, type Runner,
 } from '@/lib/gauntlet'
 import { pickRoster } from '@/lib/roster'
+import { tagFor } from '@/lib/season'
 import { TICKET_TTL_MS, sign } from '@/lib/ticket'
 
 /**
@@ -165,6 +166,12 @@ export async function POST(req: NextRequest) {
     // any of it goes.
     foes: state.foes,
     round: out,
+    /*
+     * ONE TAG FOR THE WHOLE RUN, and only once the run is over — so nothing
+     * here unless they fell at the first cat. A demo runner has no uid and
+     * signs nothing.
+     */
+    tag: out.won ? null : tagFor(runPairs(next, out.foe), seed),
     pot: next.pot,
     choices: next.choices,
     champion: isChampion(next),

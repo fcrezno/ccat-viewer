@@ -186,3 +186,25 @@ export function applyChoice(state: RunState, choice: Choice): RunState {
 export function isChampion(state: RunState): boolean {
   return state.round >= ROUNDS && state.you.hp > 0
 }
+
+/**
+ * EVERY DECIDED FIGHT IN THE RUN, for the seasonal record.
+ *
+ * One tag carries the whole run rather than one per round, because five separate
+ * tags is about 350 characters and does not fit in a cast beside anything worth
+ * reading. So this is called ONCE, when the run ends.
+ *
+ * `state` must be the state AFTER the last round was folded in, so `state.round`
+ * is how many were beaten. `lost` is the cat that put them down, if one did.
+ *
+ * A demo runner has no uid; the empty strings are filtered out further down, in
+ * tagFor, so a demo run signs nothing.
+ */
+export function runPairs(state: RunState, lost: FoeRef | null): { w: string; l: string }[] {
+  const pairs = state.foes
+    .slice(0, state.round)
+    .map(foe => ({ w: state.you.uid, l: foe.uid }))
+
+  if (lost) pairs.push({ w: lost.uid, l: state.you.uid })
+  return pairs
+}

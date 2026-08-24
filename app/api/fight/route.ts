@@ -3,6 +3,7 @@ import { isAddress } from 'viem'
 import { fetchCats } from '@/lib/collection'
 import { fight, ownedCat, randomCat, seeded, type ArenaCat } from '@/lib/arena'
 import { pickRoster } from '@/lib/roster'
+import { tagFor } from '@/lib/season'
 
 /**
  * POST /api/fight  { wallet, uid }  →  the whole fight, already decided.
@@ -41,12 +42,17 @@ const art = (seed: number) => `/api/cat-art?seed=${seed >>> 0}`
  * quietly falling back to an invented cat — which would look identical and be a
  * lie about who was fought.
  */
-async function realFoe(exclude: Set<string>, excludeOwner: string): Promise<ArenaCat | null> {
+async function realFoe(
+  exclude: Set<string>,
+  excludeOwner: string,
+): Promise<{ cat: ArenaCat; uid: string } | null> {
   const picked = await pickRoster(1, exclude, excludeOwner)
   if (!picked.length) return null
   const { cat, ref } = picked[0]
   cat.art = ref.art
-  return cat
+  // The uid travels with it: a fight between two REAL cats is the only kind that
+  // can go on a seasonal record, and the record is kept by uid.
+  return { cat, uid: ref.uid }
 }
 
 export async function POST(req: NextRequest) {
@@ -82,22 +88,25 @@ export async function POST(req: NextRequest) {
     // recorded anyway, so the only difference is who is on the other side.
     let foe: ArenaCat | null = null
     if (exhibition) {
+      let drawn = null
       try {
-        foe = await realFoe(new Set(), '')
+        drawn = await realFoe(new Set(), '')
       } catch {
-        foe = null
+        drawn = null
       }
-      if (!foe)
+      if (!drawn)
         return NextResponse.json(
           { error: 'could not find a cat to fight right now — try again in a moment' },
           { status: 503 },
         )
+      foe = drawn.cat
     } else {
       foe = randomCat(r)
       foe.art = art((seed ^ 0x5bf03635) >>> 0)
     }
 
-    return NextResponse.json({ ...fight(you, foe, seed), recorded: false })
+    // No tag: a demo cat has no uid, so nothing here can go on a record.
+    return NextResponse.json({ ...fight(you, foe, seed), recorded: false, tag: null })
   }
 
   if (!wallet || !isAddress(wallet))
@@ -145,28 +154,47 @@ export async function POST(req: NextRequest) {
   you.art = cat.meta?.image ?? ''
 
   let foe: ArenaCat | null = null
+  let foeUid = ''
   if (exhibition) {
     // Their whole shelf is excluded, not just the cat they entered — an
     // exhibition against your own second cat is not an exhibition.
+    let drawn = null
     try {
-      foe = await realFoe(new Set(owned.map(c => c.uid)), wallet)
+      drawn = await realFoe(new Set(owned.map(c => c.uid)), wallet)
     } catch {
-      foe = null
+      drawn = null
     }
-    if (!foe)
+    if (!drawn)
       return NextResponse.json(
         { error: 'could not find a cat to fight right now — try again in a moment' },
         { status: 503 },
       )
+    foe = drawn.cat
+    foeUid = drawn.uid
   } else {
     foe = randomCat(seeded((seed ^ 0x9e3779b9) >>> 0))
     foe.art = art((seed ^ 0x5bf03635) >>> 0)
   }
 
+  const decided = fight(you, foe, seed)
+
   /*
    * `recorded` IS THE PAGE'S INSTRUCTION, not a hint. An exhibition is a real
    * fight against a real cat and looks exactly like a quick fight on screen, so
    * the only thing keeping it out of the record is this flag being read.
+   *
+   * `tag` is the signed line for a cast. Only a fight between two REAL cats gets
+   * one — the ordinary quick fight's opponent is invented and belongs to nobody,
+   * so there is no record for the result to go on and no way to farm one.
    */
-  return NextResponse.json({ ...fight(you, foe, seed), recorded: !exhibition })
+  return NextResponse.json({
+    ...decided,
+    recorded: !exhibition,
+    tag: foeUid
+      ? tagFor(
+          [decided.youWon ? { w: cat.uid, l: foeUid } : { w: foeUid, l: cat.uid }],
+          seed,
+        )
+      : null,
+  })
 }
