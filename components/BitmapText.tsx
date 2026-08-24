@@ -70,6 +70,25 @@ export function BitmapText({
                   maskSize: size,
                   WebkitMaskRepeat: 'no-repeat',
                   maskRepeat: 'no-repeat',
+                  /*
+                   * NEAREST-NEIGHBOUR, OR THE SHEET GETS SMOOTHED.
+                   *
+                   * The mask is a 256x144 sheet blown up by `scale`, and the
+                   * browser's default is to interpolate as it stretches. At
+                   * scale 1 or 2 that is barely visible; the countdown draws at
+                   * scale 6 and every edge went soft and grey.
+                   *
+                   * Checked in the browser rather than assumed, because
+                   * `image-rendering` is documented against background images
+                   * and <img>, and whether it reaches a CSS mask is a question
+                   * about the engine. Side by side at scale 6 it does: without
+                   * it the glyph is furred, with it the pixels are square.
+                   *
+                   * This is also the faithful choice. The 1px baseline drift in
+                   * font.png is deliberate and measured, and smoothing was
+                   * quietly sanding it off along with everything else.
+                   */
+                  imageRendering: 'pixelated',
                   flexShrink: 0,
                 }}
               />

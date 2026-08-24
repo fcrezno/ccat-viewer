@@ -52,6 +52,8 @@ export function useSound() {
   const pools = useRef<Record<string, HTMLAudioElement[]>>({})
   const turn = useRef<Record<string, number>>({})
   const music = useRef<HTMLAudioElement | null>(null)
+  /** Which track the one music element is currently pointed at. */
+  const current = useRef<string | null>(null)
   const started = useRef(false)
 
   // Read the saved settings on the client only — localStorage does not exist
@@ -116,15 +118,33 @@ export function useSound() {
     }
   }, [muted, volume])
 
-  const startMusic = useCallback(() => {
+  /**
+   * Start the bed, optionally on a named track.
+   *
+   * Asking for the track that is ALREADY playing does not restart it — that is
+   * what lets a gauntlet call this on every round without the music jumping back
+   * to the top each time. Asking for a different one swaps the source and starts
+   * it from the beginning, which is the point of a per-fight track.
+   */
+  const startMusic = useCallback((track?: string) => {
     prime()
     if (typeof window === 'undefined') return
+
+    const want = track ?? MUSIC.file
+    const src = MUSIC_DIR + want
+
     if (!music.current) {
-      const a = new Audio(MUSIC_DIR + MUSIC.file)
+      const a = new Audio(src)
       a.loop = MUSIC.loop
       a.preload = 'auto'
       music.current = a
+    } else if (current.current !== want) {
+      music.current.pause()
+      music.current.src = src
+      music.current.currentTime = 0
     }
+    current.current = want
+
     music.current.volume = MUSIC.gain * volume * (muted ? 0 : 1)
     void music.current.play().catch(() => {})
   }, [prime, volume, muted])

@@ -28,11 +28,15 @@ export type CollectionDef = {
    */
   metaBase: string
   /**
-   * How many cats exist, so a token id can be picked at random for discovery.
+   * THE MINT CAP — the highest id that can EVER exist, not how many do.
    *
-   * Ids run 1..supply. V1 is capped at 200 and sold out; V2 minted 1111. These
-   * are fixed by the contracts — V1's `limitSupply` must never be raised — so a
-   * constant here cannot drift out of step with the chain.
+   * These are fixed by the contracts, so the cap cannot drift out of step with
+   * the chain. What CAN drift is the count: V1 is capped at 200 and sold out, so
+   * for V1 the two numbers agree, but V2 is capped at 1111 with far fewer minted.
+   *
+   * So never pick a random id from this. `ownerOf` reverts on an unminted id, and
+   * discovery code that drops failures then quietly returns a short list. Use
+   * `liveSupply(col)` for anything that picks ids.
    */
   supply: number
 }
@@ -190,6 +194,47 @@ async function retry<T>(fn: () => Promise<T>, tries = 4): Promise<T> {
     }
   }
   throw last
+}
+
+/**
+ * HOW MANY TOKENS ACTUALLY EXIST RIGHT NOW.
+ *
+ * `col.supply` is the CAP, not the count. V1 sold out, so for V1 the two are the
+ * same number — but V2's cap is 1111 and far fewer are minted, so treating the
+ * cap as the count means picking ids that do not exist yet. `ownerOf` reverts on
+ * those, and code that drops failures quietly then looks like a thin result
+ * rather than a bug.
+ *
+ * Cached briefly in the process: a mint moves this number, but not between two
+ * calls a second apart, and the alternative is a chain read per pick.
+ */
+const supplyCache = new Map<CollectionKey, { n: number; at: number }>()
+const SUPPLY_TTL = 60_000
+
+export async function liveSupply(col: CollectionDef): Promise<number> {
+  const hit = supplyCache.get(col.key)
+  if (hit && Date.now() - hit.at < SUPPLY_TTL) return hit.n
+
+  const n = Number(await retry(() => publicClient.readContract({
+    address: col.address, abi: COLLECTION_ABI, functionName: 'totalSupply',
+  })))
+  // Never trust it past the cap the contract was deployed with.
+  const capped = Math.max(0, Math.min(n, col.supply))
+  supplyCache.set(col.key, { n: capped, at: Date.now() })
+  return capped
+}
+
+/** Who holds each id, in one call. Null where the token does not exist. */
+export async function ownersOf(col: CollectionDef, ids: number[]): Promise<(string | null)[]> {
+  if (!ids.length) return []
+  const res = await retry(() => publicClient.multicall({
+    contracts: ids.map(id => ({
+      address: col.address, abi: COLLECTION_ABI, functionName: 'ownerOf', args: [BigInt(id)],
+    })),
+    allowFailure: true,
+    batchSize: 2048,
+  }))
+  return res.map(r => (r.status === 'success' ? String(r.result).toLowerCase() : null))
 }
 
 /** tokenURI → hosted JSON. Null if the token doesn't exist or metadata is unreachable. */

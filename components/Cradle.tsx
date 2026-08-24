@@ -7,6 +7,7 @@ import { COLLECTIONS, getCollection, type Cat } from '@/lib/collection'
 import type { FightResult, LogLine } from '@/lib/arena'
 import { GameBar } from '@/components/GameBar'
 import { useSound } from '@/lib/useSound'
+import { trackForRound } from '@/lib/music'
 import { BitmapText } from '@/components/BitmapText'
 import {
   addFriend, friends as loadFriends, ladder, noteFight, ratio,
@@ -213,6 +214,85 @@ function Confetti({ seed }: { seed: number }) {
   )
 }
 
+/**
+ * WHERE THE RUN HAS GOT TO.
+ *
+ * Five slots, named up front, because the ladder is most of the tension: knowing
+ * two more are still coming is what makes the choice between the pot and the bar
+ * a real one. It says who they are and never how any of it goes.
+ */
+function GauntletLadder({ run }: { run: RunView }) {
+  // roundNo is the round just played. A won round is behind them; a lost one is
+  // where they stopped.
+  const beaten = run.won ? run.roundNo : run.roundNo - 1
+
+  return (
+    <div>
+      <p style={s.label}>THE TOWER</p>
+      <div style={s.tower}>
+        {/*
+          BOTTOM TO TOP. A tower is climbed, so round one is the floor and round
+          five is the roof: the player starts at the bottom of the list and works
+          upwards, and the cat still above them is the one they can see coming.
+          Only the ORDER ON SCREEN is reversed — `i` stays the true round index,
+          so the numbers still read 1 at the bottom through 5 at the top.
+        */}
+        {run.foes.map((f, i) => ({ f, i })).reverse().map(({ f, i }) => {
+          const fell    = !run.won && i === run.roundNo - 1
+          const done    = i < beaten
+          // The one they are about to meet. Only while the run is still going.
+          const next    = run.won && !run.champion && i === beaten
+          const col     = getCollection(f.collection)
+
+          return (
+            <div
+              key={f.uid}
+              style={next ? { ...s.towerRow, ...s.towerNext } : s.towerRow}
+            >
+              <span style={s.towerNum}>{i + 1}</span>
+
+              {f.art
+                ? <img src={f.art} alt="" style={{
+                    ...s.rankPic,
+                    imageRendering: col.pixelArt ? 'pixelated' : 'auto',
+                    // A cat already beaten steps back rather than disappearing:
+                    // the tower should still read as five all the way through.
+                    opacity: done || fell ? 0.4 : 1,
+                  }} />
+                : <div style={{ ...s.rankPic, display: 'grid', placeItems: 'center' }}>🐱</div>}
+
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                  color: fell ? '#d1495b' : done ? '#5a6b5f' : next ? '#ffd166' : '#f0f0f5',
+                }}>
+                  {f.label}
+                </div>
+                {/* Whose cat it is — the whole point of the mode is that it is somebody's. */}
+                <div style={{ fontSize: 10, color: '#63637d' }}>
+                  {f.owner ? `${f.owner.slice(0, 6)}…${f.owner.slice(-4)}` : 'on chain'}
+                </div>
+              </div>
+
+              <span style={{
+                fontSize: 10, letterSpacing: 1,
+                color: fell ? '#d1495b' : done ? '#5fc27e' : next ? '#ffd166' : '#4a4a5e',
+              }}>
+                {done ? 'BEATEN' : fell ? 'DOWN HERE' : next ? 'NEXT' : 'TO COME'}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+
+      <p style={s.ladderLine}>
+        {beaten} of {run.foes.length} beaten · pot {run.pot}
+        {!run.recorded && ' · not recorded'}
+      </p>
+    </div>
+  )
+}
+
 function RankRow({ r, place, onDrop }: { r: Ranked; place: number; onDrop?: () => void }) {
   const { pct } = ratio(r.record)
   return (
@@ -237,6 +317,32 @@ function RankRow({ r, place, onDrop }: { r: Ranked; place: number; onDrop?: () =
   )
 }
 
+/** One cat on the ladder, as the server describes it. */
+type FoeRef = {
+  uid: string
+  collection: string
+  id: string
+  label: string
+  owner: string
+  art: string
+}
+
+/** What the page needs to know about a run in progress. */
+type RunView = {
+  /** False for a demo run — played in full, never banked. */
+  recorded: boolean
+  /** All five, named up front, so the player can see what is coming. */
+  foes:     FoeRef[]
+  /** The round just played, 1-based. */
+  roundNo:  number
+  won:      boolean
+  pot:      number
+  /** Null once the run is over, either way. */
+  ticket:   string | null
+  champion: boolean
+  over:     boolean
+}
+
 export function Cradle() {
   const { address, isConnected } = useAccount()
   const { connect, connectors } = useConnect()
@@ -250,6 +356,27 @@ export function Cradle() {
   // The speeds the SELECTED cat has earned — a title travels with the cat.
   const unlocked = useMemo(() => unlockedSpeeds(picked), [picked])
   const [result, setResult] = useState<FightResult | null>(null)
+  /*
+   * THE GAUNTLET, LAYERED OVER THE ORDINARY FIGHT.
+   *
+   * A run is five fights, and each one is played back by exactly the machinery a
+   * single fight already uses — `result`, `shown` and the countdown. This state
+   * is only the things a RUN knows that one fight does not: who is still to come,
+   * what the pot is at, and the ticket that carries the run back to the server.
+   *
+   * Null when no run is going, which is also how the ordinary fight's buttons
+   * know to show themselves.
+   */
+  const [run, setRun] = useState<RunView | null>(null)
+  const [choosing, setChoosing] = useState(false)
+  /*
+   * WHETHER THIS FIGHT COUNTS — the server's word, never worked out here.
+   *
+   * An exhibition is a real fight against a real cat and looks identical on
+   * screen; the only thing keeping it out of the record is this. Defaults to
+   * true so a response without the field behaves as fights always have.
+   */
+  const [recorded, setRecorded] = useState(true)
   const [shown, setShown] = useState(0)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -369,12 +496,21 @@ export function Cradle() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shown, result])
 
-  // The bed belongs to the fight, so it stops when the fight is told. Computed
-  // here rather than using `done`, which is declared further down.
+  /*
+   * The bed belongs to the fight, so it stops when the fight is told. Computed
+   * here rather than using `done`, which is declared further down.
+   *
+   * A RUN IS ONE PIECE OF MUSIC, NOT FIVE. Stopping at the end of every round
+   * left the rest of the gauntlet in silence: the choice screen does not restart
+   * it, so once round one finished the music never came back. It now plays
+   * across the whole run and stops when the run does.
+   */
   useEffect(() => {
-    if (result && shown >= result.log.length) sound.stopMusic()
+    if (!result || shown < result.log.length) return
+    if (run && !run.over) return
+    sound.stopMusic()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shown, result])
+  }, [shown, result, run])
 
   /*
    * THE CARD, ONE ROW AT A TIME.
@@ -425,19 +561,23 @@ export function Cradle() {
    * keyed on the fight's own seed so the next fight is counted again.
    */
   useEffect(() => {
-    if (!done || !result || isDemo || !picked) return
+    // `recorded` covers the exhibition and the demo run; isDemo covers the demo
+    // fight, which predates the flag.
+    if (!done || !result || isDemo || !picked || !recorded) return
     const key = `${picked.uid}:${result.seed}`
     if (counted.current === key) return
     counted.current = key
     noteFight(picked.uid, result.youWon)
     bump(n => n + 1)
-  }, [done, result, isDemo, picked])
+  }, [done, result, isDemo, picked, recorded])
 
-  async function startFight(payload: { uid?: string; demo?: boolean }) {
+  async function startFight(payload: { uid?: string; demo?: boolean; exhibition?: boolean }) {
     sound.prime()
     sound.startMusic()
     setBusy(true); setError(null); setNote(null); setConfirmRetire(false)
     setResult(null); setShown(0); setRowsShown(0); setCount(null); setView('fight')
+    // A single fight is never part of a run, so anything left over goes.
+    setRun(null); setRecorded(true)
     try {
       const res = await fetch('/api/fight', {
         method: 'POST',
@@ -452,6 +592,7 @@ export function Cradle() {
       const data = await res.json()
       if (!res.ok) { setError(data.error ?? 'that did not work'); return }
       setResult(data)
+      setRecorded(data.recorded !== false)
       // The fight opens on 3, 2, 1, FIGHT! — the log waits for it.
       setCount(3)
     } catch {
@@ -459,6 +600,100 @@ export function Cradle() {
     } finally {
       setBusy(false)
     }
+  }
+
+  /**
+   * ENTER THE GAUNTLET.
+   *
+   * Five cats that belong to real people. The server plays round one and hands
+   * back a ticket; everything after that goes through `choose`.
+   *
+   * A demo runner is welcome and is told, on the way out, that the run was not
+   * recorded — see the champion card. Deciding that here would be guessing, so
+   * the server's `recorded` is what gets stored.
+   */
+  async function startGauntlet(demo: boolean) {
+    sound.prime()
+    sound.startMusic(trackForRound(1))
+    setBusy(true); setError(null); setNote(null); setConfirmRetire(false)
+    setResult(null); setShown(0); setRowsShown(0); setCount(null); setView('fight')
+    setRun(null)
+
+    try {
+      const res = await fetch('/api/gauntlet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(demo || !picked
+          ? { demo: true }
+          : { wallet: address, uid: picked.uid, name: nameFor(picked.uid) ?? undefined }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error ?? 'that did not work'); return }
+      takeRound(data)
+    } catch {
+      setError('could not reach the arena')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  /**
+   * DOUBLE THE POT, OR HEAL, then fight the next cat.
+   *
+   * The choice is sent WITH the ticket rather than kept here, because the health
+   * it decides belongs to the run and the run lives on the server's side of the
+   * signature.
+   */
+  async function choose(choice: 'double' | 'heal') {
+    if (!run?.ticket || choosing) return
+    sound.prime()
+    // Each cat on the tower gets its own bed. With one track in the list this
+    // is the same track and nothing restarts; see lib/music.ts.
+    sound.startMusic(trackForRound(run.roundNo + 1))
+    setChoosing(true); setError(null)
+    setResult(null); setShown(0); setRowsShown(0); setCount(null)
+
+    try {
+      const res = await fetch('/api/gauntlet/next', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticket: run.ticket, choice }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error ?? 'that did not work'); return }
+      takeRound(data)
+    } catch {
+      setError('could not reach the arena')
+    } finally {
+      setChoosing(false)
+    }
+  }
+
+  /** Both endpoints answer the same shape, so both land here. */
+  function takeRound(data: {
+    recorded: boolean; foes: FoeRef[]; pot: number; ticket: string | null
+    champion: boolean; over: boolean
+    round: { round: number; won: boolean; fight: FightResult }
+  }) {
+    setRecorded(data.recorded)
+    setRun({
+      recorded: data.recorded,
+      foes:     data.foes,
+      roundNo:  data.round.round,
+      won:      data.round.won,
+      pot:      data.pot,
+      ticket:   data.ticket,
+      champion: data.champion,
+      over:     data.over,
+    })
+    setResult(data.round.fight)
+    // Every round opens on 3, 2, 1, FIGHT! — the log waits for it.
+    setCount(3)
+  }
+
+  /** Leave a run behind. Used by every way out of the fight view. */
+  function clearRun() {
+    setRun(null); setResult(null); setShown(0); setChoosing(false)
   }
 
   /** Post the result as a cast. A boast goes in the open or not at all. */
@@ -662,9 +897,16 @@ export function Cradle() {
                   return (
                     <button
                       key={c.uid}
-                      onClick={() => { setPicked(c); startFight({ uid: c.uid }) }}
+                      /*
+                       * SELECTS, rather than starting a fight on the spot as it
+                       * used to. There are three modes now, so the cat and the
+                       * mode are two questions and the tap can only answer one.
+                       */
+                      onClick={() => setPicked(picked?.uid === c.uid ? null : c)}
                       disabled={busy}
-                      style={s.card}
+                      style={picked?.uid === c.uid
+                        ? { ...s.card, ...s.cardPicked }
+                        : s.card}
                     >
                       {c.meta?.image
                         ? <img src={c.meta.image} alt="" style={{
@@ -680,6 +922,31 @@ export function Cradle() {
                 })}
               </div>
               {retiredCount > 0 && <p style={s.fine}>{retiredCount} retired — see the rankings</p>}
+
+              {/*
+                THE THREE MODES.
+
+                Only once a cat is chosen: every one of them needs to know which
+                cat is fighting, and three buttons that cannot be pressed yet are
+                worse than three that are not there.
+              */}
+              {picked ? (
+                <div style={s.modes}>
+                  <button style={s.primary} disabled={busy}
+                    onClick={() => startFight({ uid: picked.uid })}>
+                    QUICK FIGHT
+                  </button>
+                  <p style={s.modeFine}>one fight · goes on your record</p>
+
+                  <button style={s.gauntlet} disabled={busy}
+                    onClick={() => startGauntlet(false)}>
+                    GAUNTLET
+                  </button>
+                  <p style={s.modeFine}>five cats people own · survive it to be champion</p>
+                </div>
+              ) : (
+                <p style={s.fine}>pick a cat to choose a mode</p>
+              )}
             </section>
           )}
 
@@ -695,9 +962,22 @@ export function Cradle() {
             <section style={s.block}>
               <p style={s.label}>{isConnected ? 'NO CAT YET' : 'HAVE A LOOK FIRST'}</p>
               <button style={s.primary} onClick={() => { setPicked(null); startFight({ demo: true }) }} disabled={busy}>
-                PLAY WITH THE DEMO CAT
+                QUICK FIGHT
               </button>
-              <p style={s.fine}>a real fight, with a cat that is not yours — no wallet needed</p>
+              <p style={s.modeFine}>a real fight, with a cat that is not yours — no wallet needed</p>
+
+              {/*
+                THE DEMO GETS THE GAUNTLET TOO.
+
+                A demo that plays by different rules is not showing anybody the
+                game. Nothing a demo does is recorded either way, so the only
+                thing being withheld at the end is the title.
+              */}
+              <button style={s.gauntlet} disabled={busy}
+                onClick={() => { setPicked(null); startGauntlet(true) }}>
+                GAUNTLET
+              </button>
+              <p style={s.modeFine}>five cats people own · a demo run is never recorded</p>
               {!isConnected && (
                 <>
                   <p style={{ ...s.fine, marginTop: 14 }}>
@@ -935,7 +1215,103 @@ export function Cradle() {
                 </section>
               )}
 
-              {done && (
+              {/*
+                THE RUN'S OWN ENDING.
+
+                Three states share this block and they are mutually exclusive:
+                the run goes on and a choice is owed, the cat fell, or the cat
+                went the distance.
+              */}
+              {done && run && (
+                <section style={s.block}>
+                  <GauntletLadder run={run} />
+
+                  {/* STILL GOING — the choice. */}
+                  {run.won && !run.champion && run.ticket && (
+                    <>
+                      <p style={{ margin: '14px 0 2px', fontSize: 16, color: '#5fc27e' }}>
+                        Round {run.roundNo} is yours.
+                      </p>
+                      <p style={s.fine0}>
+                        {run.foes[run.roundNo]?.label ?? 'the next cat'} is next. Choose.
+                      </p>
+
+                      <button style={{ ...s.gauntlet, marginTop: 14 }} disabled={choosing}
+                        onClick={() => choose('double')}>
+                        DOUBLE THE POT → {run.pot * 2}
+                      </button>
+                      <p style={s.modeFine}>
+                        keep the damage you are carrying
+                      </p>
+
+                      <button style={s.primary} disabled={choosing}
+                        onClick={() => choose('heal')}>
+                        HEAL TO FULL
+                      </button>
+                      <p style={s.modeFine}>the pot stays at {run.pot}</p>
+
+                      {choosing && <p style={s.quiet}>the next cat is walking on…</p>}
+                    </>
+                  )}
+
+                  {/* FELL. The pot goes with them — that is the other half of doubling. */}
+                  {!run.won && (
+                    <>
+                      <p style={{ margin: '14px 0 2px', fontSize: 16, color: '#d1495b' }}>
+                        Down on round {run.roundNo}.
+                      </p>
+                      <p style={s.fine0}>
+                        {run.roundNo - 1} of {run.foes.length} beaten. The pot is gone.
+                      </p>
+                      <button style={{ ...s.gauntlet, marginTop: 14 }} disabled={busy}
+                        onClick={() => startGauntlet(!run.recorded)}>
+                        RUN IT AGAIN
+                      </button>
+                      <button style={s.ghost} onClick={() => { clearRun(); setView('home') }}>
+                        BACK
+                      </button>
+                    </>
+                  )}
+
+                  {/* CHAMPION. */}
+                  {run.champion && (
+                    <>
+                      <div style={{ margin: '16px 0 6px' }}>
+                        <BitmapText text="CHAMPION" scale={2} color="#e0a72c" />
+                      </div>
+                      <p style={s.fine0}>
+                        {run.foes.length} cats, all of them somebody's. Pot {run.pot}.
+                      </p>
+
+                      {/*
+                        TELL A DEMO CHAMPION THE TRUTH, right here on the card.
+                        They earned the run; they did not earn the title, and
+                        finding that out later would be worse than reading it now.
+                      */}
+                      {!run.recorded && (
+                        <p style={{ ...s.fine, color: '#8a7a4a' }}>
+                          A demo run is not recorded and earns no title. Get a cat
+                          of your own and it counts.
+                        </p>
+                      )}
+
+                      <button style={{ ...s.primary, marginTop: 14 }} onClick={share}>
+                        SHARE ON FARCASTER
+                      </button>
+                      <button style={s.ghost} disabled={busy}
+                        onClick={() => startGauntlet(!run.recorded)}>
+                        RUN IT AGAIN
+                      </button>
+                      <button style={s.ghost} onClick={() => { clearRun(); setView('home') }}>
+                        BACK
+                      </button>
+                    </>
+                  )}
+                </section>
+              )}
+
+              {/* A run has its own ending, and its own buttons, above. */}
+              {done && !run && (
                 <section style={s.block}>
                   <p style={{ margin: '0 0 4px', fontSize: 16, color: result.youWon ? '#5fc27e' : '#d1495b' }}>
                     {result.youWon ? 'Your cat took it.' : 'Your cat went down.'}
@@ -1126,6 +1502,33 @@ const s: Record<string, React.CSSProperties> = {
 
   primary: { width: '100%', background: '#8b5cf6', color: '#fff', border: 0, borderRadius: 10, padding: '14px 16px', fontSize: 14, letterSpacing: 1, cursor: 'pointer', fontFamily: 'inherit' },
   ghost:   { width: '100%', background: 'transparent', color: '#7a7a95', border: '1px solid #21212f', borderRadius: 10, padding: '12px 16px', fontSize: 12, letterSpacing: 1, cursor: 'pointer', fontFamily: 'inherit', marginTop: 10 },
+
+  /*
+   * THE MODE LIST. Each button carries one line under it saying what the mode
+   * costs and what it counts for, because the difference between the three is
+   * entirely in what happens afterwards and none of it is visible in the name.
+   */
+  modes:    { marginTop: 16, borderTop: '1px solid #21212f', paddingTop: 16 },
+  modeFine: { color: '#63637d', fontSize: 11, margin: '6px 0 14px', textAlign: 'center', lineHeight: 1.5 },
+  /* The gauntlet is the one with something at stake, so it is the one that is gold. */
+  gauntlet: { width: '100%', background: 'transparent', color: '#e0a72c', border: '1px solid #7a5c18', borderRadius: 10, padding: '13px 16px', fontSize: 13, letterSpacing: 1, cursor: 'pointer', fontFamily: 'inherit', marginTop: 10 },
+  /* A picked card keeps the same box so the grid does not move when you choose. */
+  cardPicked: { borderColor: '#8b5cf6', boxShadow: '0 0 0 2px rgba(139,92,246,0.35)' },
+
+  /*
+   * THE TOWER — the five, drawn the way the rankings draw a cat.
+   *
+   * The same row as RankRow on purpose: a cat in this app looks like a picture,
+   * a name and a line underneath, and the gauntlet should not invent a second
+   * way of showing one. All five stay on screen the whole run, because knowing
+   * how many are still above you is most of the tension.
+   */
+  tower:      { display: 'flex', flexDirection: 'column', gap: 6 },
+  towerRow:   { display: 'flex', alignItems: 'center', gap: 10, padding: '6px 8px', borderRadius: 10, border: '1px solid #21212f', background: '#0b0b13' },
+  /* Only the next cat is lit. Everything else is context. */
+  towerNext:  { borderColor: '#7a5c18', background: 'rgba(224,167,44,0.08)' },
+  towerNum:   { width: 14, textAlign: 'center', fontSize: 11, color: '#4a4a5e' },
+  ladderLine: { color: '#63637d', fontSize: 11, margin: '10px 0 0', textAlign: 'center' },
   link:    { color: '#a78bfa', fontSize: 14 },
   soundRow: {
     display: 'flex', alignItems: 'center', gap: 10,

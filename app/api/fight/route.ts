@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isAddress } from 'viem'
 import { fetchCats } from '@/lib/collection'
-import { fight, ownedCat, randomCat, seeded } from '@/lib/arena'
+import { fight, ownedCat, randomCat, seeded, type ArenaCat } from '@/lib/arena'
+import { pickRoster } from '@/lib/roster'
 
 /**
  * POST /api/fight  { wallet, uid }  →  the whole fight, already decided.
@@ -28,8 +29,28 @@ import { fight, ownedCat, randomCat, seeded } from '@/lib/arena'
 /** Where a made-up cat's face comes from. Same seed, same cat, cached forever. */
 const art = (seed: number) => `/api/cat-art?seed=${seed >>> 0}`
 
+/**
+ * AN EXHIBITION — one real cat, and nothing written down.
+ *
+ * The ordinary fight invents its opponent. An exhibition draws ONE cat from the
+ * same pool the gauntlet uses, so it is a real player's cat, but the result goes
+ * nowhere: no record, no ladder, no title. It is the warm-up for the gauntlet and
+ * the answer to "I want to try that without it counting."
+ *
+ * Null if the collection could not be read, so the caller can say so rather than
+ * quietly falling back to an invented cat — which would look identical and be a
+ * lie about who was fought.
+ */
+async function realFoe(exclude: Set<string>, excludeOwner: string): Promise<ArenaCat | null> {
+  const picked = await pickRoster(1, exclude, excludeOwner)
+  if (!picked.length) return null
+  const { cat, ref } = picked[0]
+  cat.art = ref.art
+  return cat
+}
+
 export async function POST(req: NextRequest) {
-  let body: { wallet?: string; uid?: string; demo?: boolean; name?: string }
+  let body: { wallet?: string; uid?: string; demo?: boolean; name?: string; exhibition?: boolean }
 
   try {
     body = await req.json()
@@ -37,7 +58,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'expected a JSON body' }, { status: 400 })
   }
 
-  const { wallet, uid, demo, name } = body
+  const { wallet, uid, demo, name, exhibition } = body
 
   /*
    * A DEMO FIGHT, FOR SOMEBODY WHO DOES NOT OWN A CAT YET.
@@ -56,9 +77,27 @@ export async function POST(req: NextRequest) {
     you.label = 'Demo Cat'
     you.mine = true
     you.art = art(seed)
-    const foe = randomCat(r)
-    foe.art = art((seed ^ 0x5bf03635) >>> 0)
-    return NextResponse.json(fight(you, foe, seed))
+
+    // A demo runner may ask for an exhibition too. Nothing about a demo is
+    // recorded anyway, so the only difference is who is on the other side.
+    let foe: ArenaCat | null = null
+    if (exhibition) {
+      try {
+        foe = await realFoe(new Set(), '')
+      } catch {
+        foe = null
+      }
+      if (!foe)
+        return NextResponse.json(
+          { error: 'could not find a cat to fight right now — try again in a moment' },
+          { status: 503 },
+        )
+    } else {
+      foe = randomCat(r)
+      foe.art = art((seed ^ 0x5bf03635) >>> 0)
+    }
+
+    return NextResponse.json({ ...fight(you, foe, seed), recorded: false })
   }
 
   if (!wallet || !isAddress(wallet))
@@ -104,8 +143,30 @@ export async function POST(req: NextRequest) {
   const you = ownedCat(cat.id, given || cat.meta?.name || `#${cat.id}`)
   // A real cat already has a picture; the made-up one gets composed.
   you.art = cat.meta?.image ?? ''
-  const foe = randomCat(seeded((seed ^ 0x9e3779b9) >>> 0))
-  foe.art = art((seed ^ 0x5bf03635) >>> 0)
 
-  return NextResponse.json(fight(you, foe, seed))
+  let foe: ArenaCat | null = null
+  if (exhibition) {
+    // Their whole shelf is excluded, not just the cat they entered — an
+    // exhibition against your own second cat is not an exhibition.
+    try {
+      foe = await realFoe(new Set(owned.map(c => c.uid)), wallet)
+    } catch {
+      foe = null
+    }
+    if (!foe)
+      return NextResponse.json(
+        { error: 'could not find a cat to fight right now — try again in a moment' },
+        { status: 503 },
+      )
+  } else {
+    foe = randomCat(seeded((seed ^ 0x9e3779b9) >>> 0))
+    foe.art = art((seed ^ 0x5bf03635) >>> 0)
+  }
+
+  /*
+   * `recorded` IS THE PAGE'S INSTRUCTION, not a hint. An exhibition is a real
+   * fight against a real cat and looks exactly like a quick fight on screen, so
+   * the only thing keeping it out of the record is this flag being read.
+   */
+  return NextResponse.json({ ...fight(you, foe, seed), recorded: !exhibition })
 }
