@@ -346,13 +346,21 @@ function HitCounter() {
   // Padded to six, as they were — the leading zeros are most of the charm.
   const digits = String(count).padStart(6, '0')
 
+  /*
+   * NO VISIBLE LABEL. It shares the top row with the speed and sound controls,
+   * and on a 375px phone that row has barely sixty spare pixels — a "VISITORS"
+   * caption would push the slider off the edge. Green digits sunk into a black
+   * box already read as a counter, and the title and aria-label say it outright
+   * for anyone hovering or listening.
+   */
   return (
-    <div style={s.hits}>
-      <span style={s.hitsLabel}>VISITORS</span>
-      <span style={s.hitsBox}>
-        <BitmapText text={digits} scale={2} color="#5fc27e" />
-      </span>
-    </div>
+    <span
+      style={s.hitsBox}
+      title={`${count} visitors`}
+      aria-label={`${count} visitors`}
+    >
+      <BitmapText text={digits} scale={1} color="#e0a72c" />
+    </span>
   )
 }
 
@@ -1167,6 +1175,14 @@ export function Cradle() {
             )
           })}
         </div>
+
+        {/*
+          THE COUNTER SITS BETWEEN the speeds and the sound. Both groups already
+          push to their own edge, so a second auto margin here lands it in the
+          gap between them without any absolute positioning.
+        */}
+        <HitCounter />
+
         <button
           style={s.soundBtn}
           onClick={() => sound.setMuted(!sound.muted)}
@@ -1755,7 +1771,6 @@ export function Cradle() {
       </nav>
 
       <footer style={s.footer}>Clanker Cats — the full game is being built in s&amp;box</footer>
-      <HitCounter />
     </main>
   )
 }
@@ -1870,9 +1885,17 @@ const s: Record<string, React.CSSProperties> = {
    * THE HIT COUNTER. Black box, green digits, sunk border — the odometer look
    * these had, which is the whole reason to have one.
    */
-  hits:      { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, margin: '4px 0 22px' },
-  hitsLabel: { color: '#4a4a5e', fontSize: 10, letterSpacing: 2 },
-  hitsBox:   { display: 'inline-flex', padding: '6px 10px', background: '#05050a', borderRadius: 4, border: '1px solid #21212f', boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.8)' },
+  /*
+   * THE HIT COUNTER. Black box, amber digits, sunk border — the odometer look
+   * these had, in the same amber the gauntlet and the champion already use.
+   */
+  hitsBox: {
+    display: 'inline-flex', alignItems: 'center',
+    padding: '4px 7px', background: '#05050a', borderRadius: 4,
+    border: '1px solid #3a2c10', boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.8)',
+    // The second auto margin: speedGroup pushes left, this splits what is left.
+    marginRight: 'auto',
+  },
 
   /* The season board. Your own cats are lit, so you can find yourself in it. */
   boardRow:     { display: 'flex', alignItems: 'center', gap: 10, padding: '7px 8px', borderRadius: 10, border: '1px solid #21212f', background: '#0b0b13', marginBottom: 6 },
@@ -1883,6 +1906,8 @@ const s: Record<string, React.CSSProperties> = {
   soundRow: {
     display: 'flex', alignItems: 'center', gap: 10,
     justifyContent: 'flex-end', marginTop: -8,
+    // Wraps rather than pushing the slider off the edge of a narrow phone.
+    flexWrap: 'wrap', rowGap: 8,
   },
   // Tight against each other so the three read as one control, not three buttons.
   speedGroup: { display: 'flex', gap: 4, marginRight: 'auto' },
