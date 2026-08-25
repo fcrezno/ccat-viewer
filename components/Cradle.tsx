@@ -312,6 +312,50 @@ function GauntletLadder({ run }: { run: RunView }) {
   )
 }
 
+/**
+ * AN OLD-WEB HIT COUNTER, in the game's own font.
+ *
+ * Asking /api/hits is what COUNTS the visit — the route calls hits.sh, which
+ * keeps the number, because this app has no database. See the route for why it
+ * is proxied rather than embedded as somebody else's badge.
+ *
+ * Drawn in the bitmap sheet with the digits boxed, the way these always looked.
+ * It shows NOTHING at all until a number arrives: a counter that says 0 while it
+ * loads reads as "nobody has been here", which is a lie about a page somebody is
+ * currently looking at.
+ */
+function HitCounter() {
+  const [count, setCount] = useState<number | null>(null)
+  // In development React mounts effects twice, which would count the visit twice.
+  const asked = useRef(false)
+
+  useEffect(() => {
+    if (asked.current) return
+    asked.current = true
+
+    let live = true
+    fetch('/api/hits')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (live && typeof d?.count === 'number') setCount(d.count) })
+      .catch(() => {})
+    return () => { live = false }
+  }, [])
+
+  if (count === null) return null
+
+  // Padded to six, as they were — the leading zeros are most of the charm.
+  const digits = String(count).padStart(6, '0')
+
+  return (
+    <div style={s.hits}>
+      <span style={s.hitsLabel}>VISITORS</span>
+      <span style={s.hitsBox}>
+        <BitmapText text={digits} scale={2} color="#5fc27e" />
+      </span>
+    </div>
+  )
+}
+
 /** How many rows the board shows. Champions are rare, so this is generous. */
 const BOARD_MAX = 20
 
@@ -1711,6 +1755,7 @@ export function Cradle() {
       </nav>
 
       <footer style={s.footer}>Clanker Cats — the full game is being built in s&amp;box</footer>
+      <HitCounter />
     </main>
   )
 }
@@ -1820,6 +1865,14 @@ const s: Record<string, React.CSSProperties> = {
     padding: '18px 16px 16px', marginBottom: 10,
   },
   champCardMine: { borderColor: '#e0a72c', boxShadow: '0 0 0 2px rgba(224,167,44,0.25)' },
+
+  /*
+   * THE HIT COUNTER. Black box, green digits, sunk border — the odometer look
+   * these had, which is the whole reason to have one.
+   */
+  hits:      { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, margin: '4px 0 22px' },
+  hitsLabel: { color: '#4a4a5e', fontSize: 10, letterSpacing: 2 },
+  hitsBox:   { display: 'inline-flex', padding: '6px 10px', background: '#05050a', borderRadius: 4, border: '1px solid #21212f', boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.8)' },
 
   /* The season board. Your own cats are lit, so you can find yourself in it. */
   boardRow:     { display: 'flex', alignItems: 'center', gap: 10, padding: '7px 8px', borderRadius: 10, border: '1px solid #21212f', background: '#0b0b13', marginBottom: 6 },
