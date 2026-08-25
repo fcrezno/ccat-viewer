@@ -1515,6 +1515,15 @@ export function Cradle() {
               */}
               {done && result.rows.length > 0 && (
                 <section ref={cardRef} style={s.resultCard}>
+                  {/*
+                    CONFETTI ONLY WHEN YOU WON — deliberate, and checked.
+
+                    The card names and pictures whoever won either way, so it
+                    would be consistent to throw confetti for their victory too.
+                    It does not: the celebration is YOURS or it does not happen.
+                    A loss gets the winner's portrait and the winner's score, and
+                    no party.
+                  */}
                   {result.youWon && <Confetti seed={result.seed} />}
 
                   {/*
@@ -1529,6 +1538,31 @@ export function Cradle() {
                   <div style={{ marginBottom: 4 }}>
                     <BitmapText text="RESULTS" scale={2} color="#a06a10" />
                   </div>
+                  {/*
+                    THE VICTOR, in the middle of the card.
+
+                    The game's own results screen leads with the winner's portrait
+                    and the word under it; this card was text all the way down and
+                    never showed you the cat that won. It is the same construction:
+                    picture, then VICTOR, then the score.
+
+                    The frame is the paper's ink rather than the app's purple —
+                    everything inside this card belongs to the game's palette, and
+                    a violet ring on cream would be the only thing in here that
+                    came from the website.
+                  */}
+                  {(() => {
+                    const won = result.youWon ? result.you : result.foe
+                    return (
+                      <div style={s.victor}>
+                        {won.art
+                          ? <img src={won.art} alt="" style={s.victorPic} />
+                          : <div style={{ ...s.victorPic, display: 'grid', placeItems: 'center', fontSize: 40 }}>🐱</div>}
+                        <BitmapText text="VICTOR" scale={2} color="#b07a10" fx />
+                      </div>
+                    )
+                  })()}
+
                   <div style={{ marginBottom: 12 }}>
                     <BitmapText
                       text={(result.youWon ? result.you.label : result.foe.label) + ' TAKES IT'}
@@ -1867,6 +1901,16 @@ const s: Record<string, React.CSSProperties> = {
   towerNext:  { borderColor: '#7a5c18', background: 'rgba(224,167,44,0.08)' },
   towerNum:   { width: 14, textAlign: 'center', fontSize: 11, color: '#4a4a5e' },
   ladderLine: { color: '#63637d', fontSize: 11, margin: '10px 0 0', textAlign: 'center' },
+
+  /*
+   * THE VICTOR ON THE RESULTS CARD — portrait centred, the word beneath.
+   *
+   * Sized to sit inside the card without pushing the score off a phone: 128 is
+   * about half the card's width and still leaves the five award rows and the
+   * total on screen together, which is the whole point of the card.
+   */
+  victor:    { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, margin: '2px 0 12px' },
+  victorPic: { width: 128, height: 128, borderRadius: 8, objectFit: 'cover', display: 'block', imageRendering: 'pixelated', border: '2px solid #1a1a1a', background: '#e6e0d2' },
 
   /*
    * THE CHAMPION'S CARD. `position: relative` and `overflow: hidden` are load

@@ -288,3 +288,31 @@ body {
 .tama-sad    { animation: tama-sway   2.5s ease-in-out infinite; }
 .tama-neutral{ animation: tama-float  3s   ease-in-out infinite; }
 .tama-bubble { animation: tama-bubble 0.25s ease-out forwards; }
+
+/*
+ * THE GOLD WAVE, ported from the game's own results screen.
+ *
+ * SoloScreen gives RESULTS and VICTOR an FxDef of Motion "wave" and Colour
+ * "glow", and its comment makes the reason a rule rather than decoration:
+ * "anything alive or important on a Clanker Arena screen moves, and a static
+ * element among moving ones reads as broken. The rows are data and stay still —
+ * if everything moved, nothing would read as the headline."
+ *
+ * VICTOR's own settings are Amp 3 and Freq 0.7, between #b07a10 and #f0d060.
+ * Each glyph carries a NEGATIVE delay stepped by its position, so the wave is
+ * already travelling on the first frame rather than starting flat.
+ */
+@keyframes cradle-wave {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+
+@keyframes cradle-glow {
+  0%, 100% { background-color: #b07a10; }
+  50%      { background-color: #f0d060; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The colour still breathes; only the movement stops. */
+  .cradle-fx { animation-name: cradle-glow !important; }
+}

@@ -23,13 +23,28 @@ export function BitmapText({
   scale = 2,
   color = '#1a1a1a',
   className,
+  fx = false,
 }: {
   text: string
   scale?: number
   color?: string
   className?: string
+  /**
+   * The game's gold WAVE, as its results screen gives RESULTS and VICTOR.
+   *
+   * Per glyph, because a wave that moved every letter together would just be a
+   * bob. Each glyph's delay is NEGATIVE and stepped by its position, so the word
+   * is already mid-wave on the first frame instead of starting flat and lurching.
+   *
+   * The animation paints `background-color`, which IS the glyph's ink here, so
+   * it takes over from `color` while it runs — that is what the glow is.
+   */
+  fx?: boolean
 }) {
   const words = (text ?? '').split(' ')
+  // Counts glyphs across the WHOLE string, not per word, or the wave would
+  // restart at every space.
+  let glyphIndex = 0
 
   return (
     <span
@@ -50,6 +65,7 @@ export function BitmapText({
       {words.map((word, wi) => (
         <span key={wi} style={{ display: 'flex', flexShrink: 0 }}>
           {[...word].map((ch, i) => {
+            const gi = glyphIndex++
             const [left, width] = glyph(ch)
             const c = cell(ch)
             const pos = `${-(c.x + left) * scale}px ${-c.y * scale}px`
@@ -57,11 +73,19 @@ export function BitmapText({
             return (
               <span
                 key={i}
+                className={fx ? 'cradle-fx' : undefined}
                 style={{
                   width: width * scale,
                   height: CELL_H * scale,
                   marginRight: i === word.length - 1 ? 0 : TRACKING * scale,
                   backgroundColor: color,
+                  // VICTOR's own settings from the game: Amp 3, Freq 0.7, gold
+                  // #b07a10 through #f0d060. The step is what makes it travel.
+                  ...(fx ? {
+                    animation:
+                      `cradle-wave 1.15s ease-in-out ${-(gi * 0.07).toFixed(2)}s infinite, ` +
+                      `cradle-glow 1.15s ease-in-out ${-(gi * 0.07).toFixed(2)}s infinite`,
+                  } : null),
                   WebkitMaskImage: 'url(/game/font.png)',
                   maskImage: 'url(/game/font.png)',
                   WebkitMaskPosition: pos,
