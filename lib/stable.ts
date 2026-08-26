@@ -24,6 +24,7 @@ const RECORDS = 'cradle.records.v1'
 const FRIENDS = 'cradle.friends.v1'
 const NAMES = 'cradle.names.v1'
 const GUEST = 'cradle.guest.v1'
+const PERFECT = 'cradle.perfect.v1'
 
 /*
  * HOW LONG A CAT'S NAME MAY BE.
@@ -59,6 +60,24 @@ export function cleanName(raw: string): string {
  * trade for needing no sign-up, and it is why WINNING one converts it into an
  * NFT that cannot be lost.
  */
+/**
+ * HOW MANY TIMES THIS DEVICE HAS TAKEN ALL FIVE.
+ *
+ * Kept here rather than counted from the season board, because the board only
+ * knows about runs somebody CAST — and the run tracker should say what you did,
+ * not what you posted. A guest with no Farcaster account still gets a count.
+ */
+export function perfectRuns(): number {
+  if (typeof window === 'undefined') return 0
+  try { return Number(window.localStorage.getItem(PERFECT)) || 0 } catch { return 0 }
+}
+
+export function notePerfect(): number {
+  const n = perfectRuns() + 1
+  try { window.localStorage.setItem(PERFECT, String(n)) } catch {}
+  return n
+}
+
 export function guestId(): number {
   if (typeof window === 'undefined') return 0
   try {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import {
-  ROUNDS, afterRound, applyChoice, isChampion, playRound, runPairs,
+  ROUNDS, afterRound, applyChoice, canContinue, isChampion, playRound, runPairs,
   type Choice, type RunState,
 } from '@/lib/gauntlet'
 import { TICKET_TTL_MS, sign, verify } from '@/lib/ticket'
@@ -19,7 +19,7 @@ import { tagFor } from '@/lib/season'
  * seed and their own health. lib/ticket.ts sets out the one thing signing does
  * NOT prevent, which is replaying a ticket for a second try at a round.
  */
-const CHOICES: Choice[] = ['double', 'heal']
+const CHOICES: Choice[] = ['double', 'heal', 'continue']
 
 export async function POST(req: NextRequest) {
   let body: { ticket?: string; choice?: string }
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'no run in progress' }, { status: 400 })
 
   if (!choice || !CHOICES.includes(choice as Choice))
-    return NextResponse.json({ error: 'choose "double" or "heal"' }, { status: 400 })
+    return NextResponse.json({ error: 'choose "double", "heal" or "continue"' }, { status: 400 })
 
   const state = verify<RunState>(ticket)
   /*
@@ -47,14 +47,31 @@ export async function POST(req: NextRequest) {
   if (!state || state.v !== 1)
     return NextResponse.json({ error: 'that run has expired — start a new one' }, { status: 400 })
 
-  if (state.round >= ROUNDS || state.you.hp <= 0)
+  /*
+   * A RUN AT ZERO IS NOT NECESSARILY OVER any more — an unspent continue can buy
+   * the fall back. It is finished when all five are behind them, or when they are
+   * down with nothing left to spend.
+   */
+  if (state.round >= ROUNDS || (state.you.hp <= 0 && !canContinue(state)))
     return NextResponse.json({ error: 'that run is already finished' }, { status: 400 })
+
+  /*
+   * The two kinds of choice are not interchangeable, and saying so plainly beats
+   * letting a mistimed one quietly do the wrong thing: continue is ONLY for a
+   * fall, and double/heal are ONLY for a round survived.
+   */
+  if (choice === 'continue' && !canContinue(state))
+    return NextResponse.json({ error: 'nothing to continue from' }, { status: 400 })
+  if (choice !== 'continue' && state.you.hp <= 0)
+    return NextResponse.json({ error: 'you are down — continue or stop' }, { status: 400 })
 
   // The choice lands FIRST: it decides the health this round is walked into with.
   const chosen = applyChoice(state, choice as Choice)
   const out = playRound(chosen)
   const next = afterRound(chosen, out)
   const champion = isChampion(next)
+  const offer = canContinue(next)
+  const over = champion || (!out.won && !offer)
 
   return NextResponse.json({
     recorded: next.recorded,
@@ -66,7 +83,7 @@ export async function POST(req: NextRequest) {
      * fell here or they took all five. Keyed on the RUN's seed, so a run cast
      * twice still counts once. A demo runner has no uid and signs nothing.
      */
-    tag: !out.won || champion
+    tag: over
       ? tagFor(
           runPairs(next, out.won ? null : out.foe),
           next.seed,
@@ -83,14 +100,18 @@ export async function POST(req: NextRequest) {
            * without being resent and without being trusted from the client on
            * each step.
            */
-          next.you.uid ? { uid: next.you.uid, fid: next.you.fid ?? 0 } : null,
+          next.you.uid ? { uid: next.you.uid, fid: next.you.fid ?? 0 , continued: next.continued } : null,
         )
       : null,
     pot: next.pot,
     choices: next.choices,
     champion,
-    over: !out.won || champion,
-    ticket: out.won && !champion
+    over,
+    // Offered instead of an ending, so the page can show GAME OVER with a way back.
+    canContinue: offer,
+    // The ceiling the continue cost them: a continued run tops out at one cat.
+    continued: next.continued,
+    ticket: !over
       ? sign({ ...next, exp: Date.now() + TICKET_TTL_MS })
       : null,
   })

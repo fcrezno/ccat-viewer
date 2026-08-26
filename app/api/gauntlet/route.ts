@@ -3,7 +3,7 @@ import { isAddress } from 'viem'
 import { fetchCats } from '@/lib/collection'
 import { ownedCat } from '@/lib/arena'
 import {
-  ROUNDS, afterRound, isChampion, playRound, runPairs,
+  ROUNDS, afterRound, canContinue, isChampion, playRound, runPairs,
   type RunState, type Runner,
 } from '@/lib/gauntlet'
 import { pickRoster } from '@/lib/roster'
@@ -86,7 +86,14 @@ export async function POST(req: NextRequest) {
         ? guest
         : 1 + (seed % 999983),
     )
-    const cat = ownedCat(id, `Guest #${id}`)
+    /*
+     * A GUEST MAY NAME ITS CAT, and the name is cleaned here exactly as a
+     * holder's is — it goes into the log and into a cast, so it is never taken
+     * on trust. The number is the fallback, never a blank.
+     */
+    const given = (name ?? '').replace(/s+/g, ' ').trim().slice(0, 32)
+    const label = given || `Guest #${id}`
+    const cat = ownedCat(id, label)
     you = {
       /*
        * A UID, so the run can be SIGNED and therefore claimed. It was blank,
@@ -99,7 +106,7 @@ export async function POST(req: NextRequest) {
       id,
       // The label the rest of the app already recognises, so every existing
       // "is this the demo?" check keeps working.
-      label: `Guest #${id}`,
+      label,
       art: `/api/cat-art?seed=${seed >>> 0}`,
       maxHp: cat.maxHp,
       hp: cat.maxHp,
@@ -176,6 +183,7 @@ export async function POST(req: NextRequest) {
     pot: 0,
     choices: [],
     recorded: !demo,
+    continued: false,
     exp: Date.now() + TICKET_TTL_MS,
   }
 
@@ -198,13 +206,17 @@ export async function POST(req: NextRequest) {
     tag: out.won ? null : tagFor(
       runPairs(next, out.foe), seed, null,
       // Who may claim this run. A guest has a uid now, so a guest CAN.
-      next.you.uid ? { uid: next.you.uid, fid: Number(fid) || 0 } : null,
+      next.you.uid ? { uid: next.you.uid, fid: Number(fid) || 0 , continued: next.continued } : null,
     ),
     pot: next.pot,
     choices: next.choices,
     champion: isChampion(next),
-    over: !out.won,
+    over: !out.won && !canContinue(next),
+    // The offer, so the page can put a GAME OVER in front of them with a way out.
+    canContinue: canContinue(next),
     // Nothing to carry once the run is finished either way.
-    ticket: out.won ? sign(next) : null,
+    // A ticket is still issued on a fall they can buy back — it is what the
+    // continue is spent against.
+    ticket: out.won || canContinue(next) ? sign(next) : null,
   })
 }

@@ -13,6 +13,8 @@ import {
   addFriend, friends as loadFriends, ladder, noteFight, ratio,
   recordFor, recordLine, removeFriend, setRetired, nameFor, setName, NAME_LIMIT,
   guestId,
+  perfectRuns,
+  notePerfect,
   type Friend, type Ranked,
 } from '@/lib/stable'
 
@@ -114,9 +116,19 @@ const KIND_INK: Record<LogLine['kind'], string> = {
   weak: '#3f6ea8', perk: '#2f7a44', ko: '#a01b1b', win: '#a06a10',
 }
 
-function Fighter({ cat, hp, ghost, side, swinging, beat, speed }: {
+function Fighter({ cat, hp, ghost, side, swinging, struck, beat, speed }: {
   cat: FightResult['you']; hp: number; ghost: number
-  side: 'left' | 'right'; swinging: boolean; beat: number; speed: number
+  side: 'left' | 'right'; swinging: boolean
+  /*
+   * The kind of blow this cat is TAKING right now, or null.
+   *
+   * Separate from `swinging`, because on any given line one cat is doing and the
+   * other is being done to — and until now only the doing was drawn. The
+   * attacker leaned in at a cat standing perfectly still, which is what made a
+   * hit look like a lunge at nothing.
+   */
+  struck: 'crit' | 'weak' | 'hit' | null
+  beat: number; speed: number
 }) {
   // Alternate the animation NAME to replay it. Remounting would restart the
   // element and kill the health bar's clip-path transition with it.
@@ -136,7 +148,15 @@ function Fighter({ cat, hp, ghost, side, swinging, beat, speed }: {
           opacity: hp > 0 ? 1 : 0.35,
           filter: hp > 0 ? 'none' : 'grayscale(1)',
           transition: 'opacity 0.3s ease',
-          animation: swinging && hp > 0
+          animation: struck
+            /*
+             * FITTED TO THE LINE, not to the renderer's clock. Beat.FlinchSecs is
+             * a full second and a log line here lasts 850ms, so the shake would
+             * still be running when the next blow landed. The curve is unchanged;
+             * only the playback is shortened.
+             */
+            ? `cradle-recoil-${struck}${alt} ${0.6 / speed}s linear`
+            : swinging && hp > 0
             // LINEAR: Beat.Lunge is already baked into the keyframe stops, so an
             // easing function here would ease an eased curve.
             // Scaled with the reveal: a 0.35s lunge inside a 212ms line at x4
@@ -222,6 +242,75 @@ function Confetti({ seed }: { seed: number }) {
  * two more are still coming is what makes the choice between the pot and the bar
  * a real one. It says who they are and never how any of it goes.
  */
+/**
+ * THE RUN TRACKER, in Artifact's shape: the wins as connected pips, the losses
+ * beside them, and how many perfect runs this device has behind it.
+ *
+ * It earns its place by making the PRIZE legible without a sentence. Three wins
+ * is one cat and five is two, so those two pips are marked — a player can see
+ * what the next round is worth while deciding whether to double or heal, which
+ * is exactly when they need to know.
+ *
+ * The gauntlet ends on a single loss, so there is one loss slot rather than a
+ * row of them. Drawn empty while the run lives, because an empty slot is the
+ * threat.
+ */
+function RunTrack({ run, perfect }: { run: RunView; perfect: number }) {
+  const beaten = run.won ? run.roundNo : run.roundNo - 1
+
+  /*
+   * A WON BOX IS FILLED, NOT TICKED.
+   *
+   * The bitmap sheet is 96 glyphs from ASCII 32 — there is no check mark in it,
+   * and borrowing one from the system font would put the only non-game letter
+   * on the screen. A gold box with its number in dark ink reads as done just as
+   * plainly, and it keeps the round number visible so the prize marks still mean
+   * something.
+   */
+  return (
+    <div style={s.track}>
+      <div style={s.trackTop}>
+        <BitmapText text="PERFECT RUNS" scale={1} color="#63637d" />
+        <BitmapText text={String(perfect)} scale={1} color="#e0a72c" />
+      </div>
+
+      <div style={s.trackRow}>
+        <div style={s.trackSide}>
+          <BitmapText text="WINS" scale={1} color="#4a4a5e" />
+          <div style={s.pips}>
+            {Array.from({ length: run.foes.length }, (_, i) => {
+              const n = i + 1
+              const got = n <= beaten
+              // 3 earns a cat and 5 earns two, so those two are ringed whether
+              // or not they have been reached — the stake has to be visible
+              // while the player is deciding to double or heal.
+              const prize = n === 3 || n === run.foes.length
+              return (
+                <span key={n} style={s.pipWrap}>
+                  {i > 0 && <span style={got ? { ...s.pipLink, ...s.pipLinkOn } : s.pipLink} />}
+                  <span
+                    style={got
+                      ? { ...s.pip, ...s.pipOn, ...(prize ? s.pipPrize : null) }
+                      : { ...s.pip, ...(prize ? s.pipPrizeOff : null) }}
+                    title={prize ? (n === 3 ? '3 wins — one cat' : 'all five — two cats') : `win ${n}`}
+                  >
+                    <BitmapText
+                      text={String(n)}
+                      scale={2}
+                      color={got ? '#0b0b13' : prize ? '#7a5c18' : '#4a4a5e'}
+                    />
+                  </span>
+                </span>
+              )
+            })}
+          </div>
+        </div>
+
+      </div>
+    </div>
+  )
+}
+
 function GauntletLadder({ run }: { run: RunView }) {
   // roundNo is the round just played. A won round is behind them; a lost one is
   // where they stopped.
@@ -616,6 +705,10 @@ type RunView = {
   pot:      number
   /** Null once the run is over, either way. */
   ticket:   string | null
+  /** A fall that can still be bought back with a repost. */
+  canContinue: boolean
+  /** Spent already — the run now tops out at one cat. */
+  continued:   boolean
   champion: boolean
   over:     boolean
 }
@@ -664,6 +757,9 @@ export function Cradle() {
    * name rather than believing this.
    */
   const [fcFid, setFcFid] = useState<number | null>(null)
+  /** Perfect runs behind this device. Read on mount; bumped when one lands. */
+  const [perfect, setPerfect] = useState(0)
+  useEffect(() => { setPerfect(perfectRuns()) }, [])
 
   useEffect(() => {
     let live = true
@@ -866,7 +962,52 @@ export function Cradle() {
    * An exhibition is deliberately NOT caught here: it is a real cat on a real
    * fight, and only its RECORDING is skipped.
    */
+  /*
+   * WHO JUST TOOK THE BLOW.
+   *
+   * Read from the HEALTH SNAPSHOTS, not from the actor: a line names who swung,
+   * and a swing that missed hurts nobody. A drop between the previous line and
+   * this one IS the hit — the same test the results card uses to find its blows.
+   */
+  const struckSide: 'you' | 'foe' | null = (() => {
+    /*
+     * LOOK FORWARD, NOT BACK — and this is the whole bug.
+     *
+     * arena.ts records each line's health AT PUSH TIME: "both cats are mutated
+     * as the fight runs, so this captures the moment rather than the outcome."
+     * So the line that says "A used X!" still carries the health from BEFORE
+     * that blow, and the drop only appears on the line AFTER it.
+     *
+     * Comparing the previous line to this one therefore animates the PREVIOUS
+     * blow — which put the recoil on the cat that was busy lunging, and made a
+     * hit look like a cat attacking itself.
+     *
+     * Comparing this line to the NEXT one lands the flinch on the same beat as
+     * the swing that caused it.
+     */
+    const after = result && shown < result.log.length ? result.log[shown] : null
+    if (!at || !after) return null
+    if (after.hpYou < at.hpYou) return 'you'
+    if (after.hpFoe < at.hpFoe) return 'foe'
+    return null
+  })()
+
+  /** How hard it landed, in the renderer's three grades of IMPACT. */
+  const hitKind: 'crit' | 'weak' | 'hit' =
+    at?.kind === 'crit' ? 'crit' : at?.kind === 'weak' ? 'weak' : 'hit'
+
   const isDemo = run ? !run.recorded : result?.you.label === 'Demo Cat'
+
+  /*
+   * HOW A CAT IS NAMED ON SCREEN.
+   *
+   * A guest may call its cat whatever it likes, so the name alone no longer says
+   * whether there is a token behind it. "(Guest)" is appended where the cat is
+   * IDENTIFIED — the results card, the victor — and deliberately NOT in the
+   * battle log, where a suffix on every line would be noise rather than
+   * information.
+   */
+  const named = (label: string) => (isDemo ? `${label} (Guest)` : label)
 
   /*
    * WRITE THE RESULT ONCE, and only when the log has finished telling it.
@@ -951,6 +1092,9 @@ export function Cradle() {
                * and nothing a prize can be attached to either.
                */
               guest: guestId(),
+              // Whatever they called it. Stored under the guest's own uid, so
+              // it is the same name next visit.
+              name: nameFor(`guest:${guestId()}`) ?? undefined,
               // Only inside Farcaster. It names who may claim a won run later,
               // and it is verified properly — against a signed token — at claim.
               fid: fcFid ?? undefined,
@@ -979,7 +1123,7 @@ export function Cradle() {
    * it decides belongs to the run and the run lives on the server's side of the
    * signature.
    */
-  async function choose(choice: 'double' | 'heal') {
+  async function choose(choice: 'double' | 'heal' | 'continue') {
     if (!run?.ticket || choosing) return
     sound.prime()
     // Each cat on the tower gets its own bed. With one track in the list this
@@ -1010,6 +1154,7 @@ export function Cradle() {
     /** Only on the final round of a run, and null when it cannot count. */
     tag: string | null
     champion: boolean; over: boolean
+    canContinue?: boolean; continued?: boolean
     round: { round: number; won: boolean; fight: FightResult }
   }) {
     setRecorded(data.recorded)
@@ -1021,6 +1166,8 @@ export function Cradle() {
       won:      data.round.won,
       pot:      data.pot,
       ticket:   data.ticket,
+      canContinue: !!data.canContinue,
+      continued:   !!data.continued,
       champion: data.champion,
       over:     data.over,
     })
@@ -1504,6 +1651,7 @@ export function Cradle() {
                     ghost={prev ? prev.hpYou : result.you.maxHp}
                     side="left"
                     swinging={at?.actor === 'you'}
+                    struck={struckSide === 'you' ? hitKind : null}
                     beat={shown}
                     speed={speed}
                   />
@@ -1514,6 +1662,7 @@ export function Cradle() {
                     ghost={prev ? prev.hpFoe : result.foe.maxHp}
                     side="right"
                     swinging={at?.actor === 'foe'}
+                    struck={struckSide === 'foe' ? hitKind : null}
                     beat={shown}
                     speed={speed}
                   />
@@ -1614,7 +1763,7 @@ export function Cradle() {
 
                   <div style={{ marginBottom: 12 }}>
                     <BitmapText
-                      text={(result.youWon ? result.you.label : result.foe.label) + ' TAKES IT'}
+                      text={named(result.youWon ? result.you.label : result.foe.label) + ' TAKES IT'}
                       scale={1}
                       color="#6b6b60"
                     />
@@ -1645,6 +1794,7 @@ export function Cradle() {
               */}
               {done && run && (
                 <section style={s.block}>
+                  <RunTrack run={run} perfect={perfect} />
                   <GauntletLadder run={run} />
 
                   {/* STILL GOING — the choice. */}
@@ -1675,12 +1825,49 @@ export function Cradle() {
                     </>
                   )}
 
-                  {/* FELL. The pot goes with them — that is the other half of doubling. */}
-                  {!run.won && (
+                  {/*
+                    GAME OVER — and while a continue is unspent, an offer rather
+                    than an ending.
+
+                    The price is a repost, which is self-limiting: a recast can
+                    only be spent once on a cast, so the platform caps this at one
+                    without any counting here. What it costs is the CEILING — a
+                    continued run earns one cat however deep it goes, never two —
+                    and that is said plainly on the button rather than discovered
+                    at the claim.
+                  */}
+                  {!run.won && run.canContinue && (
                     <>
-                      <p style={{ margin: '14px 0 2px', fontSize: 16, color: '#d1495b' }}>
-                        Down on round {run.roundNo}.
+                      <div style={{ margin: '14px 0 6px', textAlign: 'center' }}>
+                        <BitmapText text="GAME OVER" scale={2} color="#d1495b" />
+                      </div>
+                      <p style={s.fine0}>
+                        {run.foes[run.roundNo - 1]?.label ?? 'that cat'} put you down on
+                        round {run.roundNo}.
                       </p>
+
+                      <button style={{ ...s.gauntlet, marginTop: 14 }} disabled={choosing}
+                        onClick={() => choose('continue')}>
+                        REPOST TO CONTINUE
+                      </button>
+                      <p style={s.modeFine}>
+                        back to full health, same cat, fresh fight · you can still
+                        win one cat, but not two
+                      </p>
+
+                      <button style={s.ghost} onClick={() => { clearRun(); setView('home') }}>
+                        GIVE UP
+                      </button>
+                    </>
+                  )}
+
+                  {/* FELL for good. The pot goes with them — the other half of doubling. */}
+                  {!run.won && !run.canContinue && (
+                    <>
+                      <div style={{ margin: '14px 0 6px', textAlign: 'center' }}>
+                        <BitmapText text="GAME OVER" scale={2} color="#d1495b" />
+                      </div>
+                      <p style={s.fine0}>Down on round {run.roundNo}.</p>
                       <p style={s.fine0}>
                         {run.roundNo - 1} of {run.foes.length} beaten. The pot is gone.
                       </p>
@@ -1859,6 +2046,31 @@ export function Cradle() {
 }
 
 const s: Record<string, React.CSSProperties> = {
+  /*
+   * THE RUN TRACKER — Artifact's shape: pips for the wins, one slot for the
+   * loss. Gold is the run's colour everywhere else here, so an earned pip is
+   * gold and an empty one is the panel with a hairline.
+   */
+  track:       { border: '1px solid #21212f', borderRadius: 12, background: '#0b0b13', padding: '14px 12px 16px', marginBottom: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 },
+  trackTop:    { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  trackLabel:  { fontSize: 10, letterSpacing: 2, color: '#63637d' },
+  trackCount:  { fontSize: 13, color: '#e0a72c', fontVariantNumeric: 'tabular-nums' },
+  trackRow:    { display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: 20 },
+  trackSide:   { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 },
+  trackHead:   { fontSize: 9, letterSpacing: 2, color: '#4a4a5e' },
+  pips:        { display: 'flex', alignItems: 'center' },
+  pipWrap:     { display: 'flex', alignItems: 'center' },
+  // The connector is lit only once the pip it leads INTO has been won.
+  pipLink:     { width: 16, height: 3, background: '#21212f' },
+  pipLinkOn:   { background: '#e0a72c', boxShadow: '0 0 6px rgba(224,167,44,0.5)' },
+  // A CHECKBOX, not a bead: a win is a thing you tick off. Square, lightly
+  // rounded, and it holds the round number until it is earned.
+  pip:         { width: 44, height: 44, borderRadius: 8, border: '2px solid #2b2b3a', background: '#12121c', display: 'grid', placeItems: 'center', flexShrink: 0 },
+  pipOn:       { borderColor: '#e0a72c', background: '#e0a72c', boxShadow: '0 0 12px rgba(224,167,44,0.45)' },
+  // 3 and 5 pay a cat, so they are ringed whether or not they are reached.
+  pipPrize:    { boxShadow: '0 0 0 3px rgba(224,167,44,0.25), 0 0 12px rgba(224,167,44,0.5)' },
+  pipPrizeOff: { borderColor: '#7a5c18', color: '#7a5c18' },
+
   page: {
     minHeight: '100dvh', background: '#0b0b13', color: '#f0f0f5',
     padding: '22px 18px 40px', maxWidth: 520, margin: '0 auto',

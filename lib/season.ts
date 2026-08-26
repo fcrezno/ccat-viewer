@@ -98,12 +98,23 @@ export type Run = { season: number; seed: string; pairs: Pair[]; score: Score | 
 function pack(pairs: Pair[], seed: number, score: Score | null, run: Runner | null): string {
   const body = pairs.map(p => `${p.w}>${p.l}`).join(',')
   const sc = score && score.points > 0 ? `${score.uid}=${Math.round(score.points)}` : ''
-  const who = run?.uid ? `${run.uid}@${run.fid ?? 0}` : ''
+  const who = run?.uid ? `${run.uid}@${run.fid ?? 0}${run.continued ? '@c' : ''}` : ''
   return `${SEASON}|${(seed >>> 0).toString(16)}|${sc}|${who}|${body}`
 }
 
 /** Who ran it: the cat, and the Farcaster account that will claim for it. */
-export type Runner = { uid: string; fid: number }
+export type Runner = {
+  uid: string
+  fid: number
+  /*
+   * Whether the run bought itself back after a fall.
+   *
+   * It travels in the SIGNED tag because it is the prize ceiling: a continued
+   * run earns one cat however deep it went, never two. Left out, the claim would
+   * have to take the page's word for it.
+   */
+  continued?: boolean
+}
 
 const UID = /^[a-z0-9]+:\d+$/
 
@@ -147,9 +158,11 @@ function unpack(packed: string): Omit<Run, 'season'> & { season: number } | null
    */
   let runner: Runner | null = null
   if (who) {
-    const [uid, fidRaw] = who.split('@')
+    const [uid, fidRaw, flag] = who.split('@')
     const fid = Number(fidRaw)
-    if (UID.test(uid ?? '') && Number.isInteger(fid) && fid > 0) runner = { uid, fid }
+    if (UID.test(uid ?? '') && Number.isInteger(fid) && fid > 0) {
+      runner = { uid, fid, continued: flag === 'c' }
+    }
   }
 
   return { season: Number(season), seed, pairs, score, runner }
@@ -183,6 +196,19 @@ export function tagFor(
  * this is the number the claim is decided on. Counted rather than carried, so a
  * tag cannot claim more wins than the pairs it actually lists.
  */
+/**
+ * HOW MANY CATS A RUN EARNED.
+ *
+ * Three wins is one, all five is two — and a run that spent its continue is
+ * capped at one however far it got. Decided here rather than at the claim so the
+ * rule lives with the tag that proves it.
+ */
+export function catsFor(run: Run): number {
+  const wins = winsFor(run)
+  if (wins >= 5 && !run.runner?.continued) return 2
+  return wins >= 3 ? 1 : 0
+}
+
 export function winsFor(run: Run): number {
   if (!run.runner) return 0
   return run.pairs.filter(p => p.w === run.runner!.uid).length
