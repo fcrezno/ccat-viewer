@@ -28,8 +28,13 @@ import sharp from 'sharp'
 import fs from 'node:fs'
 import { readOra } from './ora-read.mjs'
 
-const S = 48, FRAMES = 5
-const DIR = 'art/impact/frames'
+/*
+ * PFP SIZE. The effect is drawn at the cat's own 250 wide so the two share a
+ * pixel grid once the card scales them together; 200 rather than 199 is JP's
+ * call and costs half a pixel. See make-pfp-frames.mjs.
+ */
+const W = 250, H = 200, FRAMES = 5
+const DIR = 'art/impact/pfp'
 
 const SHEETS = [
   ['impact', ['WEAK', 'HIT', 'CRIT']],
@@ -90,7 +95,7 @@ async function strayWork(doc, pristineGuideLit) {
       ' pixels off the card colour) — that layer is NEVER exported')
   }
 
-  const known = /^(FRAME [1-5]|ref [1-5]|GUIDE.*|BACKGROUND)$/
+  const known = /^(FRAME [1-5]|ref [1-5]|GUIDE.*|CAT - REFERENCE|BACKGROUND)$/
   for (const l of doc.layers) {
     if (!known.test(l.name.trim())) {
       out.push('  !! layer "' + l.name + '" is not exported — only "FRAME 1".."FRAME 5" are')
@@ -111,8 +116,7 @@ async function drawn(png) {
  * hard-coded — so it stays right if the guide is ever redrawn.
  */
 const pristine = await (async () => {
-  const { data, info } = await sharp('art/impact/impact-guide.png')
-    .extract({ left: 0, top: 0, width: S, height: S })
+  const { data, info } = await sharp(DIR + '/_guide.png')
     .ensureAlpha().raw().toBuffer({ resolveWithObject: true })
   let lit = 0
   for (let i = 3; i < data.length; i += info.channels) if (data[i] > 0) lit++
@@ -130,8 +134,8 @@ for (const [sheet, rows] of SHEETS) {
     if (!fs.existsSync(file)) { notes.push('  ' + name + ': no document'); continue }
 
     const doc = readOra(file)
-    if (doc.width !== S || doc.height !== S) {
-      notes.push('  ' + name + ': canvas is ' + doc.width + 'x' + doc.height + ', expected ' + S + 'x' + S)
+    if (doc.width !== W || doc.height !== H) {
+      notes.push('  ' + name + ': canvas is ' + doc.width + 'x' + doc.height + ', expected ' + W + 'x' + H)
       continue
     }
 
@@ -142,7 +146,7 @@ for (const [sheet, rows] of SHEETS) {
       const layer = doc.layers.find(l => l.name.trim().toUpperCase() === 'FRAME ' + (f + 1))
       if (!layer) { notes.push('  ' + name + ': no layer "FRAME ' + (f + 1) + '"'); continue }
       if (!(await drawn(layer.png))) { empties++; continue }
-      parts.push({ input: layer.png, left: f * S, top: row * S })
+      parts.push({ input: layer.png, left: f * W, top: row * H })
       any = true
     }
     if (empties && empties < FRAMES) notes.push('  ' + name + ': ' + empties + ' of ' + FRAMES + ' frames still empty')
@@ -157,7 +161,7 @@ for (const [sheet, rows] of SHEETS) {
 
   const out = 'art/impact/' + sheet + '-drawn.png'
   await sharp({
-    create: { width: S * FRAMES, height: S * rows.length, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+    create: { width: W * FRAMES, height: H * rows.length, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
   }).composite(parts).png().toFile(out)
 
   /*

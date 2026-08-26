@@ -44,20 +44,31 @@ const SHEETS = [
 
 for (const [name, labels] of SHEETS) {
   const rows = labels.length
-  const cellW = S * SCALE, stripH = S * rows * SCALE
+  /*
+   * THE CELL COMES FROM THE SHEET, NOT FROM A CONSTANT.
+   *
+   * A drawn sheet is 250x200 per frame and a rough is 48x48, and both have to be
+   * playable — otherwise the previews stop working the moment there is real art
+   * to look at, which is exactly when they matter most.
+   */
+  const drawnSheet = OUT + '/' + name.replace('-rough', '-drawn') + '.png'
+  const sheetFile = fs.existsSync(drawnSheet) ? drawnSheet : OUT + '/' + name + '.png'
+  const sheet = await sharp(sheetFile).metadata()
+  const CW = Math.round(sheet.width / FRAMES), CH = Math.round(sheet.height / rows)
+  const src = sharp(sheetFile)
+  const cellW = CW * SCALE, stripH = CH * rows * SCALE
   const width = LAB + cellW, height = stripH
 
   // The row names, drawn once and composited onto every frame.
   const key = Buffer.from(
     '<svg width="' + width + '" height="' + height + '" xmlns="http://www.w3.org/2000/svg">' +
     labels.map((l, i) =>
-      '<text x="8" y="' + (i * S * SCALE + S * SCALE / 2 + 5) + '" fill="#7a7a95"' +
+      '<text x="8" y="' + (i * CH * SCALE + CH * SCALE / 2 + 5) + '" fill="#7a7a95"' +
       ' font-family="monospace" font-size="14">' + l + '</text>' +
-      '<line x1="0" y1="' + (i * S * SCALE) + '" x2="' + width + '" y2="' + (i * S * SCALE) +
+      '<line x1="0" y1="' + (i * CH * SCALE) + '" x2="' + width + '" y2="' + (i * CH * SCALE) +
       '" stroke="#21212f" stroke-width="1"/>').join('') +
     '</svg>')
 
-  const src = sharp(OUT + '/' + name + '.png')
   const pages = []
 
   for (let f = 0; f < FRAMES; f++) {
@@ -66,7 +77,7 @@ for (const [name, labels] of SHEETS) {
      * is what makes the set comparable — five effects side by side, all at frame
      * three, is the only way to see that one of them peaks too late.
      */
-    const column = await src.clone().extract({ left: f * S, top: 0, width: S, height: S * rows })
+    const column = await src.clone().extract({ left: f * CW, top: 0, width: CW, height: CH * rows })
       .resize(cellW, stripH, { kernel: 'nearest' }).png().toBuffer()
 
     pages.push(await sharp({ create: { width, height, channels: 4, background: CARD } })
