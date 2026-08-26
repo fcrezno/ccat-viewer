@@ -23,6 +23,7 @@ import { privateKeyToAccount } from 'viem/accounts'
 import { readFileSync, existsSync, appendFileSync } from 'fs'
 
 const LOG = 'scripts/.sent.log'
+const APP = 'https://ccat-viewer.vercel.app'
 
 function cfg(key) {
   if (process.env[key]) return process.env[key]
@@ -70,23 +71,24 @@ async function read(fn, a = [], tries = 5) {
   }
 }
 
-/** @handle → verified address, via Neynar. */
+/**
+ * @handle → address, through the app's own /api/resolve.
+ *
+ * Goes via the deployed endpoint rather than calling Neynar directly, so the
+ * Neynar key stays in Vercel and doesn't need to exist on this machine.
+ */
 async function resolve(handle) {
-  const apiKey = cfg('NEYNAR_API_KEY')
-  if (!apiKey) {
-    console.error(`❌ "${handle}" is a handle, but NEYNAR_API_KEY is not in .env.local.`)
-    console.error('   Add it (it is already set in Vercel), or pass a 0x address instead.')
+  const name = handle.replace(/^@/, '')
+  const res  = await fetch(`${APP}/api/resolve?handle=${encodeURIComponent(name)}`)
+  const data = await res.json().catch(() => ({}))
+
+  if (!res.ok) {
+    console.error(`❌ @${name}: ${data?.error === 'not_found' ? 'no such Farcaster user' : 'lookup failed'}`)
     process.exit(1)
   }
-  const name = handle.replace(/^@/, '')
-  const res = await fetch(`https://api.neynar.com/v2/farcaster/user/by_username?username=${encodeURIComponent(name)}`,
-    { headers: { api_key: apiKey } })
-  if (!res.ok) { console.error(`❌ Neynar lookup failed for @${name} (${res.status})`); process.exit(1) }
-  const user = (await res.json())?.user
-  const addr = user?.verified_addresses?.eth_addresses?.[0] ?? user?.custody_address
-  if (!addr) { console.error(`❌ @${name} has no verified address`); process.exit(1) }
-  console.log(`  @${name} → ${addr}${user?.verified_addresses?.eth_addresses?.length ? '' : ' (custody — unverified)'}`)
-  return getAddress(addr)
+
+  console.log(`  @${name} → ${data.address}${data.verified ? '' : '  ⚠️  custody address, not verified'}`)
+  return getAddress(data.address)
 }
 
 // ── build the recipient list ────────────────────────────────────────────────

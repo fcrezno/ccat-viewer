@@ -1,0 +1,19 @@
+Contract      ClankerCatsV2
+Address       0x5C5b928f937F63656BE62d0A45f4Db756b79934B
+Chain         Base mainnet (8453)
+
+Compiler      0.8.35+commit.47b9dedd.Emscripten.clang
+Optimization  enabled, 200 runs
+License       MIT
+
+Constructor arguments (already encoded, in verify/constructor-args.txt):
+  maxSupply        1111
+  signer           0x49Bf733dcC6aC167540C48B1183aFC49d1C833AD
+  baseURI          https://ccat-viewer.vercel.app/v2/placeholder/
+  contractURI      https://ccat-viewer.vercel.app/v2/metadata/1
+  royaltyReceiver  0x934C80e3a3e9136eE3558950385B66Ac5e7D9bf7
+  royaltyBps       800
+
+Note: baseURI here is the deploy-time value, not the current one. Verification
+matches the constructor call in the original transaction, so it must stay the
+placeholder even though setBaseURI has since pointed it at /v2/meta/.

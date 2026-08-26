@@ -133,6 +133,23 @@ function rng(seed: number) {
   }
 }
 
+/**
+ * A BOND NEEDS AN ADOPTED CAT. THIS IS THE RULE, NOT A SIDE EFFECT.
+ *
+ * A guest cat is a number on one phone. It can fight, it can win, it can be
+ * named — but it is not held by anybody, so there is nothing for a relationship
+ * to be anchored to. Two people can be sitting on the same guest id; a bond
+ * between cats that are not owned is a bond between nobody.
+ *
+ * So the yard admits ADOPTED cats only. That is deliberate and it is the point of
+ * adopting: winning a cat does not only hand over a token, it opens the half of
+ * the game where the cats have a history with each other. A guest is shown the
+ * yard and told what it is for.
+ *
+ * Enforced HERE rather than at the call site, because a call site can forget.
+ */
+export const adopted = (uid: string) => !!uid && !uid.startsWith('guest:')
+
 /** One cat standing in the yard. */
 export type Resident = { uid: string; name: string; face?: string | null }
 
@@ -140,13 +157,32 @@ export type YardState = {
   seed: number
   ticks: number
   cats: Resident[]
+  /** Guest cats that asked to come in. They cannot bond; see `adopted`. */
+  turnedAway: number
   /** Everything anyone still remembers, oldest first. */
   kept: Memory[]
 }
 
+/**
+ * Open a yard. Guests are turned away at the gate and counted, so the page can
+ * say WHY it is empty rather than showing an empty pen with no explanation.
+ *
+ * A yard also needs two cats to be a yard at all — one cat has nobody to have a
+ * history with — so `waiting` is the honest answer to "where is everybody".
+ */
 export function open(seed: number, cats: Resident[]): YardState {
-  return { seed: seed | 0, ticks: 0, cats: cats.slice(), kept: [] }
+  const let_in = cats.filter(c => adopted(c.uid))
+  return {
+    seed: seed | 0,
+    ticks: 0,
+    cats: let_in,
+    turnedAway: cats.length - let_in.length,
+    kept: [],
+  }
 }
+
+/** Whether anything can happen here yet. Two adopted cats is the floor. */
+export const waiting = (y: YardState) => y.cats.length < 2
 
 const same = (m: Memory, a: string, b: string) =>
   (m.a === a && m.b === b) || (m.a === b && m.b === a)

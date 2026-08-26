@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
      * holder's is — it goes into the log and into a cast, so it is never taken
      * on trust. The number is the fallback, never a blank.
      */
-    const given = (name ?? '').replace(/s+/g, ' ').trim().slice(0, 32)
+    const given = (name ?? '').replace(/\s+/g, ' ').trim().slice(0, 32)
     const label = given || `Guest #${id}`
     const cat = ownedCat(id, label)
     you = {
@@ -107,7 +107,15 @@ export async function POST(req: NextRequest) {
       // The label the rest of the app already recognises, so every existing
       // "is this the demo?" check keeps working.
       label,
-      art: `/api/cat-art?seed=${seed >>> 0}`,
+      /*
+       * THE PICTURE COMES FROM THE GUEST ID, NOT FROM THE REQUEST.
+       *
+       * This read the per-request `seed`, so a guest kept the same NUMBERS
+       * every visit and got a different FACE — and the face is the half anybody
+       * actually looks at, so the cat plainly changed every time. Keyed on the
+       * id, the cat a guest meets on their second run is the cat they left.
+       */
+      art: `/api/cat-art?seed=${Number(id) >>> 0}`,
       maxHp: cat.maxHp,
       hp: cat.maxHp,
     }

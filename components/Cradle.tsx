@@ -1041,6 +1041,8 @@ export function Cradle() {
         body: JSON.stringify({
           wallet: address,
           ...payload,
+          // The guest keeps ONE cat across every mode, not one per fight.
+          guest: payload.demo ? guestId() : undefined,
           // Whatever the holder called this cat, so the log uses their name.
           name: payload.uid ? nameFor(payload.uid) ?? undefined : undefined,
         }),

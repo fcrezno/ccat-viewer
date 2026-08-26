@@ -55,7 +55,7 @@ async function realFoe(
 }
 
 export async function POST(req: NextRequest) {
-  let body: { wallet?: string; uid?: string; demo?: boolean; name?: string; exhibition?: boolean }
+  let body: { wallet?: string; uid?: string; demo?: boolean; name?: string; exhibition?: boolean; guest?: number }
 
   try {
     body = await req.json()
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'expected a JSON body' }, { status: 400 })
   }
 
-  const { wallet, uid, demo, name, exhibition } = body
+  const { wallet, uid, demo, name, exhibition, guest } = body
 
   /*
    * A DEMO FIGHT, FOR SOMEBODY WHO DOES NOT OWN A CAT YET.
@@ -78,10 +78,25 @@ export async function POST(req: NextRequest) {
   if (demo) {
     const seed = (Math.random() * 0xffffffff) >>> 0
     const r = seeded(seed)
-    const you = randomCat(r)
-    you.label = 'Demo Cat'
+
+    /*
+     * THE SAME GUEST CAT THE GAUNTLET USES.
+     *
+     * This invented a fresh cat from the request seed every time, so somebody
+     * playing quick fights watched a different cat every round while the
+     * gauntlet — already fixed — kept showing them the same one. Two modes, two
+     * different cats, one player.
+     *
+     * `ownedCat` rather than `randomCat`, because that is what rolls a SETTLED
+     * fighter from an id. A request with no guest id still gets an invented cat,
+     * so nothing breaks; that cat is simply not remembered.
+     */
+    const gid = Number.isInteger(guest) && (guest as number) > 0 ? String(guest) : null
+    const given = (name ?? '').replace(/\s+/g, ' ').trim().slice(0, 32)
+    const you = gid ? ownedCat(gid, given || `Guest #${gid}`) : randomCat(r)
+    if (!gid) you.label = 'Demo Cat'
     you.mine = true
-    you.art = art(seed)
+    you.art = art(gid ? Number(gid) : seed)
 
     // A demo runner may ask for an exhibition too. Nothing about a demo is
     // recorded anyway, so the only difference is who is on the other side.

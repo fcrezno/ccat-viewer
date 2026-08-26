@@ -1,0 +1,8 @@
+GIMP Palette
+Name: GBC 4-shade
+Columns: 4
+#
+248 248 248	shade 0
+168 168 168	shade 1
+ 88  88  88	shade 2
+ 16  16  16	shade 3

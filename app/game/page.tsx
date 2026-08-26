@@ -5,14 +5,16 @@ import { useAccount, useReadContract, useWriteContract, useWaitForTransactionRec
 import sdk from '@farcaster/miniapp-sdk'
 import {
   loadGame, saveGame, tick, buyBuilding, buyUpgrade,
+  buyPotion, upgradeSlot, usePotion, dismissMonke, prestige,
   buildingCost, canAfford, fmt, ZONE_NAMES, UPGRADES,
+  POTION_COST, SLOT_COSTS, PRESTIGE_COSTS, PRESTIGE_BONUS,
   type GameState,
 } from '@/lib/game'
 
 const TICK_MS = 250
 
 // Placeholder — replace with deployed contract address
-const AUTO_RUN_ADDRESS = '0xa003b34f82950604d2c5e7b26986d6acc7862514' as `0x${string}`
+const AUTO_RUN_ADDRESS = '0x4975ebf102d8980b8457a4dae84bdf56dfb72a6d' as `0x${string}`
 const CLKCAT_ADDRESS   = '0xD7800C338228a6eeb37cF74133732Fb6aE05915F' as `0x${string}`
 
 const AUTO_RUN_ABI = [
@@ -39,11 +41,22 @@ const CLKCAT_ABI = [
   { name: 'approve', type: 'function', stateMutability: 'nonpayable',
     inputs: [{ name: 'spender', type: 'address' }, { name: 'amount', type: 'uint256' }],
     outputs: [{ type: 'bool' }] },
+  { name: 'transfer', type: 'function', stateMutability: 'nonpayable',
+    inputs: [{ name: 'to', type: 'address' }, { name: 'amount', type: 'uint256' }],
+    outputs: [{ type: 'bool' }] },
 ] as const
 
-const TIER_LABELS    = ['6 hours', '12 hours', '24 hours']
-const TIER_COSTS     = ['100K $CLKCAT', '250K $CLKCAT', '500K $CLKCAT']
-const TIER_COSTS_WEI = [BigInt('100000000000000000000000'), BigInt('250000000000000000000000'), BigInt('500000000000000000000000')]
+const BURN_ADDRESS = '0x000000000000000000000000000000000000dEaD' as `0x${string}`
+
+const TIER_LABELS    = ['6 hours', '12 hours', '24 hours', '48 hours', '72 hours']
+const TIER_COSTS     = ['100K $CLKCAT', '250K $CLKCAT', '500K $CLKCAT', '1M $CLKCAT', '2.5M $CLKCAT']
+const TIER_COSTS_WEI = [
+  BigInt('100000000000000000000000'),
+  BigInt('250000000000000000000000'),
+  BigInt('500000000000000000000000'),
+  BigInt('1000000000000000000000000'),
+  BigInt('2500000000000000000000000'),
+]
 
 function fmtSecs(s: number): string {
   if (s <= 0) return '0s'
@@ -135,12 +148,31 @@ function MiniGame({ onWin, onClose }: { onWin: () => void; onClose: () => void }
           <div style={{ fontSize: 48 }}>😿</div>
           <div style={{ fontSize: 22, fontWeight: 'bold', color: '#ef4444' }}>Wrong one!</div>
           <div style={{ fontSize: 14, color: '#666', textAlign: 'center' as const }}>The fish got away...</div>
-          <button style={{ ...g.actionBtn, background: '#111', color: 'white', width: '100%' }} onClick={startGame}>Try Again!</button>
-          <button style={{ background: 'none', border: 'none', color: '#333', cursor: 'pointer', fontSize: 12 }} onClick={onClose}>skip</button>
+          <button style={{ ...g.actionBtn, background: '#111', color: 'white', width: '100%' }} onClick={onClose}>Back to the fight</button>
         </>}
 
       </div>
     </div>
+  )
+}
+
+function HomePrizeTeaser({ onViewToken }: { onViewToken: () => void }) {
+  const { data: prizePool } = useReadContract({
+    address: AUTO_RUN_ADDRESS, abi: AUTO_RUN_ABI, functionName: 'prizePool',
+    query: { refetchInterval: 60_000 },
+  })
+  const { data: seasonActive } = useReadContract({
+    address: AUTO_RUN_ADDRESS, abi: AUTO_RUN_ABI, functionName: 'seasonActive',
+  })
+  const pool = prizePool ? Number(prizePool) / 1e18 : 0
+  const label = pool > 0
+    ? `🏆 ${fmt(pool)} $CLKCAT prize pool — tap to compete`
+    : `⚡ Season 1 is live — Auto-Run with $CLKCAT to compete`
+  if (!label) return null
+  return (
+    <button onClick={onViewToken} style={{ background: '#111', color: 'white', border: 'none', borderRadius: 10, padding: '8px 14px', fontSize: 11, cursor: 'pointer', textAlign: 'left' as const, width: '100%', letterSpacing: 0.3 }}>
+      {label}
+    </button>
   )
 }
 
@@ -227,10 +259,6 @@ function AutoRunPanel() {
         <div style={{ fontSize: 11, color: '#666', textAlign: 'center' as const, padding: '8px 0' }}>
           Contract deploying soon — check back!
         </div>
-      ) : !seasonOpen ? (
-        <div style={{ fontSize: 11, color: '#666', textAlign: 'center' as const, padding: '8px 0' }}>
-          🏁 Season 1 starting soon — check back!
-        </div>
       ) : isActive ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ fontSize: 12, color: '#10b981', textAlign: 'center' as const }}>✅ Auto-run active</div>
@@ -306,7 +334,7 @@ function ResourceBar({ state }: { state: GameState }) {
 
 type DmgFloat = { id: number; val: number; x: number }
 
-function CombatPanel({ state, onToggle, onHeal }: { state: GameState; onToggle: () => void; onHeal: () => void }) {
+function CombatPanel({ state, onToggle, onHeal, onPotion, onRecruit }: { state: GameState; onToggle: () => void; onHeal: () => void; onPotion: () => void; onRecruit: () => void }) {
   const { enemy, zone, kills, cats, catHealth, catMaxHealth, fighting } = state
   const [flash, setFlash]     = useState(false)
   const [damages, setDamages] = useState<DmgFloat[]>([])
@@ -345,7 +373,11 @@ function CombatPanel({ state, onToggle, onHeal }: { state: GameState; onToggle: 
               <img
                 src={enemyImg ?? ''}
                 onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-                style={{ width: '100%', height: 200, objectFit: 'contain', display: 'block', background: 'white' }}
+                /* `pixelated` so a small sprite scales in whole blocks. The
+                   enemies drawn so far are 200x200 shown at 200, so they were
+                   never resampled and this was invisible; anything authored on
+                   a small grid is blurred without it. */
+                style={{ width: '100%', height: 200, objectFit: 'contain', display: 'block', background: 'white', imageRendering: 'pixelated' }}
               />
               {flash && (
                 <img
@@ -355,7 +387,7 @@ function CombatPanel({ state, onToggle, onHeal }: { state: GameState; onToggle: 
                 />
               )}
               {damages.map(d => (
-                <div key={d.id} style={{ position: 'absolute', top: '25%', left: `${d.x}%`, fontWeight: 'bold', fontSize: 20, color: '#ef4444', pointerEvents: 'none', animation: 'floatDmg 0.8s ease-out forwards', fontFamily: "'MyFont', monospace", textShadow: '0 1px 3px rgba(0,0,0,0.2)' }}>
+                <div key={d.id} style={{ position: 'absolute', top: '25%', left: `${d.x}%`, fontWeight: 'bold', fontSize: 20, color: '#ef4444', pointerEvents: 'none', animation: 'floatDmg 0.8s ease-out forwards', fontFamily: "'MyFont', 'Comic Sans MS', cursive", textShadow: '0 1px 3px rgba(0,0,0,0.2)' }}>
                   -{d.val}
                 </div>
               ))}
@@ -386,24 +418,41 @@ function CombatPanel({ state, onToggle, onHeal }: { state: GameState; onToggle: 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, color: '#666' }}>
             <span>🐱 Cat HP {fmt(catHealth)}/{fmt(catMaxHealth)}</span>
-            <button
-              style={{ fontSize: 11, padding: '2px 8px', border: '1.5px solid #111', borderRadius: 6, background: 'white', color: '#111', cursor: canHeal ? 'pointer' : 'default', opacity: canHeal ? 1 : 0.35 }}
-              disabled={!canHeal}
-              onClick={() => onHeal()}
-            >🩹 Heal (10🐟)</button>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button
+                style={{ fontSize: 11, padding: '2px 8px', border: '1.5px solid #111', borderRadius: 6, background: 'white', color: '#111', cursor: canHeal ? 'pointer' : 'default', opacity: canHeal ? 1 : 0.35 }}
+                disabled={!canHeal}
+                onClick={() => onHeal()}
+              >🩹 Heal (10🐟)</button>
+              <button
+                style={{ fontSize: 11, padding: '2px 8px', border: '1.5px solid #111', borderRadius: 6, background: state.potions > 0 ? '#111' : 'white', color: state.potions > 0 ? 'white' : '#111', cursor: state.potions > 0 ? 'pointer' : 'default', opacity: state.potions > 0 ? 1 : 0.35 }}
+                disabled={state.potions <= 0}
+                onClick={() => onPotion()}
+              >🧪 {state.potions}/{state.potionSlots}</button>
+            </div>
           </div>
           <div style={g.hpTrack}>
-            <div style={{ ...g.hpFill, width: `${catHpPct}%`, background: '#111' }} />
+            <div style={{ ...g.hpFill, width: `${catHpPct}%`, background: catHealth <= 1 ? '#ef4444' : catHpPct < 20 ? '#f97316' : '#111' }} />
           </div>
+          {catHealth <= 1 && (
+            <div style={{ fontSize: 13, fontWeight: 'bold', color: '#ef4444', letterSpacing: 2, textAlign: 'center' as const, animation: 'floatDmg 0.5s ease-in-out infinite alternate' }}>⚠️ PERIL!</div>
+          )}
+          {catHealth > 1 && catHpPct < 20 && (
+            <div style={{ fontSize: 12, fontWeight: 'bold', color: '#f97316', letterSpacing: 1, textAlign: 'center' as const }}>⚠️ CAUTION!</div>
+          )}
         </div>
       )}
 
-      <button
-        style={{ ...g.actionBtn, background: fighting ? '#666' : '#111' }}
-        onClick={onToggle}
-      >
-        {fighting ? '⏸ Pause' : '▶ Explore'}
-      </button>
+      {cats > 0 && (
+        <button style={{ ...g.actionBtn, background: fighting ? '#666' : '#111' }} onClick={onToggle}>
+          {fighting ? '⏸ Pause' : '▶ Explore'}
+        </button>
+      )}
+      {cats < state.maxCats && (
+        <button style={{ ...g.actionBtn, background: 'white', color: '#111', border: '1.5px solid #111' }} onClick={onRecruit}>
+          🪤 Cat Recruit ({cats}/{state.maxCats})
+        </button>
+      )}
     </div>
   )
 }
@@ -533,6 +582,128 @@ function UpgradesPanel({ state, onBuy }: { state: GameState; onBuy: (id: string)
   )
 }
 
+function MonkeEncounterModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{ background: 'white', border: '2.5px solid #111', borderRadius: 16, width: '100%', maxWidth: 360, overflow: 'hidden' }}>
+        <img
+          src="/sprites/enemies/Trader Monke.png"
+          style={{ width: '100%', maxHeight: 340, objectFit: 'contain', objectPosition: 'bottom', imageRendering: 'pixelated', display: 'block' }}
+        />
+        <div style={{ padding: '14px 18px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ fontSize: 15, fontWeight: 'bold', color: '#111', letterSpacing: 0.5 }}>Trader Monke</div>
+          <div style={{ fontSize: 13, color: '#333', lineHeight: 1.7 }}>
+            Psst. You fighting out here with nothing? Bold.<br />
+            I run a <strong>Shop</strong> — potions, extra slots. Scroll down. First potion's only 25🐟.
+          </div>
+          <button style={{ ...g.actionBtn, background: '#111', color: 'white', width: '100%' }} onClick={onClose}>
+            Got it, Monke 🤝
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ShopModal({ state, onBuyPotion, onUpgradeSlot, onClose, preBoss }: {
+  state: GameState; onBuyPotion: () => void; onUpgradeSlot: () => void; onClose: () => void; preBoss: boolean
+}) {
+  const full     = state.potions >= state.potionSlots
+  const canBuy   = !full && state.resources.fish >= POTION_COST
+  const maxSlots = state.potionSlots >= 3
+  const slotCost = maxSlots ? null : SLOT_COSTS[state.potionSlots - 1]
+  const canUpgrade = slotCost !== null && state.resources.moondust >= slotCost
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={onClose}>
+      <div style={{ background: 'white', border: '2.5px solid #111', borderRadius: 16, width: '100%', maxWidth: 360, overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+        <img
+          src="/sprites/enemies/shop.png"
+          onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+          style={{ width: '100%', objectFit: 'contain', imageRendering: 'pixelated', display: 'block' }}
+        />
+        <div style={{ padding: '14px 18px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ fontSize: 14, fontWeight: 'bold', color: '#111' }}>
+            {preBoss ? '⚠️ Boss incoming — stock up!' : '🧪 Mid-floor shop'}
+          </div>
+          <button
+            style={{ ...g.buildingRow, opacity: canBuy ? 1 : 0.5 }}
+            disabled={!canBuy}
+            onClick={() => { onBuyPotion() }}
+          >
+            <div style={{ textAlign: 'left' as const }}>
+              <div style={{ fontSize: 13, color: '#333' }}>Health Potion <span style={{ color: '#666' }}>{state.potions}/{state.potionSlots}</span></div>
+              <div style={{ fontSize: 11, color: '#666' }}>{full ? 'Slots full' : 'Restores cat HP to full'}</div>
+            </div>
+            <span style={{ fontSize: 12, color: '#111' }}>25🐟</span>
+          </button>
+          {!maxSlots && (
+            <button
+              style={{ ...g.buildingRow, opacity: canUpgrade ? 1 : 0.5 }}
+              disabled={!canUpgrade}
+              onClick={() => { onUpgradeSlot() }}
+            >
+              <div style={{ textAlign: 'left' as const }}>
+                <div style={{ fontSize: 13, color: '#333' }}>Unlock Potion Slot {state.potionSlots + 1}</div>
+                <div style={{ fontSize: 11, color: '#666' }}>Carry up to {state.potionSlots + 1} potions</div>
+              </div>
+              <span style={{ fontSize: 12, color: '#111' }}>{slotCost}🌙</span>
+            </button>
+          )}
+          <button style={{ ...g.actionBtn, background: '#111', color: 'white', width: '100%' }} onClick={onClose}>
+            {preBoss ? 'Ready for the boss 💪' : 'Back to the fight'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ShopPanel({ state, onBuyPotion, onUpgradeSlot }: { state: GameState; onBuyPotion: () => void; onUpgradeSlot: () => void }) {
+  const full       = state.potions >= state.potionSlots
+  const canBuy     = !full && state.resources.fish >= POTION_COST
+  const maxSlots   = state.potionSlots >= 3
+  const slotCost   = maxSlots ? null : SLOT_COSTS[state.potionSlots - 1]
+  const canUpgrade = slotCost !== null && state.resources.moondust >= slotCost
+
+  return (
+    <div style={g.panel}>
+      <img
+        src="/sprites/enemies/shop.png"
+        onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+        style={{ width: '100%', borderRadius: 8, display: 'block', objectFit: 'contain', imageRendering: 'pixelated' }}
+      />
+      <div style={g.panelHeader}>🧪 Shop</div>
+
+      <button
+        style={{ ...g.buildingRow, opacity: canBuy ? 1 : 0.5 }}
+        disabled={!canBuy}
+        onClick={onBuyPotion}
+      >
+        <div style={{ textAlign: 'left' as const }}>
+          <div style={{ fontSize: 13, color: '#333' }}>Health Potion <span style={{ color: '#666' }}>{state.potions}/{state.potionSlots}</span></div>
+          <div style={{ fontSize: 11, color: '#666' }}>{full ? 'Slots full' : 'Instantly restores cat HP to full'}</div>
+        </div>
+        <div style={{ fontSize: 11, color: '#111' }}>🐟 {POTION_COST}</div>
+      </button>
+
+      {!maxSlots && (
+        <button
+          style={{ ...g.buildingRow, opacity: canUpgrade ? 1 : 0.5 }}
+          disabled={!canUpgrade}
+          onClick={onUpgradeSlot}
+        >
+          <div style={{ textAlign: 'left' as const }}>
+            <div style={{ fontSize: 13, color: '#333' }}>Unlock Potion Slot {state.potionSlots + 1}</div>
+            <div style={{ fontSize: 11, color: '#666' }}>Carry up to {state.potionSlots + 1} potions</div>
+          </div>
+          <div style={{ fontSize: 11, color: '#111' }}>🌙 {slotCost}</div>
+        </button>
+      )}
+    </div>
+  )
+}
+
 function KillFeed({ killLog }: { killLog: string[] }) {
   if (!killLog.length) return null
   return (
@@ -566,7 +737,7 @@ function ShareMomentModal({ moment, state, onClose }: { moment: ShareMoment; sta
         <textarea
           readOnly
           value={castText}
-          style={{ fontSize: 12, color: '#333', background: '#f5f5f0', border: '1.5px solid #111', borderRadius: 8, padding: '8px 10px', resize: 'none', height: 80, fontFamily: "'MyFont', monospace" }}
+          style={{ fontSize: 12, color: '#333', background: '#f5f5f0', border: '1.5px solid #111', borderRadius: 8, padding: '8px 10px', resize: 'none', height: 80, fontFamily: "'MyFont', 'Comic Sans MS', cursive" }}
         />
         <button style={{ ...g.actionBtn, background: '#111', color: 'white' }} onClick={() => { sdk.actions.openUrl(url); onClose() }}>
           ↗ Cast to Warpcast
@@ -578,6 +749,78 @@ function ShareMomentModal({ moment, state, onClose }: { moment: ShareMoment; sta
 }
 
 type LeaderEntry = { fid: number; username: string; pfp: string; zone: number; kills: number; score: number; castHash: string }
+
+function PrestigePanel({ state, onPrestige }: { state: GameState; onPrestige: () => void }) {
+  const { address } = useAccount()
+  const [step, setStep] = useState<'idle' | 'burning' | 'done'>('idle')
+  const nextLevel = state.prestigeLevel
+  const costTokens = PRESTIGE_COSTS[Math.min(nextLevel, PRESTIGE_COSTS.length - 1)]
+  const costWei    = BigInt(Math.floor(costTokens)) * BigInt(1e18)
+  const nextMult   = 1 + (nextLevel + 1) * PRESTIGE_BONUS
+  const maxed      = nextLevel >= PRESTIGE_COSTS.length
+
+  const { writeContract: burn, data: burnTx } = useWriteContract()
+  const { isSuccess: burnDone } = useWaitForTransactionReceipt({ hash: burnTx })
+
+  useEffect(() => {
+    if (burnDone && step === 'burning') {
+      onPrestige()
+      setStep('done')
+      setTimeout(() => setStep('idle'), 3000)
+    }
+  }, [burnDone])
+
+  function doBurn() {
+    if (!address || maxed) return
+    setStep('burning')
+    burn({ address: CLKCAT_ADDRESS, abi: CLKCAT_ABI, functionName: 'transfer',
+      args: [BURN_ADDRESS, costWei] })
+  }
+
+  return (
+    <div style={g.panel}>
+      <div style={g.panelHeader}>
+        <span>🔥 Prestige</span>
+        {state.prestigeLevel > 0 && (
+          <span style={{ fontSize: 11, color: '#10b981' }}>Level {state.prestigeLevel} · ×{state.prestigeMultiplier.toFixed(2)} prod</span>
+        )}
+      </div>
+      <div style={{ fontSize: 11, color: '#666' }}>
+        Burn $CLKCAT for a permanent production multiplier that survives resets. Each level stacks +{Math.round(PRESTIGE_BONUS * 100)}%.
+      </div>
+      {state.prestigeLevel > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+          {PRESTIGE_COSTS.map((cost, i) => (
+            <div key={i} style={{ background: i < state.prestigeLevel ? '#f0fdf4' : '#f5f5f0', border: `1px solid ${i < state.prestigeLevel ? '#10b981' : '#e5e5e0'}`, borderRadius: 8, padding: '6px 10px', fontSize: 10, color: i < state.prestigeLevel ? '#10b981' : '#aaa' }}>
+              {i < state.prestigeLevel ? '✅' : '🔒'} Lv{i + 1} · ×{(1 + (i + 1) * PRESTIGE_BONUS).toFixed(2)}
+            </div>
+          ))}
+        </div>
+      )}
+      {maxed ? (
+        <div style={{ fontSize: 12, color: '#10b981', textAlign: 'center' as const }}>Max prestige reached 🏆</div>
+      ) : !address ? (
+        <div style={{ fontSize: 11, color: '#aaa', textAlign: 'center' as const }}>Connect wallet to prestige</div>
+      ) : step === 'done' ? (
+        <div style={{ fontSize: 12, color: '#10b981', textAlign: 'center' as const }}>✅ Prestige {state.prestigeLevel} unlocked!</div>
+      ) : (
+        <button
+          style={{ ...g.buildingRow, opacity: step === 'burning' ? 0.5 : 1 }}
+          disabled={step === 'burning'}
+          onClick={doBurn}
+        >
+          <div style={{ textAlign: 'left' as const }}>
+            <div style={{ fontSize: 13, color: '#333' }}>Prestige → Level {nextLevel + 1}</div>
+            <div style={{ fontSize: 11, color: '#666' }}>Burn {(costTokens / 1e3).toFixed(0)}K $CLKCAT · resets run · +{Math.round(PRESTIGE_BONUS * 100)}% prod forever</div>
+          </div>
+          <div style={{ fontSize: 11, color: '#ef4444' }}>
+            {step === 'burning' ? 'Burning…' : '🔥'}
+          </div>
+        </button>
+      )}
+    </div>
+  )
+}
 
 function LeaderboardPanel() {
   const [entries, setEntries] = useState<LeaderEntry[] | null>(null)
@@ -613,21 +856,30 @@ function LeaderboardPanel() {
 type Tab = 'home' | 'rules' | 'share' | 'token'
 
 function BottomNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
-  const items: { id: Tab; label: string; svg: string }[] = [
+  const items: { id: Tab | 'cats'; label: string; svg: string; href?: string }[] = [
     { id: 'home',  label: 'Home',  svg: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
     { id: 'rules', label: 'Rules', svg: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' },
     { id: 'share', label: 'Share', svg: 'M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z' },
     { id: 'token', label: 'Token', svg: 'M13 10V3L4 14h7v7l9-11h-7z' },
+    { id: 'cats',  label: 'My Cats', href: '/cats', svg: 'M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 0c0 0-2 4-2 7s2 5 2 5 2-2 2-5-2-7-2-7z' },
   ]
   return (
     <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'white', borderTop: '1px solid #e5e5e0', display: 'flex', zIndex: 40, maxWidth: 480, margin: '0 auto', boxShadow: '0 -1px 8px rgba(0,0,0,0.06)' }}>
-      {items.map(item => (
-        <button key={item.id} onClick={() => setTab(item.id)}
+      {items.map(item => item.href ? (
+        <a key={item.id} href={item.href}
+          style={{ flex: 1, padding: '8px 0 10px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, textDecoration: 'none' }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+            <path d={item.svg} />
+          </svg>
+          <span style={{ fontSize: 10, color: '#aaa', fontFamily: "'MyFont', 'Comic Sans MS', cursive" }}>{item.label}</span>
+        </a>
+      ) : (
+        <button key={item.id} onClick={() => setTab(item.id as Tab)}
           style={{ flex: 1, padding: '8px 0 10px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={tab === item.id ? '#111' : '#aaa'} strokeWidth={tab === item.id ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round">
             <path d={item.svg} />
           </svg>
-          <span style={{ fontSize: 10, color: tab === item.id ? '#111' : '#aaa', fontWeight: tab === item.id ? 'bold' : 'normal', fontFamily: "'MyFont', monospace" }}>{item.label}</span>
+          <span style={{ fontSize: 10, color: tab === item.id ? '#111' : '#aaa', fontWeight: tab === item.id ? 'bold' : 'normal', fontFamily: "'MyFont', 'Comic Sans MS', cursive" }}>{item.label}</span>
         </button>
       ))}
     </div>
@@ -685,7 +937,10 @@ const MINI_GAME_ABI = [
 
 export default function GamePage() {
   const [state, setState]     = useState<GameState | null>(null)
-  const [showMini, setShowMini] = useState(false)
+  const [showMini, setShowMini]     = useState(false)
+  const [showMonke, setShowMonke]   = useState(false)
+  const [showShop, setShowShop]     = useState(false)
+  const lastShopKillsRef            = useRef(-1)
   const [debug, setDebug]     = useState(false)
   const [titleTaps, setTitleTaps] = useState(0)
   const [clankPops, setClankPops] = useState<{ id: number; x: number; y: number }[]>([])
@@ -709,6 +964,18 @@ export default function GamePage() {
   const { writeContract: claimMini } = useWriteContract()
 
   useEffect(() => {
+    try { sdk.actions.ready() } catch {}
+
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setShowShop(false)
+        setShowMini(false)
+        setShowMonke(false)
+        setShareMoment(null)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+
     const s = loadGame()
     setState(s)
     stateRef.current = s
@@ -739,6 +1006,19 @@ export default function GamePage() {
       }
       prevKillLogRef.current = newLog
 
+      // Trader Monke encounter at midpoint of each 10-kill cycle
+      if (stateRef.current.kills >= stateRef.current.nextMonkeAt && !stateRef.current.monkeSeen && !showMonke) {
+        setShowMonke(true)
+      }
+
+      // Shop popup only pre-boss (kill 8 of each 10-kill cycle), not during other modals
+      const k = stateRef.current.kills
+      const floorPos = k % 10
+      if (floorPos === 8 && k !== lastShopKillsRef.current && !showShop && !showMonke && !shareMoment) {
+        lastShopKillsRef.current = k
+        setShowShop(true)
+      }
+
       // Trigger mini-game on a random 10-30 min timer
       if (Date.now() >= nextMiniAt.current) {
         nextMiniAt.current = Date.now() + (10 + Math.random() * 20) * 60_000
@@ -750,7 +1030,7 @@ export default function GamePage() {
       if (stateRef.current) saveGame(stateRef.current)
     }, 5000)
 
-    return () => { clearInterval(interval); clearInterval(save) }
+    return () => { clearInterval(interval); clearInterval(save); window.removeEventListener('keydown', onKey) }
   }, [])
 
   function update(fn: (s: GameState) => GameState) {
@@ -771,11 +1051,13 @@ export default function GamePage() {
   return (
     <div style={g.root}>
       {showMini && <MiniGame onWin={onMiniWin} onClose={() => setShowMini(false)} />}
+      {showMonke && <MonkeEncounterModal onClose={() => { setShowMonke(false); update(s => dismissMonke(s)) }} />}
+      {showShop && state && <ShopModal state={state} preBoss={state.kills % 10 === 8} onBuyPotion={() => update(s => buyPotion(s))} onUpgradeSlot={() => update(s => upgradeSlot(s))} onClose={() => setShowShop(false)} />}
       {shareMoment && <ShareMomentModal moment={shareMoment} state={state} onClose={() => setShareMoment(null)} />}
 
       {/* Always-visible header + status */}
       <div style={g.header}>
-        <a href="/" style={g.backLink}>← Cats</a>
+        <a href="/cats" style={g.backLink}>← Cats</a>
         <span style={g.title} onClick={tapTitle}>🐱 Idle Clank</span>
         <span style={{ fontSize: 11, color: '#666' }}>Zone {state.zone + 1}</span>
       </div>
@@ -789,8 +1071,9 @@ export default function GamePage() {
       {/* Tab content */}
       {tab === 'home' && <>
         {clankPops.map(p => (
-          <div key={p.id} style={{ position: 'fixed', left: p.x, top: p.y, transform: 'translate(-50%, -50%)', pointerEvents: 'none', fontWeight: 'bold', fontSize: 15, color: '#111', animation: 'floatDmg 0.7s ease-out forwards', fontFamily: "'MyFont', monospace", zIndex: 50 }}>+1</div>
+          <div key={p.id} style={{ position: 'fixed', left: p.x, top: p.y, transform: 'translate(-50%, -50%)', pointerEvents: 'none', fontWeight: 'bold', fontSize: 15, color: '#111', animation: 'floatDmg 0.7s ease-out forwards', fontFamily: "'MyFont', 'Comic Sans MS', cursive", zIndex: 50 }}>+1</div>
         ))}
+        <HomePrizeTeaser onViewToken={() => setTab('token')} />
         <button
           style={g.clickBtn}
           onClick={e => {
@@ -803,10 +1086,12 @@ export default function GamePage() {
           <div style={{ fontSize: 22, fontWeight: 'bold', color: '#111', letterSpacing: 3 }}>CLANK!</div>
           <div style={{ fontSize: 10, color: '#999', letterSpacing: 1 }}>tap to earn ⚡</div>
         </button>
-        <CombatPanel state={state} onToggle={toggleFight} onHeal={() => update(s => s.resources.fish >= 10 ? { ...s, resources: { ...s.resources, fish: s.resources.fish - 10 }, catHealth: s.catMaxHealth } : s)} />
+        <CombatPanel state={state} onToggle={toggleFight} onHeal={() => update(s => s.resources.fish >= 10 ? { ...s, resources: { ...s.resources, fish: s.resources.fish - 10 }, catHealth: s.catMaxHealth } : s)} onPotion={() => update(s => usePotion(s))} onRecruit={() => update(s => buyBuilding(s, 'cat_trap'))} />
         <KillFeed killLog={state.killLog} />
         <BuildingsPanel state={state} onBuy={id => update(s => buyBuilding(s, id))} />
         {state.zone >= 1 && <UpgradesPanel state={state} onBuy={id => update(s => buyUpgrade(s, id as any))} />}
+        <AutoRunPanel />
+        <PrestigePanel state={state} onPrestige={() => update(s => prestige(s))} />
         {debug && (
           <div style={{ background: 'white', border: '1.5px solid #ef4444', borderRadius: 10, padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ fontSize: 11, color: '#ef4444', fontWeight: 'bold' }}>🛠 DEBUG MODE</div>
@@ -828,6 +1113,7 @@ export default function GamePage() {
       {tab === 'rules' && <RulesPanel />}
       {tab === 'share' && <SharePanel state={state} />}
       {tab === 'token' && <>
+        <PrizePoolBanner />
         <LeaderboardPanel />
       </>}
 
@@ -837,7 +1123,7 @@ export default function GamePage() {
 }
 
 const g: Record<string, React.CSSProperties> = {
-  root:        { padding: '14px 16px 88px', maxWidth: 480, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 10, minHeight: '100vh', background: '#f0efe9', color: '#111', fontFamily: "'MyFont', monospace" },
+  root:        { padding: '14px 16px 88px', maxWidth: 480, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 10, minHeight: '100vh', background: '#f0efe9', color: '#111', fontFamily: "'MyFont', 'Comic Sans MS', cursive" },
   header:      { display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 2 },
   backLink:    { fontSize: 12, color: '#888', textDecoration: 'none', letterSpacing: 0.3 },
   title:       { fontSize: 17, fontWeight: 'bold', color: '#111', cursor: 'pointer', letterSpacing: 0.5 },

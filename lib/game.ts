@@ -34,28 +34,37 @@ export type GameState = {
   lastHitDamage:  number
   hitTick:        number
   lastTick:       number
+  potions:     number
+  potionSlots: number
+  nextMonkeAt: number
+  monkeSeen:   boolean
+  prestigeLevel:      number   // how many times prestiged
+  prestigeMultiplier: number   // resource production multiplier from prestige
 }
 
-export const MAX_ZONE = 0  // unlock more zones as content is added
+export const MAX_ZONE = 1
 
-export const ZONE_NAMES = [
-  'The Lake', 'The Feed', 'The Channels',
-  'The Memes', 'Purple Territory', 'The Void',
-]
+export const ZONE_NAMES = ['The Lake', 'The Feed']
 
 const ENEMY_POOLS: { name: string; emoji: string; sprite?: string }[][] = [
   [
     { name: 'Mr. Fish',          emoji: '🐟', sprite: 'MrFish' },
     { name: 'Slime',             emoji: '🟢', sprite: 'Slime' },
-    { name: 'Cool Rat',          emoji: '🐀', sprite: 'cool rat' },
     { name: 'Duck with a Knife', emoji: '🦆', sprite: 'duck with a knife' },
     { name: 'Big Frog',          emoji: '🐸', sprite: 'big frog' },
+    { name: 'Big Snek',          emoji: '🐍', sprite: 'Big Snek' },
   ],
-  [{ name: 'Reply Guy',  emoji: '💬', sprite: 'cool rat'          }, { name: 'Shill Bot', emoji: '🤖', sprite: 'Slime'              }, { name: 'Normie',    emoji: '🧑', sprite: 'MrFish'             }],
-  [{ name: 'Whale',      emoji: '🐋', sprite: 'big frog'          }, { name: 'Degen',     emoji: '🎰', sprite: 'duck with a knife'  }],
-  [{ name: 'Short',      emoji: '📉', sprite: 'cool rat'          }, { name: 'Ponzi',     emoji: '🌀', sprite: 'Slime'              }],
-  [{ name: 'SEC Agent',  emoji: '👮', sprite: 'MrFish'            }, { name: 'Lawyer',    emoji: '⚖️', sprite: 'big frog'           }],
-  [{ name: 'BlackHole',  emoji: '🕳️', sprite: 'duck with a knife' }, { name: 'Void Cat',  emoji: '👾', sprite: 'Slime'              }],
+  [
+    { name: 'Fudder',       emoji: '📢', sprite: 'Fudder' },
+    { name: 'Bul',          emoji: '🐂', sprite: 'Bul' },
+    { name: 'Cool Rat',     emoji: '🐀', sprite: 'cool rat' },
+    { name: 'Trader Monke', emoji: '🐒', sprite: 'Trader Monke' },
+  ],
+]
+
+const BOSS_POOL: { name: string; emoji: string; sprite: string }[] = [
+  { name: 'Bobo',      emoji: '🐻', sprite: 'bobo.'     },
+  { name: 'Bad Chart', emoji: '📊', sprite: 'Bad Chart' },
 ]
 
 const BASE_BUILDINGS: Omit<Building, 'count'>[] = [
@@ -109,6 +118,14 @@ export const UPGRADES = [
   { id: 'speed',  name: 'Speed',  emoji: '⚡',   desc: '+50% resource rate',cost: { fish: 0, moondust: 10, clank: 0  } },
 ]
 
+export const POTION_COST = 25  // fish per potion
+export const SLOT_COSTS  = [40, 100] as const  // moondust to unlock slot 2, slot 3
+
+// $CLKCAT burn cost (in tokens, not wei) per prestige level
+export const PRESTIGE_COSTS = [500_000, 1_500_000, 5_000_000, 15_000_000, 50_000_000]
+// Each prestige level gives +25% to all resource production
+export const PRESTIGE_BONUS = 0.25
+
 export function defaultState(): GameState {
   return {
     resources:    { fish: 0, moondust: 0, clank: 0 },
@@ -129,6 +146,23 @@ export function defaultState(): GameState {
     lastHitDamage: 0,
     hitTick:       0,
     lastTick:      Date.now(),
+    potions:      0,
+    potionSlots:  1,
+    nextMonkeAt:  4,
+    monkeSeen:    false,
+    prestigeLevel:      0,
+    prestigeMultiplier: 1,
+  }
+}
+
+export function prestige(state: GameState): GameState {
+  const next = defaultState()
+  return {
+    ...next,
+    prestigeLevel:      state.prestigeLevel + 1,
+    prestigeMultiplier: 1 + (state.prestigeLevel + 1) * PRESTIGE_BONUS,
+    portals:            state.portals + 1,
+    potionSlots:        state.potionSlots,
   }
 }
 
@@ -143,7 +177,13 @@ export function loadGame(key = 'ccat-idle'): GameState {
     const def = defaultState()
     return {
       ...def, ...saved,
-      zone: Math.min(saved.zone ?? 0, MAX_ZONE),
+      zone:               Math.min(saved.zone ?? 0, MAX_ZONE),
+      potions:            saved.potions            ?? 0,
+      potionSlots:        saved.potionSlots        ?? 1,
+      nextMonkeAt:        saved.nextMonkeAt        ?? 4,
+      monkeSeen:          saved.monkeSeen          ?? false,
+      prestigeLevel:      saved.prestigeLevel      ?? 0,
+      prestigeMultiplier: saved.prestigeMultiplier ?? 1,
       buildings: def.buildings.map(b => {
         const found = saved.buildings?.find(sb => sb.id === b.id)
         return found ? { ...b, count: found.count } : b
@@ -175,9 +215,11 @@ export function subtract(res: Resources, cost: Resources): Resources {
 }
 
 function spawnEnemy(zone: number, kills: number): Enemy {
-  const pool   = ENEMY_POOLS[Math.min(zone, ENEMY_POOLS.length - 1)]
-  const pick   = pool[kills % pool.length]
   const isBoss = kills % 10 === 9
+  const pool   = ENEMY_POOLS[Math.min(zone, ENEMY_POOLS.length - 1)]
+  const pick   = isBoss
+    ? BOSS_POOL[Math.min(zone, BOSS_POOL.length - 1)]
+    : pool[kills % pool.length]
   const hp     = Math.floor(10 * Math.pow(1.3, zone) * (1 + kills * 0.05) * (isBoss ? 3 : 1))
   const atk    = Math.floor(1  * Math.pow(1.2, zone) * (1 + kills * 0.02) * (isBoss ? 2 : 1))
   const name   = isBoss ? `⚠️ BOSS: ${pick.name}` : pick.name
@@ -193,7 +235,7 @@ export function tick(state: GameState, dtMs: number): GameState {
   for (const b of s.buildings) {
     if (!b.prod) continue
     for (const [r, rate] of Object.entries(b.prod) as [keyof Resources, number][]) {
-      s.resources[r] += rate * b.count * dt * speed
+      s.resources[r] += rate * b.count * dt * speed * s.prestigeMultiplier
     }
   }
 
@@ -277,6 +319,28 @@ export function buyUpgrade(state: GameState, id: 'claws' | 'armor' | 'speed'): G
     s.catHealth    = s.catMaxHealth
   }
   return s
+}
+
+export function dismissMonke(state: GameState): GameState {
+  return { ...state, monkeSeen: true }
+}
+
+export function buyPotion(state: GameState): GameState {
+  if (state.potions >= state.potionSlots) return state
+  if (state.resources.fish < POTION_COST) return state
+  return { ...state, resources: { ...state.resources, fish: state.resources.fish - POTION_COST }, potions: state.potions + 1 }
+}
+
+export function upgradeSlot(state: GameState): GameState {
+  if (state.potionSlots >= 3) return state
+  const cost = SLOT_COSTS[state.potionSlots - 1]
+  if (state.resources.moondust < cost) return state
+  return { ...state, resources: { ...state.resources, moondust: state.resources.moondust - cost }, potionSlots: state.potionSlots + 1 }
+}
+
+export function usePotion(state: GameState): GameState {
+  if (state.potions <= 0) return state
+  return { ...state, potions: state.potions - 1, catHealth: state.catMaxHealth }
 }
 
 export function fmt(n: number): string {
