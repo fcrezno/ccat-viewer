@@ -12,6 +12,7 @@ import { BitmapText } from '@/components/BitmapText'
 import {
   addFriend, friends as loadFriends, ladder, noteFight, ratio,
   recordFor, recordLine, removeFriend, setRetired, nameFor, setName, NAME_LIMIT,
+  guestId,
   type Friend, type Ranked,
 } from '@/lib/stable'
 
@@ -653,6 +654,24 @@ export function Cradle() {
    * true so a response without the field behaves as fights always have.
    */
   const [recorded, setRecorded] = useState(true)
+
+  /*
+   * THE VIEWER'S FARCASTER ID, when there is one.
+   *
+   * Read from the mini app context rather than asked for: outside Farcaster it
+   * is simply null and everything still plays. It is a HINT — it names who a won
+   * run gets signed for, and the claim checks a Quick Auth token against that
+   * name rather than believing this.
+   */
+  const [fcFid, setFcFid] = useState<number | null>(null)
+
+  useEffect(() => {
+    let live = true
+    sdk.context
+      .then(c => { if (live) setFcFid(c?.user?.fid ?? null) })
+      .catch(() => {})
+    return () => { live = false }
+  }, [])
   /*
    * THE SIGNED LINE FOR A CAST, from the server, or null when this fight cannot
    * count towards a seasonal record — a demo cat, or a quick fight whose
@@ -836,7 +855,18 @@ export function Cradle() {
   const done = !!result && shown >= result.log.length
   const at = result && shown > 0 ? result.log[shown - 1] : null
   const prev = result && shown > 1 ? result.log[shown - 2] : null
-  const isDemo = result?.you.label === 'Demo Cat'
+  /*
+   * NO TOKEN BEHIND THIS CAT — a demo fight or a guest's run.
+   *
+   * It used to be `label === 'Demo Cat'`, which stopped being true the moment a
+   * guest cat started carrying its own name. A RUN says outright whether it is
+   * recorded, so that is read first; only a single fight falls back to the
+   * label, because it has no run to ask.
+   *
+   * An exhibition is deliberately NOT caught here: it is a real cat on a real
+   * fight, and only its RECORDING is skipped.
+   */
+  const isDemo = run ? !run.recorded : result?.you.label === 'Demo Cat'
 
   /*
    * WRITE THE RESULT ONCE, and only when the log has finished telling it.
@@ -910,8 +940,27 @@ export function Cradle() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(demo || !picked
-          ? { demo: true }
-          : { wallet: address, uid: picked.uid, name: nameFor(picked.uid) ?? undefined }),
+          ? {
+              demo: true,
+              /*
+               * THE SAME CAT EVERY VISIT.
+               *
+               * Without this the server rolls a guest from the request's own
+               * seed, so the cat a stranger just took four rounds deep stops
+               * existing the moment the run ends — nothing to grow attached to,
+               * and nothing a prize can be attached to either.
+               */
+              guest: guestId(),
+              // Only inside Farcaster. It names who may claim a won run later,
+              // and it is verified properly — against a signed token — at claim.
+              fid: fcFid ?? undefined,
+            }
+          : {
+              wallet: address,
+              uid: picked.uid,
+              name: nameFor(picked.uid) ?? undefined,
+              fid: fcFid ?? undefined,
+            }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error ?? 'that did not work'); return }

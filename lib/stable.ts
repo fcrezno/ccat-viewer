@@ -23,6 +23,7 @@
 const RECORDS = 'cradle.records.v1'
 const FRIENDS = 'cradle.friends.v1'
 const NAMES = 'cradle.names.v1'
+const GUEST = 'cradle.guest.v1'
 
 /*
  * HOW LONG A CAT'S NAME MAY BE.
@@ -40,6 +41,40 @@ export function cleanName(raw: string): string {
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, NAME_LIMIT)
+}
+
+/*
+ * THE GUEST CAT — for somebody who arrived without a wallet.
+ *
+ * A demo cat used to be invented per REQUEST, so the cat that just went four
+ * rounds deep stopped existing the moment the run ended. Nothing to get attached
+ * to, and nothing a prize could be attached to either.
+ *
+ * This is a number kept on the device. It is not an account and it is not
+ * secure — it is a seed, and the whole point is that it costs nothing to have
+ * one. The stats roll from it exactly as a token id rolls a real cat's, so a
+ * guest cat is a settled fighter that is the same every visit.
+ *
+ * Losing it (new phone, cleared storage) loses the cat. That is the honest
+ * trade for needing no sign-up, and it is why WINNING one converts it into an
+ * NFT that cannot be lost.
+ */
+export function guestId(): number {
+  if (typeof window === 'undefined') return 0
+  try {
+    const had = window.localStorage.getItem(GUEST)
+    if (had) {
+      const n = Number(had)
+      if (Number.isInteger(n) && n > 0) return n
+    }
+    // Kept well clear of real token ids so a guest can never be mistaken for one.
+    const made = 100000 + Math.floor(Math.random() * 899999)
+    window.localStorage.setItem(GUEST, String(made))
+    return made
+  } catch {
+    // Private browsing with storage blocked: still playable, just not remembered.
+    return 100000 + Math.floor(Math.random() * 899999)
+  }
 }
 
 export const names = (): { [uid: string]: string } => read(NAMES, {})

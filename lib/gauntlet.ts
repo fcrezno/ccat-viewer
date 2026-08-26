@@ -64,6 +64,14 @@ export type FoeRef = {
 /** The player's cat as the run carries it. Stats come back from the token id. */
 export type Runner = {
   uid:   string
+  /*
+   * The Farcaster account a won run is signed for, or 0 for nobody.
+   *
+   * Carried in the RUN STATE rather than resent on each round, so it is fixed
+   * when the run starts and cannot be swapped for somebody else's on the last
+   * step — the step that decides who gets the prize.
+   */
+  fid?:  number
   id:    string
   label: string
   art:   string

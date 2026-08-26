@@ -48,7 +48,7 @@ import { TICKET_TTL_MS, sign } from '@/lib/ticket'
  * move this behind Quick Auth the way the mint voucher does.
  */
 export async function POST(req: NextRequest) {
-  let body: { wallet?: string; uid?: string; name?: string; demo?: boolean }
+  let body: { wallet?: string; uid?: string; name?: string; demo?: boolean; guest?: number; fid?: number }
 
   try {
     body = await req.json()
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'expected a JSON body' }, { status: 400 })
   }
 
-  const { wallet, uid, name, demo } = body
+  const { wallet, uid, name, demo, guest, fid } = body
   const seed = (Math.random() * 0xffffffff) >>> 0
 
   let you: Runner
@@ -70,14 +70,36 @@ export async function POST(req: NextRequest) {
      * seed: there is no token behind it, but the run still needs a stable number
      * to roll from, and this keeps every rebuild of the cat identical.
      */
-    const id = String(1 + (seed % 999983))
-    const cat = ownedCat(id, 'Demo Cat')
+    /*
+     * A GUEST CAT, and it is the same cat every visit.
+     *
+     * The id used to come from the request's own seed, so the cat was reinvented
+     * on every run — nothing to grow attached to and nothing a prize could hang
+     * off. The page keeps a number in localStorage and sends it here instead, so
+     * the stats settle exactly the way a real token's do.
+     *
+     * It still falls back to a rolled id when none is sent, because a request
+     * without one must not fail — it just gets a cat it will not see again.
+     */
+    const id = String(
+      Number.isInteger(guest) && (guest as number) > 0
+        ? guest
+        : 1 + (seed % 999983),
+    )
+    const cat = ownedCat(id, `Guest #${id}`)
     you = {
-      uid: '',
+      /*
+       * A UID, so the run can be SIGNED and therefore claimed. It was blank,
+       * which made every guest run unclaimable by design — right when the prize
+       * was a title, wrong now the prize is a cat. "guest:" keeps it clearly
+       * apart from a token, and lib/season keeps guests off the collection board.
+       */
+      uid: `guest:${id}`,
+      fid: Number(fid) || 0,
       id,
       // The label the rest of the app already recognises, so every existing
       // "is this the demo?" check keeps working.
-      label: 'Demo Cat',
+      label: `Guest #${id}`,
       art: `/api/cat-art?seed=${seed >>> 0}`,
       maxHp: cat.maxHp,
       hp: cat.maxHp,
@@ -114,6 +136,7 @@ export async function POST(req: NextRequest) {
 
     you = {
       uid: cat.uid,
+      fid: Number(fid) || 0,
       id: cat.id,
       label,
       art: cat.meta?.image ?? '',
@@ -172,7 +195,11 @@ export async function POST(req: NextRequest) {
      * signs nothing.
      */
     // A run cannot be won at round one, so nothing is ever banked here.
-    tag: out.won ? null : tagFor(runPairs(next, out.foe), seed, null),
+    tag: out.won ? null : tagFor(
+      runPairs(next, out.foe), seed, null,
+      // Who may claim this run. A guest has a uid now, so a guest CAN.
+      next.you.uid ? { uid: next.you.uid, fid: Number(fid) || 0 } : null,
+    ),
     pot: next.pot,
     choices: next.choices,
     champion: isChampion(next),

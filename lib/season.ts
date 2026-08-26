@@ -75,20 +75,35 @@ type Payload = {
   exp?: number
 }
 
-export type Run = { season: number; seed: string; pairs: Pair[]; score: Score | null }
+export type Run = { season: number; seed: string; pairs: Pair[]; score: Score | null; runner: Runner | null }
 
 /**
- * `season|seed|scorer=points|winner>loser,winner>loser,…`
+ * `season|seed|scorer=points|runner@fid|winner>loser,…`
  *
  * The seed is what makes a run distinct, so the same run cast twice still counts
  * once. Hex, because it is shorter than decimal and this is a character budget.
  * The score section is empty when nothing was banked.
+ *
+ * THE RUNNER AND THEIR FID ARE IN THE SIGNATURE, and that is what makes a tag
+ * claimable. Without them the tag proves a run HAPPENED but not WHOSE it was —
+ * so anyone who saw one in a cast could paste it into their own and claim the
+ * prize. Bound this way, a copied tag names the person it was signed for and is
+ * worthless to the copier.
+ *
+ * The fid is taken on trust when the run starts, because /api/gauntlet is not
+ * behind auth. That costs nothing: signing a tag for somebody else's fid only
+ * produces a tag that somebody else can claim, and the claim itself checks a
+ * Quick Auth token against this value.
  */
-function pack(pairs: Pair[], seed: number, score: Score | null): string {
+function pack(pairs: Pair[], seed: number, score: Score | null, run: Runner | null): string {
   const body = pairs.map(p => `${p.w}>${p.l}`).join(',')
   const sc = score && score.points > 0 ? `${score.uid}=${Math.round(score.points)}` : ''
-  return `${SEASON}|${(seed >>> 0).toString(16)}|${sc}|${body}`
+  const who = run?.uid ? `${run.uid}@${run.fid ?? 0}` : ''
+  return `${SEASON}|${(seed >>> 0).toString(16)}|${sc}|${who}|${body}`
 }
+
+/** Who ran it: the cat, and the Farcaster account that will claim for it. */
+export type Runner = { uid: string; fid: number }
 
 const UID = /^[a-z0-9]+:\d+$/
 
@@ -96,14 +111,15 @@ function unpack(packed: string): Omit<Run, 'season'> & { season: number } | null
   const parts = packed.split('|')
 
   /*
-   * TWO SHAPES, because the first version of this tag had no score section and a
-   * handful may already be out there. Three parts is the old one; four is the
-   * one with points. An old tag still counts for wins and losses — the fight
-   * happened — it just scores nothing.
+   * THREE SHAPES, because this tag has grown twice and older ones are already
+   * out there in casts. Three parts is the original, four added the score, five
+   * added who ran it. An older tag still counts for wins and losses — the fight
+   * happened — it just cannot be CLAIMED, because it does not name anybody.
    */
-  let season: string, seed: string, sc: string, body: string
-  if (parts.length === 3) [season, seed, body] = parts, sc = ''
-  else if (parts.length === 4) [season, seed, sc, body] = parts
+  let season: string, seed: string, sc: string, who: string, body: string
+  if (parts.length === 3) [season, seed, body] = parts, sc = '', who = ''
+  else if (parts.length === 4) [season, seed, sc, body] = parts, who = ''
+  else if (parts.length === 5) [season, seed, sc, who, body] = parts
   else return null
 
   if (!season || !seed || !body) return null
@@ -124,7 +140,19 @@ function unpack(packed: string): Omit<Run, 'season'> & { season: number } | null
     score = { uid, points: Math.round(n) }
   }
 
-  return { season: Number(season), seed, pairs, score }
+  /*
+   * The runner is only trusted when BOTH halves parse. A tag naming a cat with
+   * no fid, or a fid that is not a number, is treated as unclaimable rather than
+   * half-claimable — there is no useful middle state for a prize.
+   */
+  let runner: Runner | null = null
+  if (who) {
+    const [uid, fidRaw] = who.split('@')
+    const fid = Number(fidRaw)
+    if (UID.test(uid ?? '') && Number.isInteger(fid) && fid > 0) runner = { uid, fid }
+  }
+
+  return { season: Number(season), seed, pairs, score, runner }
 }
 
 /**
@@ -134,11 +162,30 @@ function unpack(packed: string): Omit<Run, 'season'> & { season: number } | null
  * cat, which is invented per request and belongs to nobody, so there is no record
  * for it to go on. If that leaves nothing, there is no tag.
  */
-export function tagFor(pairs: Pair[], seed: number, score: Score | null = null): string | null {
+export function tagFor(
+  pairs: Pair[],
+  seed: number,
+  score: Score | null = null,
+  runner: Runner | null = null,
+): string | null {
   const real = pairs.filter(p => p.w && p.l)
   if (!real.length) return null
   const banked = score && score.uid && score.points > 0 ? score : null
-  return `${PREFIX}${SEASON}.${sign<Payload>({ p: pack(real, seed, banked) })}`
+  // A runner with no uid is a demo cat: it can be shown, never claimed.
+  const who = runner?.uid && runner.fid > 0 ? runner : null
+  return `${PREFIX}${SEASON}.${sign<Payload>({ p: pack(real, seed, banked, who) })}`
+}
+
+/**
+ * HOW MANY ROUNDS THE RUNNER WON, read off the pairs.
+ *
+ * The prize is scaled by depth — three wins earns one cat, five earns two — so
+ * this is the number the claim is decided on. Counted rather than carried, so a
+ * tag cannot claim more wins than the pairs it actually lists.
+ */
+export function winsFor(run: Run): number {
+  if (!run.runner) return 0
+  return run.pairs.filter(p => p.w === run.runner!.uid).length
 }
 
 /** Every valid tag's run, from a piece of text. Unsigned or altered ones are dropped. */
@@ -214,9 +261,18 @@ export type BoardRow = { uid: string; rank: number } & Tally
  * Cats with no points are left off entirely rather than listed at zero — a board
  * of a thousand cats on nil is not a ranking, it is the collection.
  */
+/** A guest cat is not a token. "guest:1234" never sits on the collection board. */
+export const isGuest = (uid: string) => uid.startsWith('guest:')
+
 export function board(t: Map<string, Tally>): BoardRow[] {
   return [...t.entries()]
-    .filter(([, v]) => v.points > 0)
+    /*
+     * GUESTS ARE LEFT OFF, deliberately. This board ranks the COLLECTION — it is
+     * what a Title is awarded from and what the champion prize reads. A guest cat
+     * is a seed on somebody's phone, not a token, so it cannot hold either. They
+     * get their own ranking; they do not dilute this one.
+     */
+    .filter(([uid, v]) => v.points > 0 && !isGuest(uid))
     .sort(([ua, a], [ub, b]) =>
       b.points - a.points ||
       a.runs - b.runs ||

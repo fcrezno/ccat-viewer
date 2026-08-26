@@ -74,6 +74,16 @@ export async function POST(req: NextRequest) {
           // other half of "double or nothing" — so a fallen run scores nil and
           // the board is a list of cats that took all five.
           champion ? { uid: next.you.uid, points: next.pot } : null,
+          /*
+           * WHO MAY CLAIM IT. Round one signs this too; without it here every
+           * run that got past the first cat — which is every run worth a prize —
+           * came back naming nobody and could not be claimed at all.
+           *
+           * The fid rides inside the ticket, so it survives the whole run
+           * without being resent and without being trusted from the client on
+           * each step.
+           */
+          next.you.uid ? { uid: next.you.uid, fid: next.you.fid ?? 0 } : null,
         )
       : null,
     pot: next.pot,
