@@ -220,7 +220,7 @@ await sharp(svg(W, H, dark + rough)).resize(W * 4, H * 4, { kernel: 'nearest' })
 let gd = ''
 for (let r = 0; r < ROWS.length; r++) for (let f = 0; f < FRAMES; f++) {
   const x = f * S, y = r * S
-  gd += '<rect x="' + x + '" y="' + y + '" width="' + S + '" height="' + S + '" fill="none" stroke="#00a0ff" stroke-opacity="0.55" stroke-width="1"/>'
+  gd += '<rect x="' + (x + 0.5) + '" y="' + (y + 0.5) + '" width="' + (S - 1) + '" height="' + (S - 1) + '" fill="none" stroke="#00a0ff" stroke-opacity="0.55" stroke-width="1"/>'
   // The contact point. Every frame is built outward from here.
   gd += '<line x1="' + (x + S / 2) + '" y1="' + y + '" x2="' + (x + S / 2) + '" y2="' + (y + S) + '" stroke="#ff00a0" stroke-opacity="0.4" stroke-width="1"/>'
   gd += '<line x1="' + x + '" y1="' + (y + S / 2) + '" x2="' + (x + S) + '" y2="' + (y + S / 2) + '" stroke="#ff00a0" stroke-opacity="0.4" stroke-width="1"/>'

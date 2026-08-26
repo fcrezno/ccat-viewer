@@ -49,12 +49,12 @@ let g = ''
 for (let i = 0; i < N; i++) {
   const x = cellX(i)
   // The cell itself.
-  g += `<rect x="${x}" y="0" width="${CELL}" height="${CELL}" fill="none" stroke="#00a0ff" stroke-opacity="0.6" stroke-width="1"/>`
+  g += `<rect x="${x + 0.5}" y="0.5" width="${CELL - 1}" height="${CELL - 1}" fill="none" stroke="#00a0ff" stroke-opacity="0.6" stroke-width="1"/>`
   // The 8px tile line, so the icon stays on the sprite grid.
   g += `<line x1="${x + TILE}" y1="0" x2="${x + TILE}" y2="${CELL}" stroke="#00a0ff" stroke-opacity="0.3" stroke-width="1"/>`
   g += `<line x1="${x}" y1="${TILE}" x2="${x + CELL}" y2="${TILE}" stroke="#00a0ff" stroke-opacity="0.3" stroke-width="1"/>`
   // The margin: art must not touch the edge or it collides with the button.
-  g += `<rect x="${x + 1}" y="1" width="${CELL - 2}" height="${CELL - 2}" fill="none" stroke="#ffb000" stroke-opacity="0.7" stroke-width="1"/>`
+  g += `<rect x="${x + 1.5}" y="1.5" width="${CELL - 3}" height="${CELL - 3}" fill="none" stroke="#ffb000" stroke-opacity="0.7" stroke-width="1"/>`
 }
 await sharp(svg(W, H, g)).png().toFile(`${OUT}/icons-guide.png`)
 await sharp(svg(W, H, g)).resize(W * 8, H * 8, { kernel: 'nearest' }).png().toFile(`${OUT}/icons-guide-x8.png`)

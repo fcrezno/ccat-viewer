@@ -425,7 +425,7 @@ for (const [name, rows] of Object.entries(SHEETS)) {
 
   for (let r = 0; r < rows.length; r++) for (let f = 0; f < FRAMES; f++) {
     const x = f * S, y = r * S
-    guide += '<rect x="' + x + '" y="' + y + '" width="' + S + '" height="' + S + '" fill="none" stroke="#00a0ff" stroke-opacity="0.55" stroke-width="1"/>'
+    guide += '<rect x="' + (x + 0.5) + '" y="' + (y + 0.5) + '" width="' + (S - 1) + '" height="' + (S - 1) + '" fill="none" stroke="#00a0ff" stroke-opacity="0.55" stroke-width="1"/>'
     guide += '<line x1="' + (x + S / 2) + '" y1="' + y + '" x2="' + (x + S / 2) + '" y2="' + (y + S) + '" stroke="#ff00a0" stroke-opacity="0.35" stroke-width="1"/>'
     guide += '<line x1="' + x + '" y1="' + (y + S / 2) + '" x2="' + (x + S) + '" y2="' + (y + S / 2) + '" stroke="#ff00a0" stroke-opacity="0.35" stroke-width="1"/>'
     guide += '<circle cx="' + (x + S / 2) + '" cy="' + (y + S / 2) + '" r="12" fill="none" stroke="#ffb000" stroke-opacity="0.55" stroke-width="1"/>'

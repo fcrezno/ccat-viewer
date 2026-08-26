@@ -37,12 +37,87 @@ const SHEETS = [
   ['attack-magic', ['ZOOMIES', 'FORGE', 'COOLANT', 'SIGNAL', 'GLITCH', 'CRYO', 'SCRAP', 'STRAY']],
 ]
 
+/**
+ * WORK ON A LAYER THAT WILL NEVER BE EXPORTED.
+ *
+ * Only "FRAME n" is packed, so drawing on the guide or the background produces
+ * art that this script ignores and that therefore never reaches the game. Krita
+ * opens these documents with the GUIDE layer selected — it is simply the topmost
+ * — so the first stroke of a session is the one most likely to land in the wrong
+ * place, and nothing about the canvas would look wrong.
+ *
+ * Counting lit pixels rather than comparing bytes, because Krita re-encodes every
+ * PNG it saves: identical art comes back as different bytes, and a byte check
+ * would cry wolf on every single save.
+ *
+ * The background is checked by COLOUR instead of alpha — it is opaque already, so
+ * painting on it does not change how many pixels are lit, only which colour they
+ * are.
+ */
+async function strayWork(doc, pristineGuideLit) {
+  const out = []
+
+  const guide = doc.layers.find(l => l.name.startsWith('GUIDE'))
+  if (guide) {
+    const { data, info } = await sharp(guide.png).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+    let lit = 0
+    for (let i = 3; i < data.length; i += info.channels) if (data[i] > 0) lit++
+    /*
+     * FEWER PIXELS THAN THE CURRENT GUIDE MEANS A STALE DOCUMENT, NOT STRAY WORK.
+     *
+     * The first version of the guide lost its top and left borders to a clipped
+     * SVG stroke, so documents built against it carry 260 lit pixels where the
+     * fixed guide has 351. Reporting that as "you drew on the guide" sends
+     * somebody hunting for a mistake they did not make.
+     */
+    if (lit < pristineGuideLit) {
+      out.push('  !! the GUIDE layer is older than the current one (' + lit + ' lit, now ' +
+        pristineGuideLit + ') — rebuild with make-frame-ora.mjs')
+    } else if (lit > pristineGuideLit) {
+      out.push('  !! the GUIDE layer has been drawn on (' + lit + ' lit, expected ' +
+        pristineGuideLit + ') — that layer is NEVER exported')
+    }
+  }
+
+  const bg = doc.layers.find(l => l.name === 'BACKGROUND')
+  if (bg) {
+    const { data, info } = await sharp(bg.png).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+    let odd = 0
+    for (let i = 0; i < data.length; i += info.channels) {
+      if (data[i] !== 0x12 || data[i + 1] !== 0x12 || data[i + 2] !== 0x1c) odd++
+    }
+    if (odd) out.push('  !! the BACKGROUND layer has been drawn on (' + odd +
+      ' pixels off the card colour) — that layer is NEVER exported')
+  }
+
+  const known = /^(FRAME [1-5]|ref [1-5]|GUIDE.*|BACKGROUND)$/
+  for (const l of doc.layers) {
+    if (!known.test(l.name.trim())) {
+      out.push('  !! layer "' + l.name + '" is not exported — only "FRAME 1".."FRAME 5" are')
+    }
+  }
+  return out
+}
+
 /** Whether anything was actually painted. Alpha only: colour is JP's business. */
 async function drawn(png) {
   const { data, info } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
   for (let i = 3; i < data.length; i += info.channels) if (data[i] > 0) return true
   return false
 }
+
+/*
+ * What an untouched guide looks like, taken from the generated sheet rather than
+ * hard-coded — so it stays right if the guide is ever redrawn.
+ */
+const pristine = await (async () => {
+  const { data, info } = await sharp('art/impact/impact-guide.png')
+    .extract({ left: 0, top: 0, width: S, height: S })
+    .ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+  let lit = 0
+  for (let i = 3; i < data.length; i += info.channels) if (data[i] > 0) lit++
+  return lit
+})()
 
 let touched = 0
 for (const [sheet, rows] of SHEETS) {
@@ -59,6 +134,8 @@ for (const [sheet, rows] of SHEETS) {
       notes.push('  ' + name + ': canvas is ' + doc.width + 'x' + doc.height + ', expected ' + S + 'x' + S)
       continue
     }
+
+    notes.push(...(await strayWork(doc, pristine)).map(w => w.replace('  !!', '  !! ' + name + ':')))
 
     let empties = 0
     for (let f = 0; f < FRAMES; f++) {
