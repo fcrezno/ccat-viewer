@@ -9,6 +9,7 @@ import { GameBar } from '@/components/GameBar'
 import { useSound } from '@/lib/useSound'
 import { trackForRound } from '@/lib/music'
 import { BitmapText } from '@/components/BitmapText'
+import { noteWin, noteLoss, type Beat } from '@/lib/streak'
 import {
   addFriend, friends as loadFriends, ladder, noteFight, ratio,
   recordFor, recordLine, removeFriend, setRetired, nameFor, setName, NAME_LIMIT,
@@ -255,6 +256,41 @@ function Confetti({ seed }: { seed: number }) {
  * row of them. Drawn empty while the run lives, because an empty slot is the
  * threat.
  */
+/**
+ * THE WIN STREAK, SAID PLAINLY.
+ *
+ * Sits directly under the fight log and above every ending, so it is the first
+ * thing read after a result and it is there whether the fight was a single one
+ * or a round of a run. That placement IS the feature: the point of a streak is
+ * to be seen before the player decides whether to stop.
+ *
+ * A LOSS THAT ENDED NOTHING SAYS NOTHING. Announcing "streak ended at 1" after a
+ * first-round loss is noise, and worse, it makes losing feel accounted for. The
+ * line only appears when there is something to lose.
+ */
+function StreakLine({ beat }: { beat: Beat }) {
+  const won = beat.now > 0
+  if (!won && beat.ended < 2) return null
+
+  const text = won
+    // "1 IN A ROW" is not English. The counter still has to start visibly, so
+    // the first win is named rather than counted.
+    ? (beat.now === 1 ? '1 WIN' : `${beat.now} IN A ROW`)
+    : `STREAK ENDED AT ${beat.ended}`
+
+  // A new best on the first win ever is trivially true and not worth a shout.
+  const best = beat.record && beat.now >= 2
+
+  return (
+    <section style={{ ...s.block, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+      <BitmapText text={text} scale={2} color={won ? '#5fc27e' : '#d1495b'} fx={best} />
+      {best
+        ? <BitmapText text="NEW BEST" scale={1} color="#e0a020" />
+        : beat.best >= 2 && <p style={{ ...s.fine0, margin: 0 }}>best {beat.best}</p>}
+    </section>
+  )
+}
+
 function RunTrack({ run, perfect }: { run: RunView; perfect: number }) {
   const beaten = run.won ? run.roundNo : run.roundNo - 1
 
@@ -1050,6 +1086,29 @@ export function Cradle() {
    * seen a single line. The ref guards the double-count a re-render would cause,
    * keyed on the fight's own seed so the next fight is counted again.
    */
+  /*
+   * THE WIN STREAK.
+   *
+   * A SEPARATE EFFECT FROM THE RECORD BELOW, and deliberately without its
+   * guards. The record skips demo and exhibition fights because it is a claim
+   * about a cat. A streak is a reason to press the button again, so it counts
+   * every decided fight — a guest's, a coded fight against a friend, and each
+   * round of a gauntlet.
+   *
+   * Guarded on the fight's own seed, the same way the record is, because a
+   * re-render would otherwise count one fight twice. Every round of a run gets
+   * its own seed from roundSeed(), so rounds are counted separately.
+   */
+  const [beat, setBeat] = useState<Beat | null>(null)
+  const streaked = useRef<string | null>(null)
+  useEffect(() => {
+    if (!done || !result) return
+    const key = String(result.seed)
+    if (streaked.current === key) return
+    streaked.current = key
+    setBeat(result.youWon ? noteWin() : noteLoss())
+  }, [done, result])
+
   useEffect(() => {
     // `recorded` covers the exhibition and the demo run; isDemo covers the demo
     // fight, which predates the flag.
@@ -1861,6 +1920,8 @@ export function Cradle() {
                   )}
                 </section>
               )}
+
+              {done && beat && <StreakLine beat={beat} />}
 
               {/*
                 THE RUN'S OWN ENDING.
