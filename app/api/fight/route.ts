@@ -29,6 +29,46 @@ import { pickRoster } from '@/lib/roster'
 /** Where a made-up cat's face comes from. Same seed, same cat, cached forever. */
 const art = (seed: number) => `/api/cat-art?seed=${seed >>> 0}`
 
+/*
+ * GUEST PVP IS AN EXHIBITION. That is the whole design, and it is why it needs
+ * no database.
+ *
+ * Two people with no wallets cannot share a ranking — there is nowhere to keep
+ * one, and that was the single place this app's no-database design actually
+ * broke. It does not have to be solved, because an exhibition DOES NOT COUNT.
+ * They fight for the fight. The record starts when they adopt.
+ *
+ * A guest cat is rolled from its id and nothing else, so the SIX-DIGIT CODE IS
+ * THE WHOLE CAT: hand somebody your number and they can rebuild your fighter
+ * exactly, with no server holding anything. That is what makes a sticker work —
+ * the sticker is the storage.
+ */
+const VS_MIN = 100000
+const VS_MAX = 999999
+
+/** An opponent code, or null. The range is guestId()'s, so a token id cannot pass. */
+function rivalCode(v: unknown): number | null {
+  return Number.isInteger(v) && (v as number) >= VS_MIN && (v as number) <= VS_MAX
+    ? (v as number)
+    : null
+}
+
+/**
+ * Somebody else's guest cat, rebuilt from their code.
+ *
+ * The NAME is taken from the request and the code is not — because the code
+ * decides the fighter and the name decides nothing. A player typing a rude name
+ * for somebody else's cat changes a label on their own screen in a fight that is
+ * not recorded, and cannot touch the other person's cat or record.
+ */
+function guestCat(id: number, label?: string): ArenaCat {
+  const given = (label ?? '').replace(/\s+/g, ' ').trim().slice(0, 32)
+  const cat = ownedCat(String(id), given || `Guest #${id}`)
+  cat.mine = false
+  cat.art = art(id)
+  return cat
+}
+
 /**
  * AN EXHIBITION — one real cat, and nothing written down.
  *
@@ -55,7 +95,7 @@ async function realFoe(
 }
 
 export async function POST(req: NextRequest) {
-  let body: { wallet?: string; uid?: string; demo?: boolean; name?: string; exhibition?: boolean; guest?: number }
+  let body: { wallet?: string; uid?: string; demo?: boolean; name?: string; exhibition?: boolean; guest?: number; vs?: number; vsName?: string }
 
   try {
     body = await req.json()
@@ -63,7 +103,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'expected a JSON body' }, { status: 400 })
   }
 
-  const { wallet, uid, demo, name, exhibition, guest } = body
+  const { wallet, uid, demo, name, exhibition, guest, vs, vsName } = body
+
+  /*
+   * An opponent's code turns any fight into guest PVP, and guest PVP is an
+   * exhibition — see rivalCode. It is read once, here, so the demo side and the
+   * owner side cannot drift: a cat holder can fight a guest's code too, which is
+   * what lets somebody with a real cat take on a stranger's sticker.
+   */
+  const rival = rivalCode(vs)
 
   /*
    * A DEMO FIGHT, FOR SOMEBODY WHO DOES NOT OWN A CAT YET.
@@ -101,7 +149,11 @@ export async function POST(req: NextRequest) {
     // A demo runner may ask for an exhibition too. Nothing about a demo is
     // recorded anyway, so the only difference is who is on the other side.
     let foe: ArenaCat | null = null
-    if (exhibition) {
+    if (rival) {
+      // GUEST vs GUEST. Their six digits are their whole cat, so this needs
+      // nothing stored on either side and no server between them.
+      foe = guestCat(rival, vsName)
+    } else if (exhibition) {
       let drawn = null
       try {
         drawn = await realFoe(new Set(), '')
@@ -170,7 +222,11 @@ export async function POST(req: NextRequest) {
   you.art = cat.meta?.image ?? ''
 
   let foe: ArenaCat | null = null
-  if (exhibition) {
+  if (rival) {
+    // A cat holder taking on somebody's guest code. Still an exhibition: a guest
+    // has no record, so there is nothing here for a win to move.
+    foe = guestCat(rival, vsName)
+  } else if (exhibition) {
     // Their whole shelf is excluded, not just the cat they entered — an
     // exhibition against your own second cat is not an exhibition.
     let drawn = null
@@ -209,7 +265,8 @@ export async function POST(req: NextRequest) {
    */
   return NextResponse.json({
     ...decided,
-    recorded: !exhibition,
+    // A coded opponent is guest PVP, which is an exhibition by definition.
+    recorded: !exhibition && !rival,
     tag: null,
   })
 }

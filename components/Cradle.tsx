@@ -783,6 +783,40 @@ export function Cradle() {
   const [note, setNote] = useState<string | null>(null)
   const [confirmRetire, setConfirmRetire] = useState(false)
   const [friendId, setFriendId] = useState('')
+
+  /*
+   * GUEST PVP — YOUR CODE, AND THEIRS.
+   *
+   * A guest cat is rolled from its id alone, so six digits ARE the cat. Handing
+   * somebody your number lets them rebuild your fighter exactly, which is how two
+   * people with no wallets fight each other with nothing stored anywhere.
+   *
+   * It is an EXHIBITION and it does not count. That is not a shortcoming, it is
+   * what makes it possible: a shared ranking would need somewhere to keep it, and
+   * there is nowhere. The record starts when they adopt a cat.
+   *
+   * ?vs=428193 fills the box, so a sticker or a link can carry the whole
+   * challenge and the other person only has to press FIGHT.
+   */
+  const [vsCode, setVsCode] = useState('')
+  const [myCode, setMyCode] = useState(0)
+  useEffect(() => {
+    // Read on the client only: guestId touches localStorage, and the server has
+    // no idea which guest this is, so rendering it during SSR would mismatch.
+    setMyCode(guestId())
+    const q = Number(new URLSearchParams(window.location.search).get('vs'))
+    if (Number.isInteger(q) && q >= 100000 && q <= 999999) setVsCode(String(q))
+  }, [])
+
+  function fightCode() {
+    const n = Number(vsCode)
+    if (!Number.isInteger(n) || n < 100000 || n > 999999) {
+      setError('a cat code is six digits'); return
+    }
+    if (n === myCode) { setError('that is your own cat'); return }
+    setPicked(null)
+    startFight({ demo: true, vs: n })
+  }
   const [nameDraft, setNameDraft] = useState('')
   const [naming, setNaming] = useState(false)
   const [rowsShown, setRowsShown] = useState(0)
@@ -1027,7 +1061,7 @@ export function Cradle() {
     bump(n => n + 1)
   }, [done, result, isDemo, picked, recorded])
 
-  async function startFight(payload: { uid?: string; demo?: boolean; exhibition?: boolean }) {
+  async function startFight(payload: { uid?: string; demo?: boolean; exhibition?: boolean; vs?: number }) {
     sound.prime()
     sound.startMusic()
     setBusy(true); setError(null); setNote(null); setConfirmRetire(false)
@@ -1043,8 +1077,18 @@ export function Cradle() {
           ...payload,
           // The guest keeps ONE cat across every mode, not one per fight.
           guest: payload.demo ? guestId() : undefined,
-          // Whatever the holder called this cat, so the log uses their name.
-          name: payload.uid ? nameFor(payload.uid) ?? undefined : undefined,
+          /*
+           * The name the player gave THIS cat, holder or guest.
+           *
+           * The guest half was missing, so a guest who named their cat still saw
+           * "Guest #428193" in a quick fight while the gauntlet used the name.
+           * One cat means one name as well as one set of numbers.
+           */
+          name: payload.uid
+            ? nameFor(payload.uid) ?? undefined
+            : payload.demo
+              ? nameFor(`guest:${guestId()}`) ?? undefined
+              : undefined,
         }),
       })
       const data = await res.json()
@@ -1499,6 +1543,37 @@ export function Cradle() {
                 GAUNTLET
               </button>
               <p style={s.modeFine}>five cats people own · a demo run is never recorded</p>
+
+              {/*
+                FIGHT A FRIEND — guest PVP, and the reason it needs no database.
+
+                Two guests cannot share a ranking, because there is nowhere to keep
+                one. They do not need to: an exhibition does not count, so they
+                fight for the fight and the record starts when they adopt.
+              */}
+              <p style={{ ...s.label, marginTop: 20 }}>FIGHT A FRIEND</p>
+              <p style={s.fine0}>
+                Your cat&rsquo;s code is{' '}
+                <b style={{ color: '#f0f0f5', letterSpacing: 1 }}>{myCode || '……'}</b>
+                {' '}&mdash; give it to somebody and they can fight your cat.
+              </p>
+              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                <input
+                  value={vsCode}
+                  onChange={e => setVsCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                  placeholder="their code, e.g. 428193"
+                  inputMode="numeric"
+                  style={s.input}
+                />
+                <button
+                  style={{ ...s.primary, width: 'auto', padding: '10px 14px' }}
+                  onClick={fightCode}
+                  disabled={busy}
+                >
+                  FIGHT
+                </button>
+              </div>
+              <p style={s.modeFine}>an exhibition &middot; nothing is recorded until you adopt a cat</p>
               {!isConnected && (
                 <>
                   <p style={{ ...s.fine, marginTop: 14 }}>
