@@ -10,6 +10,7 @@ import { useSound } from '@/lib/useSound'
 import { trackForRound } from '@/lib/music'
 import { BitmapText } from '@/components/BitmapText'
 import { noteWin, noteLoss, type Beat } from '@/lib/streak'
+import { Yard, type YardCat } from '@/components/Yard'
 import {
   addFriend, friends as loadFriends, ladder, noteFight, ratio,
   recordFor, recordLine, removeFriend, setRetired, nameFor, setName, NAME_LIMIT,
@@ -1099,6 +1100,57 @@ export function Cradle() {
    * re-render would otherwise count one fight twice. Every round of a run gets
    * its own seed from roundSeed(), so rounds are counted separately.
    */
+  /*
+   * THE YARD'S RESIDENTS: your cats, plus the cats of accounts you follow.
+   *
+   * The followed half comes from /api/yard, which needs a Farcaster identity —
+   * so outside Farcaster the yard is just your own shelf, and below two cats it
+   * says so rather than showing an empty pen.
+   */
+  const [yardCats, setYardCats] = useState<YardCat[]>([])
+  const [yardBusy, setYardBusy] = useState(false)
+
+  const faceOf = (c: Cat) =>
+    c.meta?.attributes?.find(a => /face/i.test(a.trait_type ?? ''))?.value ?? null
+
+  const mine: YardCat[] = useMemo(() => (cats ?? []).map(c => ({
+    uid: c.uid,
+    name: nameFor(c.uid) ?? c.meta?.name ?? `#${c.id}`,
+    face: faceOf(c),
+    art: c.meta?.image ?? '',
+    mine: true,
+  })), [cats])
+
+  useEffect(() => {
+    /*
+     * ?fid= STANDS IN FOR THE FARCASTER CONTEXT.
+     *
+     * Outside Farcaster there is no identity, so the yard would be your own shelf
+     * and nothing else — including in a browser, which is where it is easiest to
+     * look at. This makes any yard viewable by hand.
+     *
+     * It reads nothing private: a follow list and who owns which cat are both
+     * public, and the same call serves them to anybody already.
+     */
+    const asked = Number(new URLSearchParams(window.location.search).get('fid'))
+    const who = fcFid ?? (Number.isInteger(asked) && asked > 0 ? asked : null)
+
+    if (!who) { setYardCats(mine); return }
+    let live = true
+    setYardBusy(true)
+    fetch(`/api/yard?fid=${who}`)
+      .then(r => r.json())
+      .then(d => {
+        if (!live) return
+        const theirs: YardCat[] = (d?.residents ?? []).map((r: YardCat) => ({ ...r, mine: false }))
+        setYardCats([...mine, ...theirs])
+      })
+      // A yard that cannot reach its neighbours still has your own cats in it.
+      .catch(() => { if (live) setYardCats(mine) })
+      .finally(() => { if (live) setYardBusy(false) })
+    return () => { live = false }
+  }, [fcFid, mine])
+
   const [beat, setBeat] = useState<Beat | null>(null)
   const streaked = useRef<string | null>(null)
   useEffect(() => {
@@ -1647,6 +1699,21 @@ export function Cradle() {
                     ))}
                 </>
               )}
+            </section>
+          )}
+
+          {/*
+            THE YARD. Shown whenever there is anybody in it — your own shelf is
+            enough to start, and the followed cats arrive once Farcaster says who
+            you are.
+          */}
+          {yardCats.length > 0 && (
+            <section style={s.block}>
+              <p style={s.label}>THE YARD</p>
+              <p style={{ ...s.fine0, marginBottom: 12 }}>
+                Your cats and the cats of people you follow. Hover a name to see whose it is.
+              </p>
+              <Yard cats={yardCats} busy={yardBusy} />
             </section>
           )}
 

@@ -191,7 +191,13 @@ export async function GET(req: NextRequest) {
       const meta = await fetchMeta(col, id)
       residents.push({
         uid,
-        name: meta?.name ?? `#${id}`,
+        /*
+         * THE NUMBER, NOT THE METADATA NAME. Every token is called "Clanker Cats
+         * V2 #264" on chain, which in a sentence about two cats meeting reads as
+         * noise — and V1's names do not even match their ids. JP's rule for an
+         * unclaimed cat is the number and nothing else.
+         */
+        name: `#${id}`,
         face: meta?.attributes?.find(a => /face/i.test(a.trait_type ?? ''))?.value ?? null,
         owner,
         art: meta?.image ?? '',
