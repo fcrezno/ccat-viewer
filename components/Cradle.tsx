@@ -1663,11 +1663,28 @@ export function Cradle() {
                 fight for the fight and the record starts when they adopt.
               */}
               <p style={{ ...s.label, marginTop: 20 }}>FIGHT A FRIEND</p>
-              <p style={s.fine0}>
-                Your cat&rsquo;s code is{' '}
-                <b style={{ color: '#f0f0f5', letterSpacing: 1 }}>{myCode || '……'}</b>
-                {' '}&mdash; give it to somebody and they can fight your cat.
-              </p>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                {/*
+                  THE CODE AS A PICTURE. Reading six digits aloud is the worst part
+                  of doing this in person, and a sticker cannot be typed off a wall
+                  at all — the QR is the same deep link the box already accepts.
+                */}
+                {myCode > 0 && (
+                  <img
+                    src={`/api/qr?vs=${myCode}`}
+                    alt={`QR code for cat ${myCode}`}
+                    width={84}
+                    height={84}
+                    style={{ borderRadius: 6, flexShrink: 0, background: '#fff' }}
+                  />
+                )}
+                <p style={s.fine0}>
+                  Your cat&rsquo;s code is{' '}
+                  <b style={{ color: '#f0f0f5', letterSpacing: 1 }}>{myCode || '……'}</b>
+                  {' '}&mdash; give it to somebody, or let them scan this, and they can
+                  fight your cat.
+                </p>
+              </div>
               <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                 <input
                   value={vsCode}
