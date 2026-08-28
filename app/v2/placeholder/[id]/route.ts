@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { APP_URL } from '@/lib/miniapp'
 
 /**
  * Pre-reveal metadata. Every token id returns the same unrevealed card.
@@ -21,7 +22,7 @@ export async function GET(
   if (!/^\d+$/.test(id))
     return NextResponse.json({ error: 'invalid token id' }, { status: 400 })
 
-  const origin = process.env.NEXT_PUBLIC_APP_URL ?? 'https://ccat-viewer.vercel.app'
+  const origin = APP_URL
 
   return NextResponse.json(
     {

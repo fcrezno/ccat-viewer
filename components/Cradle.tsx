@@ -36,7 +36,7 @@ import {
  */
 
 const LINE_MS = 850
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://ccat-viewer.vercel.app'
+import { APP_URL } from '@/lib/miniapp'
 
 /*
  * THE COUNTDOWN'S BEATS, taken from the game rather than guessed at.

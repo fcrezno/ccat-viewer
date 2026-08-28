@@ -10,7 +10,32 @@
  *   splashImage   200x200       (public/splash.png)
  *   button.title  max 32 chars
  */
-export const APP_URL = 'https://ccat-viewer.vercel.app'
+/**
+ * WHERE THIS APP LIVES. One place, so moving it is one variable.
+ *
+ * It was written out in fourteen files, and five of those had each grown their
+ * own `process.env.NEXT_PUBLIC_APP_URL ?? '…'` with its own copy of the fallback.
+ * Moving domain meant finding all of them and getting every one right.
+ *
+ * The fallback is the current address, so nothing changes until the variable is
+ * set. Set NEXT_PUBLIC_APP_URL and the whole app follows.
+ *
+ * ── WHAT THIS DOES NOT COVER ─────────────────────────────────────────────────
+ *
+ * public/.well-known/farcaster.json holds twelve more, and it CANNOT be driven
+ * from here: its `accountAssociation` is SIGNED against the domain, so a new
+ * address needs a new signature made with the Farcaster account. That is a
+ * manual step and there is no way around it.
+ *
+ * And it is not only cosmetic to move. From the Farcaster client source,
+ * `favorited` and `notificationDetails` are keyed by DOMAIN — everybody who has
+ * added the mini app has added THIS address. Moving orphans them, and the cost
+ * grows with every person who adds it.
+ */
+export const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://ccat-viewer.vercel.app'
+
+/** The bare host, for Quick Auth's domain check and anything that wants no scheme. */
+export const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? new URL(APP_URL).host
 
 type EmbedOpts = {
   /** Max 32 characters — longer titles are truncated by the client. */

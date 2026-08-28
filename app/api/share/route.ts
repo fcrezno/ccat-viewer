@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { fetchMeta, getCollection } from '@/lib/collection'
+import { APP_URL } from '@/lib/miniapp'
 
-const APP = 'https://ccat-viewer.vercel.app'
+const APP = APP_URL
 
 function esc(s: string) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')

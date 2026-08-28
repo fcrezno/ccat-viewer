@@ -6,6 +6,7 @@ import { isAddress } from 'viem'
 import sdk from '@farcaster/miniapp-sdk'
 import { loadStats, saveStats, feed, pet, play, mood, moodEmoji, catLine, type Stats } from '@/lib/tamagotchi'
 import { COLLECTION_ABI, COLLECTIONS, getCollection, type Cat } from '@/lib/collection'
+import { APP_URL } from '@/lib/miniapp'
 
 const OPENSEA = 'https://opensea.io/collection/clanker-cats'
 
@@ -319,7 +320,7 @@ function CatDetail({ cat, onBack }: { cat: Cat; onBack: () => void }) {
   const col  = getCollection(cat.collection)
 
   async function share() {
-    const shareUrl = `https://ccat-viewer.vercel.app/api/share?id=${cat.id}&c=${cat.collection}`
+    const shareUrl = `${APP_URL}/api/share?id=${cat.id}&c=${cat.collection}`
     const name = meta?.name ?? `Clanker Cat #${cat.id}`
     // $CLKCAT renders as a token chip; @crezno makes every share a mention so
     // the drop collects into one thread instead of scattering.

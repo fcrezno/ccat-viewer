@@ -6,6 +6,7 @@ import { createClient } from '@farcaster/quick-auth'
 import { publicClient } from '@/lib/collection'
 import { V2, V2_ABI } from '@/lib/mint'
 import { bonusAllowance, bonusFid, HOLDER_BONUS } from '@/lib/bonus'
+import { APP_DOMAIN } from '@/lib/miniapp'
 
 /**
  * Issues an EIP-712 voucher authorising one mint for one Farcaster ID.
@@ -18,7 +19,7 @@ import { bonusAllowance, bonusFid, HOLDER_BONUS } from '@/lib/bonus'
 
 const quickAuth = createClient()
 
-const DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? 'ccat-viewer.vercel.app'
+const DOMAIN = APP_DOMAIN
 const TTL    = 15 * 60 // voucher lifetime, seconds
 
 /**

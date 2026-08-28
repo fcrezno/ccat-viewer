@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import qr from 'qrcode-generator'
+import { APP_URL } from '@/lib/miniapp'
 
 /**
  * A QR CODE FOR A CAT, OR FOR A PAGE OF THIS APP.
@@ -44,8 +45,7 @@ export const dynamic = 'force-dynamic'
 /** The quiet zone the spec requires. Without it, readers fail on busy backgrounds. */
 const MARGIN = 4
 
-const origin = () =>
-  process.env.NEXT_PUBLIC_APP_URL ?? 'https://ccat-viewer.vercel.app'
+const origin = () => APP_URL
 
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams

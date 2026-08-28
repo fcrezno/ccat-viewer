@@ -41,6 +41,16 @@ import { NextResponse } from 'next/server'
 export const dynamic = 'force-dynamic'
 
 /** The key hits.sh counts against. One counter for the whole site, as they were. */
+/*
+ * PINNED TO THE ORIGINAL HOST ON PURPOSE — do not follow APP_URL.
+ *
+ * This is the key the counter is registered under at hits.sh, not a link. It
+ * identifies the tally, and changing it does not move the count: it starts a new
+ * one at zero and the old number is simply gone.
+ *
+ * So it stays put even after the app moves address. A visitor counter that resets
+ * itself when the domain changes is worse than no counter.
+ */
 const KEY = 'ccat-viewer.vercel.app'
 
 export async function GET() {

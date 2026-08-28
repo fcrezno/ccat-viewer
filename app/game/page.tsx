@@ -10,6 +10,7 @@ import {
   POTION_COST, SLOT_COSTS, PRESTIGE_COSTS, PRESTIGE_BONUS,
   type GameState,
 } from '@/lib/game'
+import { APP_URL } from '@/lib/miniapp'
 
 const TICK_MS = 250
 
@@ -722,7 +723,7 @@ function ShareMomentModal({ moment, state, onClose }: { moment: ShareMoment; sta
   const heading = moment.type === 'zone'
     ? `🎉 Zone ${moment.zone + 1}: ${moment.zoneName} unlocked!`
     : `💀 BOSS defeated!`
-  const castText = `Zone ${state.zone + 1}: ${ZONE_NAMES[Math.min(state.zone, ZONE_NAMES.length - 1)]} · ${state.kills} kills · ${score}pts #IdleClank $CLKCAT\nCome play 👉 https://ccat-viewer.vercel.app/game`
+  const castText = `Zone ${state.zone + 1}: ${ZONE_NAMES[Math.min(state.zone, ZONE_NAMES.length - 1)]} · ${state.kills} kills · ${score}pts #IdleClank $CLKCAT\nCome play 👉 ${APP_URL}/game`
   const url = `https://warpcast.com/~/compose?text=${encodeURIComponent(castText)}`
 
   useEffect(() => {
@@ -915,7 +916,7 @@ function RulesPanel() {
 function SharePanel({ state }: { state: GameState }) {
   const zoneName = ZONE_NAMES[Math.min(state.zone, ZONE_NAMES.length - 1)]
   const text = `Zone ${state.zone + 1}: ${zoneName} · ${state.kills} kills · ${fmt(state.resources.fish)}🐟 · ${fmt(state.resources.clank)}⚡\nPlaying Idle Clank on ClankerCats $CLKCAT`
-  const url = `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}&embeds[]=https://ccat-viewer.vercel.app/game`
+  const url = `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}&embeds[]=${APP_URL}/game`
   return (
     <div style={g.panel}>
       <div style={g.panelHeader}>↗ Share Your Progress</div>

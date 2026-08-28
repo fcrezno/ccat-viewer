@@ -57,6 +57,18 @@ export const COLLECTIONS: CollectionDef[] = [
     label:    'Clanker Cats V2',
     opensea:  'https://opensea.io/assets/base/0x5C5b928f937F63656BE62d0A45f4Db756b79934B',
     pixelArt: true,
+    /*
+     * PINNED. THIS ONE IS NOT SAFE TO MOVE WITH THE APP.
+     *
+     * It is where a V2 cat's metadata is served from, and the CONTRACT points
+     * here — every marketplace, wallet and explorer reads a token's art and
+     * traits through this address. Repointing the app does not repoint them.
+     *
+     * Moving domain therefore means EITHER keeping this host serving metadata
+     * forever, OR changing the contract's baseURI, which is a chain transaction
+     * and only possible if the contract allows it. Until one of those is done,
+     * this string stays exactly as it is.
+     */
     metaBase: 'https://ccat-viewer.vercel.app/v2/metadata/',
     supply:   1111,
   },

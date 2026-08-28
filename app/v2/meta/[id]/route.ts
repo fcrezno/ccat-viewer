@@ -3,6 +3,7 @@ import { publicClient } from '@/lib/collection'
 import { V2, V2_ABI } from '@/lib/mint'
 import { readFile } from 'fs/promises'
 import { join } from 'path'
+import { APP_URL } from '@/lib/miniapp'
 
 /**
  * Progressive reveal.
@@ -35,7 +36,7 @@ export async function GET(
     return NextResponse.json({ error: 'invalid token id' }, { status: 400 })
 
   const tokenId = Number(id)
-  const origin  = process.env.NEXT_PUBLIC_APP_URL ?? 'https://ccat-viewer.vercel.app'
+  const origin  = APP_URL
 
   if (tokenId < 1) return unrevealed(tokenId, origin)
 

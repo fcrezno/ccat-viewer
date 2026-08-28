@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useAccount, useConnect, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import sdk from '@farcaster/miniapp-sdk'
 import { V2, V2_ABI, MINT_ERRORS, type Voucher } from '@/lib/mint'
+import { APP_URL } from '@/lib/miniapp'
 
 type Phase = 'idle' | 'authorising' | 'minting' | 'confirming' | 'done' | 'error'
 
@@ -125,8 +126,8 @@ export default function MintPage() {
     // Share the cat itself when we know which one — /api/share renders its image
     // as the embed. Falls back to the mint page if the token id wasn't readable.
     const target = mintedId
-      ? `https://ccat-viewer.vercel.app/api/share?id=${mintedId}&c=v2`
-      : 'https://ccat-viewer.vercel.app/mint'
+      ? `${APP_URL}/api/share?id=${mintedId}&c=v2`
+      : `${APP_URL}/mint`
 
     const url = `https://warpcast.com/~/compose?text=${text}&embeds[]=${encodeURIComponent(target)}`
     try { await sdk.actions.openUrl(url) } catch { window.open(url, '_blank') }
