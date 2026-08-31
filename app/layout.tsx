@@ -5,10 +5,24 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Clanker Cats',
-  description: '1111 free pixel cats on Base. One per Farcaster account, plus one more for holders.',
+  /*
+   * THE GAME IS THE SELLER, so the copy sells the game.
+   *
+   * This said "Your Clanker Cat fights. You watch." — honest about the old
+   * build, and now the exact criticism the game is being fixed for. Posted in a
+   * Discord full of gamers it argues against itself, and it sat directly above
+   * the line "anyone can play".
+   *
+   * The mint pitch is not lost. /mint keeps its own metadata and still leads
+   * with the 1111 cats, which is right on the page where somebody is minting.
+   *
+   * What is left is the only claim that needs no chain, no wallet and no
+   * explanation: it plays right now, in whatever you are reading this in.
+   */
+  description: "A fighting game in your browser. No wallet, no install, no sign-up.",
   openGraph: {
     title: "Cat's Cradle — Clanker Cats",
-    description: 'Your Clanker Cat fights. You watch. A preview of the game.',
+    description: "One click and you're in a fight. No wallet, no install, nothing to sign. If it's not fun, why bother?",
     images: [`${APP_URL}/cradle.png`],
   },
   /*
