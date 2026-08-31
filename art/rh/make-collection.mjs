@@ -16,10 +16,11 @@
  *
  * ── EVERY CAT IS UNIQUE ──────────────────────────────────────────────────────
  *
- * 23 backgrounds x 8 bodies x 10 faces is 1840 combinations, so a collection
- * larger than that is impossible and one close to it gets slow to fill by
- * rejection. The generator refuses anything over the maximum rather than looping
- * forever, and gives up with a clear message if the draw stalls.
+ * The merged set is 27 backgrounds x 14 bodies x 20 faces — 7560 combinations,
+ * against 1840 from V2's layers alone. A collection larger than the pool is
+ * impossible and one close to it gets slow to fill by rejection, so the generator
+ * refuses anything over the maximum rather than looping forever, and gives up
+ * with a clear message if a draw stalls.
  *
  * ── DETERMINISTIC ────────────────────────────────────────────────────────────
  *
@@ -38,15 +39,23 @@ import sharp from 'sharp'
 import fs from 'node:fs'
 import path from 'node:path'
 
-const LAYERS = 'layers'
-const ORDER = ['Background', 'Body', 'Face']   // painted back to front
-const OUT = 'art/rh/out'
-const SCALE = 4                                 // 250x199 -> 1000x796
-
+/*
+ * WHICH LAYER SET. Defaults to the merged one, which consolidate.mjs builds from
+ * V2's layers plus V1's — 7560 combinations rather than V2's 1840.
+ *
+ *   --layers layers            V2 only, the original 1840
+ */
 const arg = (name, fallback) => {
   const i = process.argv.indexOf('--' + name)
   return i > -1 ? process.argv[i + 1] : fallback
 }
+
+const LAYERS = arg('layers', 'art/rh/layers')
+
+const ORDER = ['Background', 'Body', 'Face']   // painted back to front
+const OUT = 'art/rh/out'
+const SCALE = 4                                 // 250x199 -> 1000x796
+
 const COUNT = Number(arg('count', 1111))
 const SEED = Number(arg('seed', 1))
 
