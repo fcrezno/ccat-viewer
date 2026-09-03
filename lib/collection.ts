@@ -1,5 +1,5 @@
-import { createPublicClient, http, fallback } from 'viem'
-import { base } from 'viem/chains'
+import type { Chain } from 'viem'
+import { base, clientForChain } from './chains'
 
 /**
  * Clanker Cats collections on Base.
@@ -16,6 +16,14 @@ export type CollectionKey = 'v1' | 'v2'
 export type CollectionDef = {
   key:     CollectionKey
   address: `0x${string}`
+  /**
+   * WHICH CHAIN THIS COLLECTION IS ON.
+   *
+   * V1 and V2 are Base. V3 is Robinhood Chain. Everything that reads a
+   * collection goes through `clientFor(col)`, so adding an entry on a new chain
+   * needs no change to the readers.
+   */
+  chain:   Chain
   label:   string
   opensea: string
   /** Pixel art is upscaled nearest-neighbour; anything else gets smooth resampling. */
@@ -45,6 +53,7 @@ export const COLLECTIONS: CollectionDef[] = [
   {
     key:      'v1',
     address:  '0xbE76Ce3cE0966fedA606fCF70884dae8FBaa7FCF',
+    chain:    base,
     label:    'Clanker Cats',
     opensea:  'https://opensea.io/collection/clanker-cats',
     pixelArt: true,
@@ -54,6 +63,7 @@ export const COLLECTIONS: CollectionDef[] = [
   {
     key:      'v2',
     address:  '0x5C5b928f937F63656BE62d0A45f4Db756b79934B',
+    chain:    base,
     label:    'Clanker Cats V2',
     opensea:  'https://opensea.io/assets/base/0x5C5b928f937F63656BE62d0A45f4Db756b79934B',
     pixelArt: true,
@@ -128,17 +138,14 @@ export type Cat = {
   meta:       CatMeta | null
 }
 
-// Ordered by what actually stayed up under load: llamarpc returns 521s and
-// mainnet.base.org rate-limits hard enough to fail a 200-call multicall.
-export const publicClient = createPublicClient({
-  chain: base,
-  transport: fallback([
-    http('https://base-rpc.publicnode.com'),
-    http('https://1rpc.io/base'),
-    http('https://mainnet.base.org'),
-    http('https://base.llamarpc.com'),
-  ]),
-})
+/**
+ * The Base client. Still exported under its old name because the mint voucher
+ * and the V2 metadata route are both V2-only, and V2 is not moving off Base.
+ */
+export const publicClient = clientForChain(base)
+
+/** The client for whichever chain this collection lives on. */
+export const clientFor = (col: CollectionDef) => clientForChain(col.chain)
 
 export function makeUid(collection: CollectionKey, id: string | number) {
   return `${collection}:${id}`
@@ -154,12 +161,12 @@ export async function fetchOwnedIds(col: CollectionDef, owner: string): Promise<
   const target = owner.toLowerCase()
 
   // Cheap pre-check: if the wallet holds nothing here, skip the whole scan.
-  const balance = Number(await retry(() => publicClient.readContract({
+  const balance = Number(await retry(() => clientFor(col).readContract({
     address: col.address, abi: COLLECTION_ABI, functionName: 'balanceOf', args: [owner as `0x${string}`],
   })))
   if (balance === 0) return []
 
-  const supply = Number(await retry(() => publicClient.readContract({
+  const supply = Number(await retry(() => clientFor(col).readContract({
     address: col.address, abi: COLLECTION_ABI, functionName: 'totalSupply',
   })))
   const ids = Array.from({ length: Math.min(supply, SCAN_LIMIT) }, (_, i) => i + 1)
@@ -179,7 +186,7 @@ export async function fetchOwnedIds(col: CollectionDef, owner: string): Promise<
 
   for (let start = 0; start < ids.length && found.length < balance; start += CHUNK) {
     const slice = ids.slice(start, start + CHUNK)
-    const owners = await retry(() => publicClient.multicall({
+    const owners = await retry(() => clientFor(col).multicall({
       contracts: slice.map(id => ({
         address: col.address, abi: COLLECTION_ABI, functionName: 'ownerOf', args: [BigInt(id)],
       })),
@@ -227,7 +234,7 @@ export async function liveSupply(col: CollectionDef): Promise<number> {
   const hit = supplyCache.get(col.key)
   if (hit && Date.now() - hit.at < SUPPLY_TTL) return hit.n
 
-  const n = Number(await retry(() => publicClient.readContract({
+  const n = Number(await retry(() => clientFor(col).readContract({
     address: col.address, abi: COLLECTION_ABI, functionName: 'totalSupply',
   })))
   // Never trust it past the cap the contract was deployed with.
@@ -239,7 +246,7 @@ export async function liveSupply(col: CollectionDef): Promise<number> {
 /** Who holds each id, in one call. Null where the token does not exist. */
 export async function ownersOf(col: CollectionDef, ids: number[]): Promise<(string | null)[]> {
   if (!ids.length) return []
-  const res = await retry(() => publicClient.multicall({
+  const res = await retry(() => clientFor(col).multicall({
     contracts: ids.map(id => ({
       address: col.address, abi: COLLECTION_ABI, functionName: 'ownerOf', args: [BigInt(id)],
     })),
