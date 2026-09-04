@@ -14,8 +14,7 @@
  */
 @font-face {
   font-family: 'MyFont';
-  src: url('/fonts/MyFont-Regular.ttf') format('truetype'),
-       url('/fonts/MyFont-Regular.otf') format('opentype');
+  src: url('/fonts/MyFont-Regular.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
@@ -45,10 +44,45 @@
  * screen in the app rendered in the system sans while the game's own face sat
  * downloaded and idle.
  */
+/*
+ * ONE FONT STACK, NAMED ONCE.
+ *
+ * The app had FOUR, which is what made the type look uneven:
+ *
+ *   'MyFont', monospace                       layout, mint
+ *   'MyFont', 'Comic Sans MS', cursive        the idle game
+ *   'MyFont', Arial, Helvetica, sans-serif    this rule
+ *   monospace                                 cats/page.tsx, no MyFont at all
+ *
+ * They only agree while the font file loads. The moment it is slow, missing, or
+ * asked for a glyph it does not have, four screens fall back four different ways
+ * — and one of them was never asking for MyFont in the first place.
+ *
+ * THE FALLBACK IS PROPORTIONAL, and that is measured rather than chosen by taste:
+ * MyFont's post table says isFixedPitch = 0. Falling back to `monospace` swaps a
+ * proportional face for a fixed-pitch one, which changes the width of every line
+ * on the screen. A hand-lettered fallback keeps the metrics and the character.
+ */
+:root {
+  --font-game: 'MyFont', 'Comic Sans MS', 'Segoe Print', cursive;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: 'MyFont', Arial, Helvetica, sans-serif;
+  font-family: var(--font-game);
+}
+
+/*
+ * FORM CONTROLS DO NOT INHERIT font-family. This is the actual cause of the
+ * unevenness — a button renders in the browser's own UI font unless it is told
+ * otherwise, and thirteen of them across the app were never told.
+ *
+ * Fixing it here rather than in each style object means the next button added is
+ * right without anybody remembering.
+ */
+button, input, select, textarea, optgroup {
+  font-family: inherit;
 }
 
 /*

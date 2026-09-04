@@ -47,17 +47,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       {/*
-        THE FONT IS SET HERE, and it has to be.
+        THE FONT IS NO LONGER SET HERE, and that is the fix.
 
-        This was `fontFamily: 'monospace'`, an INLINE style on the body — and an
-        inline style beats any stylesheet, so the `@font-face` and the body rule in
-        globals.css could never win. MyFont was downloaded and then ignored on
-        every screen in the app.
+        It used to be, because an inline `fontFamily: 'monospace'` on this body
+        was beating the stylesheet and MyFont was downloaded and then ignored on
+        every screen. The value was corrected in place, which worked — and left
+        TWO owners of the same property, quietly disagreeing about the fallback:
+        monospace here, Arial in globals.css.
 
-        monospace is kept as the fallback, so a failed font load looks like the app
-        always did rather than dropping to Times.
+        An inline style still beats any stylesheet, so the rule has not changed.
+        The conclusion did: the way to stop an inline style winning an argument
+        is to not have one. globals.css owns the font now, as --font-game.
       */}
-      <body style={{ margin: 0, background: '#0a0a14', color: 'white', fontFamily: "'MyFont', monospace", minHeight: '100vh' }}>
+      <body style={{ margin: 0, background: '#0a0a14', color: 'white', minHeight: '100vh' }}>
         <Providers>{children}</Providers>
       </body>
     </html>

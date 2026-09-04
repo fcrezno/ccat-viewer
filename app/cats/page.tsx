@@ -520,7 +520,7 @@ const s: Record<string, React.CSSProperties> = {
   explorerBtn:  { padding: 12, background: 'transparent', color: '#555', border: '1px solid #2a2a3e', borderRadius: 10, cursor: 'pointer', fontSize: 13 },
   sendPanel:    { display: 'flex', flexDirection: 'column', gap: 14, background: '#0a0a14', border: '1px solid #2a2a3e', borderRadius: 12, padding: '16px' },
   resolvedRow:  { display: 'flex', alignItems: 'center', gap: 8, background: '#12122a', border: '1px solid #2a2a3e', borderRadius: 8, padding: '7px 10px' },
-  sendInput:    { background: '#12122a', border: '1px solid #2a2a3e', borderRadius: 8, padding: '10px 12px', color: 'white', fontSize: 13, fontFamily: 'monospace', width: '100%', boxSizing: 'border-box' as const, outline: 'none' },
+  sendInput:    { background: '#12122a', border: '1px solid #2a2a3e', borderRadius: 8, padding: '10px 12px', color: 'white', fontSize: 13, width: '100%', boxSizing: 'border-box' as const, outline: 'none' },
   sendConfirmBtn: { padding: '12px 0', background: '#7c3aed', color: 'white', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 'bold', width: '100%' },
   back:         { background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 13, padding: '0 0 4px 0', textAlign: 'left' as const },
   tamaPanel:    { display: 'flex', flexDirection: 'column', gap: 12, background: '#0a0a14', border: '1px solid #1a1a2e', borderRadius: 12, padding: '14px 16px' },

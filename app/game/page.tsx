@@ -388,7 +388,7 @@ function CombatPanel({ state, onToggle, onHeal, onPotion, onRecruit }: { state: 
                 />
               )}
               {damages.map(d => (
-                <div key={d.id} style={{ position: 'absolute', top: '25%', left: `${d.x}%`, fontWeight: 'bold', fontSize: 20, color: '#ef4444', pointerEvents: 'none', animation: 'floatDmg 0.8s ease-out forwards', fontFamily: "'MyFont', 'Comic Sans MS', cursive", textShadow: '0 1px 3px rgba(0,0,0,0.2)' }}>
+                <div key={d.id} style={{ position: 'absolute', top: '25%', left: `${d.x}%`, fontWeight: 'bold', fontSize: 20, color: '#ef4444', pointerEvents: 'none', animation: 'floatDmg 0.8s ease-out forwards', textShadow: '0 1px 3px rgba(0,0,0,0.2)' }}>
                   -{d.val}
                 </div>
               ))}
@@ -738,7 +738,7 @@ function ShareMomentModal({ moment, state, onClose }: { moment: ShareMoment; sta
         <textarea
           readOnly
           value={castText}
-          style={{ fontSize: 12, color: '#333', background: '#f5f5f0', border: '1.5px solid #111', borderRadius: 8, padding: '8px 10px', resize: 'none', height: 80, fontFamily: "'MyFont', 'Comic Sans MS', cursive" }}
+          style={{ fontSize: 12, color: '#333', background: '#f5f5f0', border: '1.5px solid #111', borderRadius: 8, padding: '8px 10px', resize: 'none', height: 80 }}
         />
         <button style={{ ...g.actionBtn, background: '#111', color: 'white' }} onClick={() => { sdk.actions.openUrl(url); onClose() }}>
           ↗ Cast to Warpcast
@@ -872,7 +872,7 @@ function BottomNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
             <path d={item.svg} />
           </svg>
-          <span style={{ fontSize: 10, color: '#aaa', fontFamily: "'MyFont', 'Comic Sans MS', cursive" }}>{item.label}</span>
+          <span style={{ fontSize: 10, color: '#aaa' }}>{item.label}</span>
         </a>
       ) : (
         <button key={item.id} onClick={() => setTab(item.id as Tab)}
@@ -880,7 +880,7 @@ function BottomNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={tab === item.id ? '#111' : '#aaa'} strokeWidth={tab === item.id ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round">
             <path d={item.svg} />
           </svg>
-          <span style={{ fontSize: 10, color: tab === item.id ? '#111' : '#aaa', fontWeight: tab === item.id ? 'bold' : 'normal', fontFamily: "'MyFont', 'Comic Sans MS', cursive" }}>{item.label}</span>
+          <span style={{ fontSize: 10, color: tab === item.id ? '#111' : '#aaa', fontWeight: tab === item.id ? 'bold' : 'normal' }}>{item.label}</span>
         </button>
       ))}
     </div>
@@ -1072,7 +1072,7 @@ export default function GamePage() {
       {/* Tab content */}
       {tab === 'home' && <>
         {clankPops.map(p => (
-          <div key={p.id} style={{ position: 'fixed', left: p.x, top: p.y, transform: 'translate(-50%, -50%)', pointerEvents: 'none', fontWeight: 'bold', fontSize: 15, color: '#111', animation: 'floatDmg 0.7s ease-out forwards', fontFamily: "'MyFont', 'Comic Sans MS', cursive", zIndex: 50 }}>+1</div>
+          <div key={p.id} style={{ position: 'fixed', left: p.x, top: p.y, transform: 'translate(-50%, -50%)', pointerEvents: 'none', fontWeight: 'bold', fontSize: 15, color: '#111', animation: 'floatDmg 0.7s ease-out forwards', zIndex: 50 }}>+1</div>
         ))}
         <HomePrizeTeaser onViewToken={() => setTab('token')} />
         <button
@@ -1124,7 +1124,7 @@ export default function GamePage() {
 }
 
 const g: Record<string, React.CSSProperties> = {
-  root:        { padding: '14px 16px 88px', maxWidth: 480, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 10, minHeight: '100vh', background: '#f0efe9', color: '#111', fontFamily: "'MyFont', 'Comic Sans MS', cursive" },
+  root:        { padding: '14px 16px 88px', maxWidth: 480, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 10, minHeight: '100vh', background: '#f0efe9', color: '#111' },
   header:      { display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 2 },
   backLink:    { fontSize: 12, color: '#888', textDecoration: 'none', letterSpacing: 0.3 },
   title:       { fontSize: 17, fontWeight: 'bold', color: '#111', cursor: 'pointer', letterSpacing: 0.5 },
