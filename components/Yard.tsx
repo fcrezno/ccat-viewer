@@ -104,9 +104,34 @@ function CatName({ cat, on, off }: { cat: YardCat; on: () => void; off: () => vo
   )
 }
 
-export function Yard({ cats, busy }: { cats: YardCat[]; busy?: boolean }) {
+/**
+ * How many lines the log shows before it is opened.
+ *
+ * Three, because that is enough to see that something is HAPPENING without the
+ * yard taking the whole screen it now sits at the top of. Two reads as a stub;
+ * four starts pushing the rest of the page down again.
+ */
+const PREVIEW_LINES = 3
+
+export function Yard({
+  cats, busy, compact = false,
+}: {
+  cats: YardCat[]
+  busy?: boolean
+  /**
+   * The front-door version: a short log that opens, and the pair list left for
+   * the yard's own page.
+   *
+   * It is the SAME component rather than a second one. A separate preview would
+   * be a second place to fix every bug found in the first — and the map, the
+   * furniture and the simulation are identical either way. Only how much of the
+   * log is shown differs.
+   */
+  compact?: boolean
+}) {
   const [state, setState] = useState<Visit | null>(null)
   const [peek, setPeek] = useState<YardCat | null>(null)
+  const [grown, setGrown] = useState(false)
   const clear = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const byUid = useMemo(() => new Map(cats.map(c => [c.uid, c])), [cats])
@@ -156,6 +181,10 @@ export function Yard({ cats, busy }: { cats: YardCat[]; busy?: boolean }) {
 
   const name = (uid: string) => byUid.get(uid)
   const recent = state.happened.slice(-14).reverse()
+
+  /* Newest first, so the three the preview shows are the three that just happened. */
+  const shown = compact && !grown ? recent.slice(0, PREVIEW_LINES) : recent
+  const more = recent.length - shown.length
 
   /* Every pair that has any history, strongest feeling first. */
   const pairs: { a: YardCat; b: YardCat; n: number }[] = []
@@ -211,7 +240,7 @@ export function Yard({ cats, busy }: { cats: YardCat[]; busy?: boolean }) {
       */}
       {(recent.length > 0 || pairs.length > 0) && (
         <div style={paper}>
-          {recent.map((m, i) => {
+          {shown.map((m, i) => {
             const a = name(m.a), b = name(m.b)
             if (!a || !b) return null
             const [before, mid, after] = SAYS[m.kind]
@@ -226,7 +255,29 @@ export function Yard({ cats, busy }: { cats: YardCat[]; busy?: boolean }) {
             )
           })}
 
-          {pairs.length > 0 && (
+          {/*
+            THE LOG GROWS, IT DOES NOT SCROLL.
+
+            A short scrolling box would hide the same lines behind a gesture most
+            people never make on a page they are already scrolling. Growing puts
+            the whole day on the page and lets the reader put it back.
+
+            The count is on the control, so it says how much there is rather than
+            just that there is more.
+          */}
+          {/*
+            `grown ||` is load-bearing. Once it is open `more` is zero, so a
+            condition of `more > 0` alone took the control away at exactly the
+            moment it was needed to put the log back — it opened and then could
+            not be closed.
+          */}
+          {compact && (grown || more > 0) && (
+            <button style={grow} onClick={() => setGrown(g => !g)}>
+              {grown ? 'show less' : `${more} more`}
+            </button>
+          )}
+
+          {(!compact || grown) && pairs.length > 0 && (
             <>
               <p style={rule}>HOW THEY GET ON</p>
               {pairs.slice(0, 8).map(({ a, b, n }) => (
@@ -337,6 +388,22 @@ const paper: React.CSSProperties = {
 }
 
 const line: React.CSSProperties = { color: INK, fontSize: 13, margin: 0, lineHeight: 1.55 }
+
+/*
+ * The grow control, printed rather than added.
+ *
+ * It lives INSIDE the paper and is drawn in the paper's own faint ink, so it
+ * reads as part of the sheet — a note at the foot of the page — rather than as a
+ * button laid on top of it. A purple pill here would be the only piece of app
+ * chrome on the one warm surface in the game.
+ */
+const grow: React.CSSProperties = {
+  alignSelf: 'flex-start', marginTop: 2,
+  background: 'none', border: 0, padding: '2px 0',
+  font: 'inherit', fontSize: 11, letterSpacing: 1,
+  color: '#8a8a7a', cursor: 'pointer',
+  borderBottom: '1px dotted currentColor',
+}
 
 /* The divider inside the paper. Ruled, the way a printed sheet would be. */
 const rule: React.CSSProperties = {

@@ -1562,6 +1562,33 @@ export function Cradle() {
 
       {view === 'home' && (
         <>
+          {/*
+            THE YARD COMES FIRST.
+
+            JP: "I want the yard the first thing the players see, which is just
+            their cats interact with each other."
+
+            It was fourth, below the fight buttons, the QR code and the wallet
+            row — which meant the one thing here that nothing else has was the
+            one thing you had to scroll to find.
+
+            COMPACT, so it does not become the whole screen: three lines of what
+            just happened, and they grow. The full account, the pair list and the
+            cats themselves are through the door at /yard.
+          */}
+          {yardCats.length > 0 && (
+            <section style={s.block}>
+              <div style={s.yardHead}>
+                <p style={{ ...s.label, margin: 0 }}>THE YARD</p>
+                <a href="/yard" style={s.yardIn}>ENTER →</a>
+              </div>
+              <p style={{ ...s.fine0, marginBottom: 12 }}>
+                Your cats and the cats of people you follow.
+              </p>
+              <Yard cats={yardCats} busy={yardBusy} compact />
+            </section>
+          )}
+
           {isConnected && cats === null && <p style={s.quiet}>looking for your cats…</p>}
 
           {isConnected && pickable.length > 0 && (
@@ -1719,20 +1746,6 @@ export function Cradle() {
             </section>
           )}
 
-          {/*
-            THE YARD. Shown whenever there is anybody in it — your own shelf is
-            enough to start, and the followed cats arrive once Farcaster says who
-            you are.
-          */}
-          {yardCats.length > 0 && (
-            <section style={s.block}>
-              <p style={s.label}>THE YARD</p>
-              <p style={{ ...s.fine0, marginBottom: 12 }}>
-                Your cats and the cats of people you follow. Hover a name to see whose it is.
-              </p>
-              <Yard cats={yardCats} busy={yardBusy} />
-            </section>
-          )}
 
           <section style={s.block}>
             <p style={s.label}>FRIENDS</p>
@@ -2288,10 +2301,12 @@ const s: Record<string, React.CSSProperties> = {
   // A CHECKBOX, not a bead: a win is a thing you tick off. Square, lightly
   // rounded, and it holds the round number until it is earned.
   pip:         { width: 44, height: 44, borderRadius: 8, border: '2px solid #2b2b3a', background: '#12121c', display: 'grid', placeItems: 'center', flexShrink: 0 },
-  pipOn:       { borderColor: '#e0a72c', background: '#e0a72c', boxShadow: '0 0 12px rgba(224,167,44,0.45)' },
+  // The full `border` shorthand, not `borderColor`: pip sets the shorthand,
+  // and React drops one to apply the other. 2px to match pip exactly.
+  pipOn:       { border: '2px solid #e0a72c', background: '#e0a72c', boxShadow: '0 0 12px rgba(224,167,44,0.45)' },
   // 3 and 5 pay a cat, so they are ringed whether or not they are reached.
   pipPrize:    { boxShadow: '0 0 0 3px rgba(224,167,44,0.25), 0 0 12px rgba(224,167,44,0.5)' },
-  pipPrizeOff: { borderColor: '#7a5c18', color: '#7a5c18' },
+  pipPrizeOff: { border: '2px solid #7a5c18', color: '#7a5c18' },
 
   page: {
     minHeight: '100dvh', background: '#0b0b13', color: '#f0f0f5',
@@ -2368,7 +2383,8 @@ const s: Record<string, React.CSSProperties> = {
   /* The gauntlet is the one with something at stake, so it is the one that is gold. */
   gauntlet: { width: '100%', background: 'transparent', color: '#e0a72c', border: '1px solid #7a5c18', borderRadius: 10, padding: '13px 16px', fontSize: 13, letterSpacing: 1, cursor: 'pointer', fontFamily: 'inherit', marginTop: 10 },
   /* A picked card keeps the same box so the grid does not move when you choose. */
-  cardPicked: { borderColor: '#8b5cf6', boxShadow: '0 0 0 2px rgba(139,92,246,0.35)' },
+  /* `border`, not `borderColor` — card sets the shorthand. 2px keeps the box. */
+  cardPicked: { border: '2px solid #8b5cf6', boxShadow: '0 0 0 2px rgba(139,92,246,0.35)' },
 
   /*
    * THE TOWER — the five, drawn the way the rankings draw a cat.
@@ -2381,7 +2397,7 @@ const s: Record<string, React.CSSProperties> = {
   tower:      { display: 'flex', flexDirection: 'column', gap: 6 },
   towerRow:   { display: 'flex', alignItems: 'center', gap: 10, padding: '6px 8px', borderRadius: 10, border: '1px solid #21212f', background: '#0b0b13' },
   /* Only the next cat is lit. Everything else is context. */
-  towerNext:  { borderColor: '#7a5c18', background: 'rgba(224,167,44,0.08)' },
+  towerNext:  { border: '1px solid #7a5c18', background: 'rgba(224,167,44,0.08)' },
   towerNum:   { width: 14, textAlign: 'center', fontSize: 11, color: '#4a4a5e' },
   ladderLine: { color: '#63637d', fontSize: 11, margin: '10px 0 0', textAlign: 'center' },
 
@@ -2406,7 +2422,8 @@ const s: Record<string, React.CSSProperties> = {
     background: 'linear-gradient(180deg, rgba(224,167,44,0.10), rgba(224,167,44,0.02))',
     padding: '18px 16px 16px', marginBottom: 10,
   },
-  champCardMine: { borderColor: '#e0a72c', boxShadow: '0 0 0 2px rgba(224,167,44,0.25)' },
+  // `border`, not `borderColor`: champCard sets the shorthand.
+  champCardMine: { border: '1px solid #e0a72c', boxShadow: '0 0 0 2px rgba(224,167,44,0.25)' },
 
   /*
    * THE HIT COUNTER. Black box, green digits, sunk border — the odometer look
@@ -2426,7 +2443,8 @@ const s: Record<string, React.CSSProperties> = {
 
   /* The season board. Your own cats are lit, so you can find yourself in it. */
   boardRow:     { display: 'flex', alignItems: 'center', gap: 10, padding: '7px 8px', borderRadius: 10, border: '1px solid #21212f', background: '#0b0b13', marginBottom: 6 },
-  boardRowMine: { borderColor: '#7a5c18', background: 'rgba(224,167,44,0.08)' },
+  // `border`, not `borderColor`: boardRow sets the shorthand.
+  boardRowMine: { border: '1px solid #7a5c18', background: 'rgba(224,167,44,0.08)' },
   boardRank:    { width: 22, textAlign: 'center', fontSize: 12, color: '#63637d' },
   boardPts:     { fontSize: 13, color: '#e0a72c', fontVariantNumeric: 'tabular-nums' },
   link:    { color: '#a78bfa', fontSize: 14 },
@@ -2449,6 +2467,15 @@ const s: Record<string, React.CSSProperties> = {
     color: 'inherit', fontFamily: 'inherit',
   },
   slider: { width: 110, accentColor: '#8b5cf6', cursor: 'pointer' },
+
+  yardHead: {
+    display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+    gap: 12, marginBottom: 4,
+  },
+  yardIn: {
+    color: '#8b5cf6', fontSize: 11, letterSpacing: 1, textDecoration: 'none',
+    whiteSpace: 'nowrap',
+  },
 
   nav: {
     marginTop: 'auto', display: 'flex', justifyContent: 'center', gap: 8,
