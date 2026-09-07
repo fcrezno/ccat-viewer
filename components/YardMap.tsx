@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { COLS, ROWS, DOING, layout, layoutAt, moodOf, poseOf, type Placed } from '@/lib/yardmap'
-import { bond, reads, temperOf, type PropKind, type YardState } from '@/lib/yard'
+import { bond, PROPS, reads, temperOf, type PropKind, type YardState } from '@/lib/yard'
 
 /**
  * THE YARD, DRAWN — a Dwarf Fortress overworld at cat scale.
@@ -32,24 +32,89 @@ import { bond, reads, temperOf, type PropKind, type YardState } from '@/lib/yard
  */
 
 /*
- * OLD EMOJI ONLY, and that is a bug fix rather than taste. The perch was 🪵,
- * which is Emoji 13 (2020) and rendered as an empty box on this Windows build —
- * a piece of furniture the player cannot see is worse than a plainer one.
+ * THE FURNITURE IS DRAWN, NOT TYPED, and that is a bug fix as much as it is
+ * taste. The perch used to be 🪵 — Emoji 13, 2020 — and rendered as an empty box
+ * on this Windows build. A piece of furniture the player cannot see is worse
+ * than a plain one, and a file we ship cannot fail to draw.
  *
- * All three below are Emoji 1.0 or close to it, so they are drawn everywhere.
+ * These are JP's own, from the same hand as the fonts and the faces.
+ *
+ * ── ONE PROP, SEVERAL FACES ──────────────────────────────────────────────────
+ *
+ * A prop is a MECHANIC, not an object: the toy is whatever makes `play`
+ * possible. So twenty drawings are twenty SKINS over four mechanics rather than
+ * twenty new rules — nothing is re-tuned, and nothing here is decoration. Every
+ * item standing in a yard is doing the job its prop does.
+ *
+ * WHICH ONE A YARD GETS IS THE YARD'S, drawn from its seed rather than chosen.
+ * Two people's yards do not look alike, and a yard keeps its own feather or its
+ * own handheld for as long as it exists.
  */
-const PROP_GLYPH: Record<PropKind, { icon: string; label: string }> = {
-  toy:   { icon: '🧶', label: 'a ball of yarn' },
-  bowl:  { icon: '🥣', label: 'a food bowl' },
-  perch: { icon: '🌳', label: 'a tree to sit in' },
+type Item = { file: string; label: string }
+
+const ITEMS: Record<PropKind, Item[]> = {
+  toy: [
+    { file: 'feather', label: 'a feather' },
+    { file: 'gameboy', label: 'a handheld' },
+    { file: 'walnut',  label: 'a walnut' },
+    { file: 'gum',     label: 'a stick of gum' },
+    { file: 'film',    label: 'a roll of film' },
+    { file: 'pills',   label: 'a bottle that rattles' },
+    { file: 'lighter', label: 'a lighter' },
+  ],
+  bowl: [
+    { file: 'chips',     label: 'a bag of chips' },
+    { file: 'pizza',     label: 'a slice of pizza' },
+    { file: 'banana',    label: 'a banana' },
+    { file: 'donut',     label: 'a donut' },
+    { file: 'pineapple', label: 'a pineapple' },
+    { file: 'cup',       label: 'a cup of something' },
+    { file: 'beer',      label: 'a can of something' },
+  ],
+  perch: [
+    { file: 'magazine', label: 'a magazine to sit on' },
+    { file: 'vinyl',    label: 'a record to sit on' },
+    { file: 'gun',      label: 'something to stand over' },
+  ],
+  wash: [
+    { file: 'soap', label: 'a bar of soap' },
+  ],
 }
 
-/** What each one lets the cats DO. Placeholder wording, JP's to replace. */
+/**
+ * WHICH ITEM THIS YARD'S PROP IS.
+ *
+ * Salted with the prop's own place in PROPS, because the seed alone would move
+ * all four together — every yard would get the first of each, or the second of
+ * each, and the variety would be between yards instead of inside one.
+ */
+function skinOf(kind: PropKind, seed: number): Item {
+  const list = ITEMS[kind]
+  const salt = Math.imul(PROPS.indexOf(kind) + 1, 0x9e3779b1)
+  return list[((seed ^ salt) >>> 0) % list.length]
+}
+
+/** What each one lets the cats DO. The picture says what it is; this says what it changes. */
 const PROP_WHY: Record<PropKind, string> = {
   toy:   'to play with',
   bowl:  'to share',
   perch: 'to show off on',
+  wash:  'to groom with',
 }
+
+/**
+ * DAY AND NIGHT, because the sun and the moon are two of the twenty and neither
+ * is an object. They are TIMES.
+ *
+ * One tick is one hour and the map already knows which hour it is drawing, so
+ * this is derived rather than stored — and it is what makes the replay read as a
+ * day passing rather than as a loop of events.
+ *
+ * Six to six. The ground goes down with the light: it is the same yard, seen
+ * later, and a colour change carries that without a word of explanation.
+ */
+const DAY   = { grid: '#14180f', soil: '#1a2013', prop: '#1f2617', grass: '#2f4020' }
+const NIGHT = { grid: '#0f1209', soil: '#141a0e', prop: '#181e12', grass: '#26331a' }
 
 /**
  * HOW MUCH OF THE DAY IS REPLAYED, and how fast.
@@ -164,6 +229,14 @@ export function YardMap({
   /* The turn being shown, which is what every pose is keyed on. */
   const shownTick = at === null ? yard.ticks : at
 
+  /*
+   * WHAT TIME IT IS. A tick is an hour, so the hour is the tick — there is
+   * nothing to store and nothing to keep in step.
+   */
+  const hour = ((shownTick % 24) + 24) % 24
+  const night = hour < 6 || hour >= 18
+  const sky = night ? NIGHT : DAY
+
   const byCell = useMemo(() => {
     const m = new Map<number, Placed>()
     for (const p of placed) m.set(p.cell.y * COLS + p.cell.x, p)
@@ -193,22 +266,35 @@ export function YardMap({
         The grid still draws the ground and the props, because those genuinely do
         not move — furniture keeps its cell for the life of the yard.
       */}
-      <div style={s.grid}>
+      {/*
+        THE CLOCK IS ABOVE THE MAP, NOT ON IT.
+
+        A badge in the corner would sit over a cell, and every cell in a 13-wide
+        grid is somewhere a cat can stand. A roguelike puts its clock in the
+        status line for the same reason.
+      */}
+      <div style={s.sky} aria-hidden>
+        <img src={`/yard/items/${night ? 'moon' : 'sun'}.png`} alt="" style={s.skyArt} />
+        <span>{String(hour).padStart(2, '0')}:00</span>
+      </div>
+
+      <div style={{ ...s.grid, background: sky.grid }}>
         {Array.from({ length: COLS * ROWS }, (_, i) => {
           const x = i % COLS, y = Math.floor(i / COLS)
           const here = byCell.get(i)
 
           if (here?.what === 'prop') {
+            const item = skinOf(here.prop, yard.seed)
             return (
-              <div key={i} style={{ ...s.cell, ...s.propCell }} title={PROP_GLYPH[here.prop].label}>
-                <span style={s.propIcon}>{PROP_GLYPH[here.prop].icon}</span>
+              <div key={i} style={{ ...s.cell, background: sky.prop }} title={item.label}>
+                <img src={`/yard/items/${item.file}.png`} alt="" style={s.propArt} />
               </div>
             )
           }
 
           return (
-            <div key={i} style={s.cell} aria-hidden>
-              <span style={s.grass}>{ground(x, y, yard.seed)}</span>
+            <div key={i} style={{ ...s.cell, background: sky.soil }} aria-hidden>
+              <span style={{ ...s.grass, color: sky.grass }}>{ground(x, y, yard.seed)}</span>
             </div>
           )
         })}
@@ -233,6 +319,7 @@ export function YardMap({
                 aria-label={`${here.cat.name}, ${here.doing ? DOING[here.doing.kind] : 'keeping to itself'}`}
                 style={{
                   ...s.catCell,
+                  background: sky.soil,
                   transform: `translate(${here.cell.x * 100}%, ${here.cell.y * 100}%)`,
                   // Your own cats are ringed. In a yard of strangers' cats the
                   // first question is always which ones are yours.
@@ -347,8 +434,9 @@ export function YardMap({
       */}
       {onFurnish && (
         <div style={s.shelf}>
-          {(Object.keys(PROP_GLYPH) as PropKind[]).map(p => {
+          {(Object.keys(ITEMS) as PropKind[]).map(p => {
             const out = yard.props.includes(p)
+            const item = skinOf(p, yard.seed)
             return (
               <button
                 key={p}
@@ -356,7 +444,7 @@ export function YardMap({
                 aria-pressed={out}
                 style={{ ...s.shelfBtn, ...(out ? s.shelfOn : null) }}
               >
-                <span style={{ fontSize: 13 }}>{PROP_GLYPH[p].icon}</span>
+                <img src={`/yard/items/${item.file}.png`} alt="" style={s.shelfArt} />
                 <span>{PROP_WHY[p]}</span>
               </button>
             )
@@ -442,8 +530,20 @@ const s: Record<string, React.CSSProperties> = {
     textShadow: '0 0 2px #000, 0 0 2px #000, 0 1px 2px #000',
     pointerEvents: 'none', userSelect: 'none',
   },
-  propCell: { background: '#1f2617' },
-  propIcon: { fontSize: 13, lineHeight: 1, userSelect: 'none' },
+  /*
+   * 82%, not 100%. The drawings are trimmed to their own ink, so filling the
+   * cell would put a banana and a stick of gum at the same size and butt every
+   * one of them against the grid line. Inset, they read as things standing ON
+   * the ground rather than as tiles of it.
+   */
+  propArt:  { width: '82%', height: '82%', objectFit: 'contain', display: 'block', userSelect: 'none' },
+  sky: {
+    display: 'flex', alignItems: 'center', gap: 5,
+    marginBottom: 6, fontSize: 11, color: '#55556a',
+    letterSpacing: 0.5,
+  },
+  skyArt:   { width: 14, height: 14, objectFit: 'contain', display: 'block' },
+  shelfArt: { width: 16, height: 16, objectFit: 'contain', display: 'block' },
   readout:  { marginTop: 8, fontSize: 12, minHeight: 18, lineHeight: 1.4 },
   shelf:    { display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' },
   shelfBtn: {

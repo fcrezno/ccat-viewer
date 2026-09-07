@@ -60,16 +60,30 @@ export type DeedKind = 'greet' | 'play' | 'groom' | 'showoff' | 'share' | 'snub'
  * `share` comes back with the bowl. It was dropped from the petite yard along
  * with the props, for the stated reason that "a phone has nowhere to put them" —
  * which was true of a wall of text and is not true of a map.
+ *
+ * `wash` IS NEW, AND IT IS THE ONE THE RULE WAS MISSING.
+ *
+ * `groom` was the only deed with nothing standing behind it: it was gated on
+ * warmth alone, so the warmest thing two cats can do for each other was the one
+ * thing the player had no say in. Measured over 400 ticks with the other three
+ * out, groom fired 56 times; with nothing out it fired 0, because bonds never
+ * got warm enough to reach its gate. It was already ANSWERING to the furniture
+ * without ever being ABOUT it.
+ *
+ * So it gets a thing of its own. The gate at 10 stays exactly where it was
+ * measured — soap decides whether grooming is on the table at all, and warmth
+ * still decides whether it happens.
  */
-export type PropKind = 'toy' | 'bowl' | 'perch'
+export type PropKind = 'toy' | 'bowl' | 'perch' | 'wash'
 
-export const PROPS: PropKind[] = ['toy', 'bowl', 'perch']
+export const PROPS: PropKind[] = ['toy', 'bowl', 'perch', 'wash']
 
 /** What each deed needs standing in the yard before it can happen at all. */
 export const NEEDS: Partial<Record<DeedKind, PropKind>> = {
   play:    'toy',
   share:   'bowl',
   showoff: 'perch',
+  groom:   'wash',
 }
 
 export type Deed = {
