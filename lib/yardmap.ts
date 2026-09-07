@@ -136,34 +136,74 @@ function beside(c: Cell, r: () => number): Cell {
  */
 const WALK_FROM = 40
 
-/**
- * A tile this cat can actually reach this turn: the one it wants, else any free
- * neighbour, else where it already is. Never further than one step.
- *
- * The neighbours are tried in a fixed order so a blocked cat resolves the same
- * way every time — the walk has to be deterministic or the map would shuffle on
- * every render.
- */
-function nearby(from: Cell, want: Cell, taken: Set<number>): Cell {
-  const inside = (c: Cell) => c.x >= 0 && c.x < COLS && c.y >= 0 && c.y < ROWS
-  if (inside(want) && !taken.has(key(want))) return want
 
-  for (const [dx, dy] of [
-    [0, -1], [1, 0], [0, 1], [-1, 0],
-    [1, -1], [1, 1], [-1, 1], [-1, -1],
-  ]) {
-    const c = { x: from.x + dx, y: from.y + dy }
-    if (inside(c) && !taken.has(key(c))) return c
+/** Eight-directional, in a fixed order so ties always break the same way. */
+const AROUND: [number, number][] = [
+  [0, -1], [1, 0], [0, 1], [-1, 0],
+  [1, -1], [1, 1], [-1, 1], [-1, -1],
+]
+
+const inside = (c: Cell) => c.x >= 0 && c.x < COLS && c.y >= 0 && c.y < ROWS
+
+/**
+ * A DIJKSTRA MAP — how far every tile is from the goal, going round what is in
+ * the way.
+ *
+ * The roguelike technique, and the one Brogue moves its creatures with. Flood
+ * outward from the goal over passable tiles, then a creature simply steps to the
+ * lowest-valued neighbour and it is walking an optimal path without ever holding
+ * one.
+ *
+ * WHY IT REPLACED A STRAIGHT LINE. `Math.sign()` toward the goal is right on open
+ * ground and wrong the moment anything is in the way: a cat with another cat
+ * between it and the bowl kept walking into it and standing still, or shuffled
+ * sideways and lost the thread. This routes AROUND, which is the difference
+ * between a queue and a jam.
+ *
+ * The goal itself is always reachable in the map even when something is standing
+ * on it — it is a destination, not a tile to be occupied, and flooding from it
+ * regardless is what lets a cat walk up to a spot that is momentarily taken.
+ */
+function dijkstra(goal: Cell, blocked: Set<number>): Map<number, number> {
+  const dist = new Map<number, number>()
+  dist.set(key(goal), 0)
+  let edge = [goal]
+
+  while (edge.length) {
+    const next: Cell[] = []
+    for (const c of edge) {
+      const d = dist.get(key(c))!
+      for (const [dx, dy] of AROUND) {
+        const n = { x: c.x + dx, y: c.y + dy }
+        if (!inside(n)) continue
+        const k = key(n)
+        if (dist.has(k) || blocked.has(k)) continue
+        dist.set(k, d + 1)
+        next.push(n)
+      }
+    }
+    edge = next
   }
-  return from
+  return dist
 }
 
-/** One step, eight-directional. A creature moves ONE tile a turn, as in DF. */
-function step(from: Cell, to: Cell): Cell {
-  return {
-    x: from.x + Math.sign(to.x - from.x),
-    y: from.y + Math.sign(to.y - from.y),
+/**
+ * Roll downhill: the neighbour closest to the goal, or stay put.
+ *
+ * Never more than one tile, because it only ever looks at neighbours — which is
+ * the property that took three attempts to get right the first time.
+ */
+function downhill(from: Cell, dist: Map<number, number>, taken: Set<number>): Cell {
+  let best = from
+  let bestD = dist.get(key(from)) ?? Infinity
+
+  for (const [dx, dy] of AROUND) {
+    const n = { x: from.x + dx, y: from.y + dy }
+    if (!inside(n) || taken.has(key(n))) continue
+    const d = dist.get(key(n))
+    if (d !== undefined && d < bestD) { bestD = d; best = n }
   }
+  return best
 }
 
 /**
@@ -244,12 +284,41 @@ function walk(y: YardState, upTo: number): Map<string, Cell> {
 
   for (let t = from; t <= upTo; t++) {
     const want = targets(y, t, props, at)
+
+    /*
+     * EVERY CAT'S CURRENT TILE IS RESERVED BEFORE ANYBODY MOVES.
+     *
+     * This started as just the furniture, and it let two cats end up on one tile:
+     * a cat that cannot move stays where it is, but somebody earlier in the order
+     * may already have moved ONTO that tile, because a cat that has not moved yet
+     * was not occupying anything as far as this set was concerned.
+     *
+     * Reserving up front and releasing on the way out is the ordinary fix, and it
+     * also stops the order cats are processed in deciding who gets to walk
+     * through whom.
+     */
     const taken = new Set<number>(propKeys)
+    for (const cat of y.cats) taken.add(key(at.get(cat.uid)!))
 
     for (const cat of y.cats) {
       const here = at.get(cat.uid)!
       const goal = want.get(cat.uid)!
-      const next = (here.x === goal.x && here.y === goal.y) ? here : step(here, goal)
+      /*
+       * The map is built round what is standing in the way THIS turn — the
+       * furniture and every cat already moved — so a cat routes around the queue
+       * rather than into it. One map per cat per tick is nothing on 104 tiles.
+       */
+      /*
+       * Its OWN tile is not an obstacle to itself, so it comes out of the set for
+       * the length of its own move — otherwise a cat hemmed in on all sides could
+       * not even stay where it was standing.
+       */
+      const mine = key(here)
+      taken.delete(mine)
+      const next = (here.x === goal.x && here.y === goal.y)
+        ? here
+        : downhill(here, dijkstra(goal, taken), taken)
+      taken.add(mine)
       /*
        * A BLOCKED CAT STEPS ASIDE OR STAYS. It does NOT go looking for space.
        *
@@ -262,7 +331,9 @@ function walk(y: YardState, upTo: number): Map<string, Cell> {
        * this turn, and if none of them are free it waits. A crowd round the bowl
        * should look like a queue, not like cats being flung out of it.
        */
-      const cell = nearby(here, next, taken)
+      const cell = taken.has(key(next)) ? here : next
+      // Give up the tile being left, claim the one being taken.
+      taken.delete(key(here))
       taken.add(key(cell))
       at.set(cat.uid, cell)
     }
