@@ -431,6 +431,90 @@ export function poseOf(doing: Memory | null, tick: number): string {
 }
 
 /**
+ * WHAT A CAT THINKS ABOUT WHAT HAPPENED — Dwarf Fortress's thoughts panel.
+ *
+ * JP: "hey where are the cat's thoughts and discussions? like in dwarf fortress."
+ *
+ * The diary was already here and it is DF's MEMORY list: the events a cat still
+ * holds. What was missing is the half DF is actually famous for — how the
+ * creature FEELS about them. "He was pleased to have eaten a fine meal lately."
+ *
+ * ── DERIVED, NOT STORED ──────────────────────────────────────────────────────
+ *
+ * Nothing new is recorded. A memory already carries everything a thought needs:
+ *
+ *   kind    what happened
+ *   delta   whether it went well — and it is NEGATIVE when a clumsy cat meant
+ *           well and knocked the bowl over, which is the most Dwarf Fortress
+ *           thing this simulation already does and had nowhere to say it
+ *   a / b   whether this cat did it or had it done to them
+ *
+ * So a thought is a reading of a memory, and it cannot drift from what happened
+ * because there is nothing else for it to be.
+ *
+ * ── THE WORDS ARE PLACEHOLDERS ───────────────────────────────────────────────
+ *
+ * Same rule as SAYS, DOING and reads(): the voice of this game is JP's, and none
+ * of these should ship. {other} is the other cat's name. They are in
+ * yard-prose.xlsx with the rest.
+ */
+export type Thought = { text: string; good: boolean }
+
+type Lines = {
+  /** This cat did it, and it went as intended. */
+  did: string
+  /** It was done TO this cat, and it went as intended. */
+  got: string
+  /** This cat did it and it went wrong — the clumsy flip. */
+  botched?: string
+  /** It was done to this cat and went wrong. */
+  suffered?: string
+}
+
+const THOUGHT_LINES: Record<Memory['kind'], Lines> = {
+  greet:    { did: 'said hello to {other}',            got: '{other} came over to say hello',
+              botched: 'tried to say hello to {other} and got it wrong' },
+  play:     { did: 'had a good run around with {other}', got: '{other} chased it about',
+              botched: 'got too rough with {other}' },
+  groom:    { did: 'cleaned {other} up',                 got: '{other} cleaned its ears',
+              botched: 'meant to clean {other} up and made a mess of it' },
+  showoff:  { did: 'showed {other} how it is done',      got: '{other} would not stop showing off',
+              botched: 'tried to impress {other} and fell short' },
+  share:    { did: 'let {other} eat first',              got: '{other} let it eat first',
+              botched: 'went to share with {other} and knocked the bowl over' },
+  snub:     { did: 'has no time for {other}',            got: '{other} walked straight past it' },
+  squabble: { did: 'fell out with {other}',              got: 'fell out with {other}' },
+}
+
+/**
+ * One thought, from one memory, from this cat's side.
+ *
+ * The SAME event reads differently to each of them, which is the point: being
+ * groomed and doing the grooming are not the same day.
+ */
+export function thoughtOf(m: Memory, self: string, otherName: string): Thought {
+  const mine = m.a === self
+  const wrong = m.delta < 0
+  const l = THOUGHT_LINES[m.kind]
+
+  const pick =
+    mine && wrong  ? (l.botched ?? l.did)
+    : mine         ? l.did
+    : wrong        ? (l.suffered ?? l.got)
+    :                l.got
+
+  return {
+    text: pick.replace('{other}', otherName),
+    /*
+     * GOOD IS THE DELTA, not the deed. A groom that went wrong is a bad memory
+     * however kindly it was meant, and reading the kind instead would print a
+     * warm line over a bond that just went down.
+     */
+    good: m.delta > 0,
+  }
+}
+
+/**
  * THE MOOD GLYPH — one character over a cat, the way DF does it.
  *
  * JP: "dwarves usually act with, like, question marks, exclamation points, stuff

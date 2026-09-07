@@ -11,6 +11,7 @@ import { trackForRound } from '@/lib/music'
 import { BitmapText } from '@/components/BitmapText'
 import { noteWin, noteLoss, type Beat } from '@/lib/streak'
 import { Yard, type YardCat } from '@/components/Yard'
+import { residents, DEMO_KEY } from '@/lib/yardstore'
 import {
   addFriend, friends as loadFriends, ladder, noteFight, ratio,
   recordFor, recordLine, removeFriend, setRetired, nameFor, setName, NAME_LIMIT,
@@ -1154,8 +1155,27 @@ export function Cradle() {
      * lib/yardstore keeps it under its own key so it can never be written over
      * somebody's real yard.
      */
-    const demo = () =>
-      fetch('/api/yard?demo=1&n=8')
+    const demo = () => {
+      /*
+       * A DEMO YARD KEEPS THE CAST IT STARTED WITH.
+       *
+       * The endpoint rotates which holders it picks every ten minutes, which is
+       * right for a first visit and was quietly ruinous after it: a different
+       * eight cats means reconcile() drops every memory naming a cat who has
+       * gone, so the demo restarted socially on every rotation. Caught it at 314
+       * ticks and ZERO memories — days of simulated time, nothing remembered,
+       * which is precisely what the demo exists to show.
+       *
+       * So once a demo yard exists, its own residents are the cast. It also
+       * saves the call.
+       */
+      const already = residents(DEMO_KEY) as YardCat[]
+      if (already.length > 1) {
+        setYardCats(already)
+        return Promise.resolve()
+      }
+
+      return fetch('/api/yard?demo=1&n=8')
         .then(r => r.json())
         .then(d => {
           if (!live) return
@@ -1164,6 +1184,7 @@ export function Cradle() {
           setYardCats(cats.length > 1 ? cats : mine)
         })
         .catch(() => { if (live) setYardCats(mine) })
+    }
 
     if (!who) {
       // Your own cats are a shelf, not a yard — under two there is nothing to watch.

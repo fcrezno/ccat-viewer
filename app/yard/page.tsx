@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import sdk from '@farcaster/miniapp-sdk'
 import { Yard, type YardCat } from '@/components/Yard'
-import { residents } from '@/lib/yardstore'
+import { residents, DEMO_KEY } from '@/lib/yardstore'
 
 /**
  * THE YARD, IN FULL.
@@ -39,6 +39,21 @@ export default function YardPage() {
 
     const saved = residents() as YardCat[]
     if (saved.length) { setCats(saved); return }
+
+    /*
+     * THE DEMO YARD COUNTS AS A YARD.
+     *
+     * It is stored under its own key so it can never be written over somebody's
+     * real one — and that left a hole: a visitor who sees the demo on the front
+     * page and taps ENTER arrived here and was told "Nobody here yet", because
+     * this only ever looked at the real key. The link went nowhere for exactly
+     * the audience the demo exists for.
+     *
+     * Its residents already carry `demo`, so the sheet keeps saying "somebody
+     * owns this one" rather than claiming a follow that does not exist.
+     */
+    const shown = residents(DEMO_KEY) as YardCat[]
+    if (shown.length) { setCats(shown); return }
 
     /*
      * NOTHING SAVED. Fall back to the follow graph, so a fresh browser with a

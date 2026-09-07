@@ -1,7 +1,7 @@
 'use client'
 
 import { bond, diary, reads, temperOf, type YardState } from '@/lib/yard'
-import { DOING, moodOf } from '@/lib/yardmap'
+import { DOING, moodOf, thoughtOf } from '@/lib/yardmap'
 import type { YardCat } from '@/components/Yard'
 
 /**
@@ -117,6 +117,39 @@ export function CatSheet({
         <p style={s.none}>Nothing has happened between it and anybody yet.</p>
       )}
 
+      {/*
+        THOUGHTS SIT ABOVE THE DIARY, because they are the reading and the diary
+        is the record. DF puts them the same way round: how the dwarf FEELS
+        first, then what happened.
+
+        Fewer of them than diary lines. A thought is a sentence and twelve of
+        them is a wall; the diary underneath is already the complete list.
+      */}
+      <div style={s.rule}>WHAT IT THINKS</div>
+      {said.length ? (
+        <div style={s.list}>
+          {said.slice(0, 5).map((m, i) => {
+            const other = byUid.get(m.a === cat.uid ? m.b : m.a)
+            const thought = thoughtOf(m, cat.uid, other?.name ?? 'somebody')
+            return (
+              <div key={i} style={s.thought}>
+                {/*
+                  A BULLET THAT CARRIES THE FEELING. DF marks a thought as good
+                  or bad and so does this — and it reads the DELTA, so a kindness
+                  that went wrong is marked bad however kindly it was meant.
+                */}
+                <span style={{ color: thought.good ? '#2f7a44' : '#a01b1b', flexShrink: 0 }}>
+                  {thought.good ? '+' : '−'}
+                </span>
+                <span>{thought.text}</span>
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        <p style={s.none}>It has nothing on its mind.</p>
+      )}
+
       <div style={s.rule}>WHAT IT REMEMBERS</div>
       {said.length ? (
         <div style={s.list}>
@@ -199,6 +232,8 @@ const s: Record<string, React.CSSProperties> = {
     marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(0,0,0,0.10)',
   },
   list:    { display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6 },
+  /* A hanging indent, so a thought that wraps lines up under itself. */
+  thought: { display: 'flex', gap: 7, fontSize: 13, lineHeight: 1.45, alignItems: 'baseline' },
   feltRow: { display: 'flex', alignItems: 'baseline', gap: 6, fontSize: 13 },
   memRow:  { display: 'flex', alignItems: 'baseline', gap: 0, fontSize: 13 },
   /* A leader of dots, the way a printed index runs a name out to its number. */
