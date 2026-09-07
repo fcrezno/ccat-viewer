@@ -310,6 +310,16 @@ export function YardMap({
           <>
             <b style={{ color: '#e6e6f0' }}>{sel.cat.name}</b>
             <span style={{ color: '#8a8aa0' }}>
+              {/*
+                WHOSE IT IS, which used to live in a hover card over the log. The
+                log is drawn in the bitmap font now and cannot carry a handler per
+                word, so the one fact that card had and this line did not has moved
+                here — where a tap already brings up everything else about the cat.
+              */}
+              {' · '}{mine.includes(sel.cat.uid) ? 'yours'
+                : sel.cat.owner ? '@' + sel.cat.owner.username
+                : sel.cat.demo ? "somebody's"
+                : 'somebody you follow'}
               {' · '}{temperOf(sel.cat.face).label}
               {sel.doing ? ' · ' + DOING[sel.doing.kind] : ' · keeping to itself'}
               {b !== null ? ` · ${reads(b)} with yours` : ''}

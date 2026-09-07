@@ -6,6 +6,7 @@ import { visit, furnish, DEMO_KEY, MAX_TICKS, type Visit } from '@/lib/yardstore
 import { YardMap } from '@/components/YardMap'
 import { CatSheet } from '@/components/CatSheet'
 import { thoughtOf } from '@/lib/yardmap'
+import { BitmapText } from '@/components/BitmapText'
 
 /**
  * THE YARD — what your cats did with the cats of people you follow.
@@ -73,16 +74,14 @@ const SAYS: Record<Memory['kind'], [string, string, string]> = {
 }
 
 /* `art` now lives on Resident itself, because the map draws every cat. */
-export type YardCat = Resident & {
-  owner?: { fid: number; username: string; pfp: string | null } | null
-  mine?: boolean
-  /**
-   * A cat in the DEMO yard: minted, owned by somebody real, but not reached
-   * through anybody's follow graph. The address is known and the Farcaster
-   * account behind it is not, so the copy must not claim one.
-   */
-  demo?: boolean
-}
+/*
+ * owner and demo moved onto Resident, alongside art, for the same reason: the
+ * map draws them and the map is typed on Resident.
+ *
+ * mine stays here. It is a fact about the VIEWER, not about the cat — the same
+ * token is somebody else's in their yard.
+ */
+export type YardCat = Resident & { mine?: boolean }
 
 /** A cat's name in a sentence: hover, tap or focus to see whose it is. */
 function CatName({ cat, on, off }: { cat: YardCat; on: () => void; off: () => void }) {
@@ -120,6 +119,37 @@ function CatName({ cat, on, off }: { cat: YardCat; on: () => void; off: () => vo
  * four starts pushing the rest of the page down again.
  */
 /**
+ * A LINE OF THE GAME'S OWN FONT, built from pieces that can differ in colour.
+ *
+ * JP: "you have to add my original font… I want the pixelated hand drawn stuff I
+ * made, the same stuff that is used for the battle logs."
+ *
+ * He is right and it had been skipped. The fight's log has always drawn through
+ * BitmapText — font.png, the sheet he drew — while the yard's log sat in the
+ * hand-lettered web font. Two logs in one game in two different faces.
+ *
+ * BitmapText takes ONE string and ONE colour, which is all the fight log needs:
+ * its lines are short and single-ink. A yard line is a sentence with cat names
+ * coloured inside it, so it is composed from segments — each its own run, laid
+ * out in a wrapping row so the sentence still breaks like a sentence.
+ */
+/**
+ * A yard line: one flow of the game's font, with the cat names in their own ink.
+ *
+ * The first version put a BitmapText per coloured piece inside a wrapping row.
+ * Each of those is its own flex container, so the sentence came out as blocks
+ * that wrapped independently — "#346  #51" on one line and "and are chasing each
+ * other" on the next. BitmapText takes runs now and lays the whole line out as it
+ * always laid out a line.
+ *
+ * The names are still tappable. A transparent button sits over the run rather
+ * than splitting the text, so the reveal is unaffected.
+ */
+function Bit({ runs, scale = 1 }: { runs: { text: string; color?: string }[]; scale?: number }) {
+  return <BitmapText runs={runs.filter(r => r.text)} scale={scale} color={INK} />
+}
+
+/**
  * WHAT A PAIR IS DOING — the headline on a conversation.
  *
  * JP: "I should be seeing cat one and cat two are talking. And then if I click on
@@ -142,7 +172,8 @@ const TOGETHER: Record<Memory['kind'], string> = {
   squabble: 'are arguing',
 }
 
-const PREVIEW_LINES = 3
+/** The fight log's own pace, so both logs in the game type at the same speed. */
+const LINE_MS = 850
 
 export function Yard({
   cats, busy, compact = false, full = false,
@@ -171,10 +202,25 @@ export function Yard({
 }) {
   const [state, setState] = useState<Visit | null>(null)
   const [peek, setPeek] = useState<YardCat | null>(null)
-  const [grown, setGrown] = useState(false)
   const [picked, setPicked] = useState<string | null>(null)
   /** Which pair's conversation is open. One at a time — this is a log, not a tree. */
   const [talking, setTalking] = useState<string | null>(null)
+
+  /**
+   * HOW MANY LINES HAVE ROLLED IN.
+   *
+   * JP: "I would like the same automatic text rolling that we get from our
+   * gameplay into this text box."
+   *
+   * The fight log reveals a line at a time on a timer and the yard's arrived all
+   * at once, which is the difference between being told what happened and
+   * watching it. Same idea, same shape — a count that climbs on a timeout — and
+   * the same LINE_MS the fight uses, so the two logs are paced alike.
+   */
+  const [rolled, setRolled] = useState(0)
+
+  /** The paper, so it can be scrolled as it fills. */
+  const logRef = useRef<HTMLDivElement>(null)
   const clear = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const byUid = useMemo(() => new Map(cats.map(c => [c.uid, c])), [cats])
@@ -199,6 +245,40 @@ export function Yard({
     visited.current = key
     setState(visit(cats, cats.some(c => c.demo) ? DEMO_KEY : undefined))
   }, [key])
+
+  /*
+   * ROLL THE LINES IN. Reset whenever the visit changes, then climb to the
+   * number of lines there are and stop.
+   *
+   * LINE_MS matches the fight's 850, so both logs in this game type at one pace.
+   * Somebody who asked for less motion gets the whole thing at once — a reveal
+   * is motion, and it is the kind that cannot be skipped by scrolling past.
+   */
+  useEffect(() => { setRolled(0) }, [state])
+
+  useEffect(() => {
+    if (!state) return
+    const total = Math.min(14, state.happened.length)
+    if (rolled >= total) return
+
+    const still = typeof window !== 'undefined'
+      && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (still) { setRolled(total); return }
+
+    const t = setTimeout(() => setRolled(n => n + 1), LINE_MS)
+    return () => clearTimeout(t)
+  }, [state, rolled])
+
+  /*
+   * FOLLOW THE LAST LINE DOWN, the same one line the fight log uses.
+   *
+   * Smooth, because the box scrolling is the one thing here that IS a
+   * continuous motion — it is the reader being carried, not the world moving,
+   * and it is what makes a fixed box read as filling rather than as truncated.
+   */
+  useEffect(() => {
+    logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: 'smooth' })
+  }, [rolled, talking])
 
   const show = useCallback((c: YardCat) => {
     if (clear.current) clearTimeout(clear.current)
@@ -225,9 +305,12 @@ export function Yard({
   const name = (uid: string) => byUid.get(uid)
   const recent = state.happened.slice(-14).reverse()
 
-  /* Newest first, so the three the preview shows are the three that just happened. */
-  const shown = compact && !grown ? recent.slice(0, PREVIEW_LINES) : recent
-  const more = recent.length - shown.length
+  /*
+   * ONE LIST, ROLLED IN. There was a short version and a long one with a control
+   * between them; the box scrolls now, so the only difference between the front
+   * page and the yard's own is how tall the box is.
+   */
+  const shown = recent
 
   const pickedCat = picked ? byUid.get(picked) ?? null : null
 
@@ -324,54 +407,40 @@ export function Yard({
         sheet of paper rendered under the map.
       */}
       {(shown.length > 0 || pairs.length > 0) && (
-        <div style={paper}>
-          {shown.map((m, i) => {
+        <div ref={logRef} style={{ ...paper, maxHeight: compact ? 190 : 340 }}>
+          {shown.slice(0, rolled).map((m, i) => {
             const a = name(m.a), b = name(m.b)
             if (!a || !b) return null
             const [before, mid, after] = SAYS[m.kind]
+            const ink = DEED_INK[m.kind]
             return (
-              <p key={i} style={{ ...line, color: DEED_INK[m.kind] }}>
-                {before}
-                <CatName cat={a} on={() => show(a)} off={hide} />
-                {mid}
-                <CatName cat={b} on={() => show(b)} off={hide} />
-                {after}
-              </p>
+              <Bit
+                key={i}
+                runs={[
+                  { text: before, color: ink },
+                  { text: a.name, color: a.mine ? '#a06a10' : '#5b3fa8' },
+                  { text: mid, color: ink },
+                  { text: b.name, color: b.mine ? '#a06a10' : '#5b3fa8' },
+                  { text: after, color: ink },
+                ]}
+              />
             )
           })}
+          {/*
+            THE CARET, exactly as the fight log has one — it says the page is
+            still typing rather than finished and short.
+          */}
+          {rolled < shown.length && <span style={caret}>▌</span>}
+
 
           {/*
-            THE LOG GROWS, IT DOES NOT SCROLL.
-
-            A short scrolling box would hide the same lines behind a gesture most
-            people never make on a page they are already scrolling. Growing puts
-            the whole day on the page and lets the reader put it back.
-
-            The count is on the control, so it says how much there is rather than
-            just that there is more.
+            WHO IS TALKING sits under the day's lines in the same box. The log is
+            what just happened; this is where everybody stands afterwards. The box
+            scrolls between them rather than making it a choice.
           */}
-          {/*
-            `grown ||` is load-bearing. Once it is open `more` is zero, so a
-            condition of `more > 0` alone took the control away at exactly the
-            moment it was needed to put the log back — it opened and then could
-            not be closed.
-          */}
-          {compact && (grown || more > 0) && (
-            <button style={grow} onClick={() => setGrown(g => !g)}>
-              {grown ? 'show less' : `${more} more`}
-            </button>
-          )}
-
-          {/*
-            The preview normally leaves the pair list for the yard's own page —
-            EXCEPT when there are no new lines to show, because then it is the
-            only thing there is. On a quiet day the standing state of the yard is
-            more use than a blank sheet, and it is the more interesting half
-            anyway: the log is what just happened, this is where they stand.
-          */}
-          {(!compact || grown || shown.length === 0) && pairs.length > 0 && (
+          {pairs.length > 0 && (
             <>
-              <p style={rule}>WHO IS TALKING</p>
+              <div style={rule}><BitmapText text="WHO IS TALKING" scale={1} color="#8a8a7a" /></div>
               {pairs.slice(0, 8).map(({ a, b, n, last }) => {
                 const id = a.uid + b.uid
                 const open = talking === id
@@ -388,20 +457,17 @@ export function Yard({
                       aria-expanded={open}
                       style={pairRow}
                     >
-                      <span>
-                        <span style={{ color: a.mine ? '#a06a10' : '#5b3fa8' }}>{a.name}</span>
-                        {' and '}
-                        <span style={{ color: b.mine ? '#a06a10' : '#5b3fa8' }}>{b.name}</span>
-                        {' '}
-                        <span style={{ color: DEED_INK[last.kind] }}>{TOGETHER[last.kind]}</span>
-                      </span>
+                      <Bit runs={[
+                        { text: a.name, color: a.mine ? '#a06a10' : '#5b3fa8' },
+                        { text: ' and ' },
+                        { text: b.name, color: b.mine ? '#a06a10' : '#5b3fa8' },
+                        { text: ' ' + TOGETHER[last.kind], color: DEED_INK[last.kind] },
+                      ]} />
                       {/*
                         The verdict is kept, but demoted to the end of the line
                         where it belongs — it is the summary, not the news.
                       */}
-                      <span style={{ color: BOND_INK[reads(n)] ?? INK_FAINT, fontSize: 11 }}>
-                        {reads(n)}
-                      </span>
+                      <BitmapText text={reads(n)} scale={1} color={BOND_INK[reads(n)] ?? INK_FAINT} />
                     </button>
 
                     {open && (
@@ -413,18 +479,15 @@ export function Yard({
                           const ago = state.state.ticks - m.tick
                           return (
                             <div key={i} style={convoRow}>
-                              <span>
-                                <span style={{ color: speaker.mine ? '#a06a10' : '#5b3fa8' }}>
-                                  {speaker.name}
-                                </span>
-                                {' '}
-                                <span style={{ color: t.good ? '#2f7a44' : '#a01b1b' }}>
-                                  {t.text}
-                                </span>
-                              </span>
-                              <span style={{ color: '#8a8a7a', fontSize: 11, whiteSpace: 'nowrap' }}>
-                                {ago <= 0 ? 'just now' : `${ago}h`}
-                              </span>
+                              <Bit runs={[
+                                { text: speaker.name, color: speaker.mine ? '#a06a10' : '#5b3fa8' },
+                                { text: ' ' + t.text, color: t.good ? '#2f7a44' : '#a01b1b' },
+                              ]} />
+                              <BitmapText
+                                text={ago <= 0 ? 'just now' : `${ago}h`}
+                                scale={1}
+                                color="#8a8a7a"
+                              />
                             </div>
                           )
                         })}
@@ -510,21 +573,36 @@ const say: React.CSSProperties = { color: '#a9a9c0', fontSize: 13, margin: 0, li
 const label: React.CSSProperties = { fontSize: 10, letterSpacing: 2, color: '#7a7a95', margin: '4px 0 8px' }
 
 /*
- * Not a fixed height, unlike the fight's log.
+ * A FIXED BOX THAT SCROLLS, exactly like the fight's log.
  *
- * That one is 320 tall because it fills a line at a time and the box must not
- * resize under the reader as it types. This one arrives complete, so a fixed
- * height would either crop the account of the day or leave a pale gap under a
- * quiet one. It grows to what happened.
+ * JP: "it should be an automatic scroll down instead of show more or show less.
+ * I should see the text move instead of it expanding."
+ *
+ * This used to grow to fit, with a control to open and close it — which made the
+ * page jump every time a line landed and put a decision in front of somebody who
+ * only wanted to read. The fight log has never done that: it is 320 tall, it
+ * types, and it scrolls itself.
+ *
+ * The same reasoning it was written under applies here now that the yard types
+ * too — the box must not resize under the reader while it is filling.
  */
 const paper: React.CSSProperties = {
   background: PAPER, color: INK, borderRadius: 14, padding: '16px 16px 14px',
   boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.08)',
   marginBottom: 14,
   display: 'flex', flexDirection: 'column', gap: 6,
+  /*
+   * Shorter than the fight's 320 on the front page, because the yard is a
+   * PREVIEW there and sits above everything else on the screen. The yard's own
+   * page gives it the room.
+   */
+  overflowY: 'auto',
 }
 
 const line: React.CSSProperties = { color: INK, fontSize: 13, margin: 0, lineHeight: 1.55 }
+
+/* The same caret the fight log shows while it is still typing. */
+const caret: React.CSSProperties = { color: '#8a8a7a', fontSize: 14, lineHeight: 1 }
 
 /* A pair, as a row you can open. Printed, not chromed — it sits on the paper. */
 const pairRow: React.CSSProperties = {
@@ -546,21 +624,6 @@ const convoRow: React.CSSProperties = {
   alignItems: 'baseline', fontSize: 12.5, lineHeight: 1.45,
 }
 
-/*
- * The grow control, printed rather than added.
- *
- * It lives INSIDE the paper and is drawn in the paper's own faint ink, so it
- * reads as part of the sheet — a note at the foot of the page — rather than as a
- * button laid on top of it. A purple pill here would be the only piece of app
- * chrome on the one warm surface in the game.
- */
-const grow: React.CSSProperties = {
-  alignSelf: 'flex-start', marginTop: 2,
-  background: 'none', border: 0, padding: '2px 0',
-  font: 'inherit', fontSize: 11, letterSpacing: 1,
-  color: '#8a8a7a', cursor: 'pointer',
-  borderBottom: '1px dotted currentColor',
-}
 
 /* The divider inside the paper. Ruled, the way a printed sheet would be. */
 const rule: React.CSSProperties = {

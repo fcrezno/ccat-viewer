@@ -18,14 +18,33 @@ import { CELL_H, SHEET_W, SHEET_H, TRACKING, cell, glyph, measure } from '@/lib/
  * mid-word. Each word is therefore its own non-wrapping run and the line breaks
  * between them.
  */
+/**
+ * A stretch of a line with its own ink.
+ *
+ * The fight log never needed these — its lines are short and single-colour. The
+ * yard's are sentences with cat names coloured inside them, and composing those
+ * from several BitmapText elements did NOT work: each one is its own flex
+ * container, so the sentence laid out as a row of blocks that wrapped
+ * independently instead of as one flow of words.
+ *
+ * Runs fix that at the root. They are flattened into ONE string with a colour per
+ * character, so the word splitting, the tracking and the wrapping are exactly
+ * what they always were — a run boundary is not a layout boundary, which is the
+ * whole bug.
+ */
+export type Run = { text: string; color?: string }
+
 export function BitmapText({
   text,
+  runs,
   scale = 2,
   color = '#1a1a1a',
   className,
   fx = false,
 }: {
-  text: string
+  text?: string
+  /** Coloured stretches, laid out as one line. Used instead of `text`. */
+  runs?: Run[]
   scale?: number
   color?: string
   className?: string
@@ -41,7 +60,14 @@ export function BitmapText({
    */
   fx?: boolean
 }) {
-  const words = (text ?? '').split(' ')
+  const whole = runs ? runs.map(r => r.text).join('') : (text ?? '')
+  const inks: string[] = []
+  if (runs) for (const r of runs) for (let i = 0; i < r.text.length; i++) inks.push(r.color ?? color)
+
+  const words = whole.split(' ')
+  /* Where each word starts in `whole`, so a glyph can find its own ink. */
+  const starts: number[] = []
+  { let at = 0; for (const w of words) { starts.push(at); at += w.length + 1 } }
   // Counts glyphs across the WHOLE string, not per word, or the wave would
   // restart at every space.
   let glyphIndex = 0
@@ -59,7 +85,7 @@ export function BitmapText({
         rowGap: Math.round(CELL_H * scale * 0.15),
       }}
       // The visible text for anything that reads the page rather than looks at it.
-      aria-label={text}
+      aria-label={whole}
       role="img"
     >
       {words.map((word, wi) => (
@@ -78,7 +104,7 @@ export function BitmapText({
                   width: width * scale,
                   height: CELL_H * scale,
                   marginRight: i === word.length - 1 ? 0 : TRACKING * scale,
-                  backgroundColor: color,
+                  backgroundColor: inks.length ? (inks[starts[wi] + i] ?? color) : color,
                   // VICTOR's own settings from the game: Amp 3, Freq 0.7, gold
                   // #b07a10 through #f0d060. The step is what makes it travel.
                   ...(fx ? {

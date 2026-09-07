@@ -194,7 +194,22 @@ export const adopted = (uid: string) => !!uid && !uid.startsWith('guest:')
  * alternative is the viewer rebuilding it from a uid and the two disagreeing the
  * first time a collection changes where its images live.
  */
-export type Resident = { uid: string; name: string; face?: string | null; art?: string | null }
+export type Resident = {
+  uid: string
+  name: string
+  face?: string | null
+  art?: string | null
+  /**
+   * WHOSE IT IS, when that is known.
+   *
+   * /api/yard resolves it for a cat reached through the follow graph and
+   * leaves it null for a demo one, where the holding address is known and the
+   * Farcaster account behind it is not.
+   */
+  owner?: { fid: number; username: string; pfp: string | null } | null
+  /** A cat in the demo yard: minted and owned, but not through anyone follows. */
+  demo?: boolean
+}
 
 export type YardState = {
   seed: number
