@@ -1,7 +1,7 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { COLS, ROWS, DOING, layout, moodOf, type Placed } from '@/lib/yardmap'
+import { useEffect, useMemo, useState } from 'react'
+import { COLS, ROWS, DOING, actOf, layout, layoutAt, moodOf, type Placed } from '@/lib/yardmap'
 import { bond, reads, temperOf, type PropKind, type YardState } from '@/lib/yard'
 
 /**
@@ -51,6 +51,24 @@ const PROP_WHY: Record<PropKind, string> = {
   perch: 'to show off on',
 }
 
+/**
+ * HOW MUCH OF THE DAY IS REPLAYED, and how fast.
+ *
+ * JP: "a little bit more dwarf fortress… it shouldn't be interpolated. It should
+ * be sprite work. It should just be instant."
+ *
+ * NOTHING TWEENS. A creature in DF is on one tile this frame and another the
+ * next; there is no in-between, because there is no in-between to draw. Sliding a
+ * portrait across the ground was the thing this file argued against in the first
+ * place, and a tween is exactly that slide with easing on it.
+ *
+ * So the STEP is the animation. Ten ticks at 550ms is about five and a half
+ * seconds, and each one lands as a hard cut. Faster reads as flicker; slower and
+ * you are waiting between frames.
+ */
+const REPLAY_TICKS = 10
+const STEP_MS = 550
+
 /** DF grass, scattered deterministically so it does not crawl on re-render. */
 function ground(x: number, y: number, seed: number): string {
   const h = Math.imul(x + 1, 0x9e3779b9) ^ Math.imul(y + 1, 0x85ebca6b) ^ seed
@@ -59,7 +77,7 @@ function ground(x: number, y: number, seed: number): string {
 }
 
 export function YardMap({
-  yard, mine, onFurnish, picked, onPick,
+  yard, mine, onFurnish, picked, onPick, replay = false,
 }: {
   yard: YardState
   mine: string[]
@@ -73,6 +91,8 @@ export function YardMap({
    */
   picked?: string | null
   onPick?: (uid: string | null) => void
+  /** Walk the cats through the last few ticks on mount, rather than snapping to now. */
+  replay?: boolean
   /** Toggles ONE prop. The store decides what is out there, which is what stops
    *  three quick taps from clobbering each other. */
   onFurnish?: (prop: PropKind) => void
@@ -82,7 +102,43 @@ export function YardMap({
   const sel_uid = picked !== undefined ? picked : ownPick
   const setPick = (u: string | null) => (onPick ? onPick(u) : setOwnPick(u))
 
-  const placed = useMemo(() => layout(yard), [yard])
+  /*
+   * THE MAP MOVES BY WINDING THE CLOCK, not by animating anything itself.
+   *
+   * Positions are a pure function of the yard, so laying out an earlier tick
+   * gives where everybody WAS, and stepping the tick forward walks them to where
+   * they are now. The movement is a CSS transition between two truthful states —
+   * there is no animation loop and nothing to fall out of step with the sim.
+   *
+   * Which also answers the objection this file was built around. Sliding a
+   * portrait to a place it never was would be faking it; moving it to the tile
+   * the simulation actually put it on is not.
+   */
+  const [at, setAt] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (!replay || !yard.ticks) { setAt(null); return }
+
+    // Only the recent stretch. Replaying a whole day is a minute of watching.
+    const from = Math.max(0, yard.ticks - REPLAY_TICKS)
+    if (from >= yard.ticks) { setAt(null); return }
+
+    // Somebody who asked for less motion gets the end state and no journey.
+    const still = typeof window !== 'undefined'
+      && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (still) { setAt(null); return }
+
+    setAt(from)
+    let t = from
+    const id = setInterval(() => {
+      t += 1
+      if (t >= yard.ticks) { setAt(null); clearInterval(id) }
+      else setAt(t)
+    }, STEP_MS)
+    return () => clearInterval(id)
+  }, [replay, yard.ticks, yard.seed])
+
+  const placed = useMemo(() => (at === null ? layout(yard) : layoutAt(yard, at)), [yard, at])
 
   const byCell = useMemo(() => {
     const m = new Map<number, Placed>()
@@ -103,46 +159,20 @@ export function YardMap({
 
   return (
     <div>
+      {/*
+        THE GROUND AND THE FURNITURE ARE THE GRID. THE CATS ARE NOT.
+
+        They used to be cells, which is why nothing could move: a cell is where it
+        is. The cats are now laid over the grid and positioned by transform, so a
+        change of tick is a transition rather than a re-parenting.
+
+        The grid still draws the ground and the props, because those genuinely do
+        not move — furniture keeps its cell for the life of the yard.
+      */}
       <div style={s.grid}>
         {Array.from({ length: COLS * ROWS }, (_, i) => {
           const x = i % COLS, y = Math.floor(i / COLS)
           const here = byCell.get(i)
-
-          if (here?.what === 'cat') {
-            const isMine = mine.includes(here.cat.uid)
-            const on = sel_uid === here.cat.uid
-            const mood = moodOf(here.doing)
-            return (
-              <button
-                key={i}
-                onClick={() => setPick(on ? null : here.cat.uid)}
-                title={here.cat.name}
-                aria-label={`${here.cat.name}, ${here.doing ? DOING[here.doing.kind] : 'keeping to itself'}`}
-                style={{
-                  ...s.cell,
-                  ...s.catCell,
-                  // Your own cats are ringed. In a yard of strangers' cats the
-                  // first question is always which ones are yours.
-                  outline: on ? '2px solid #e0a72c' : isMine ? '2px solid #7c3aed' : 'none',
-                  outlineOffset: -2,
-                }}
-              >
-                {here.cat.art
-                  ? <img src={here.cat.art} alt="" style={s.art} />
-                  : <span style={s.fallback}>{here.cat.name.slice(0, 1).toUpperCase()}</span>}
-                {/*
-                  THE MOOD SITS ON THE CAT, not beside it. There is no spare cell
-                  to put it in — the grid is 13 wide on a phone — and a glyph in
-                  the corner is what DF does anyway.
-
-                  aria-hidden because the button's own label already says what the
-                  cat is doing in words; a screen reader announcing "exclamation
-                  mark" after "saying hello" is the same fact twice.
-                */}
-                <span aria-hidden style={{ ...s.mood, color: mood.colour }}>{mood.glyph}</span>
-              </button>
-            )
-          }
 
           if (here?.what === 'prop') {
             return (
@@ -158,6 +188,58 @@ export function YardMap({
             </div>
           )
         })}
+
+        <div style={s.overlay}>
+          {placed.filter(p => p.what === 'cat').map(p => {
+            const here = p as Placed & { what: 'cat' }
+            const isMine = mine.includes(here.cat.uid)
+            const on = sel_uid === here.cat.uid
+            const mood = moodOf(here.doing)
+            return (
+              <button
+                /*
+                 * KEYED ON THE CAT, not on its cell. Keying by position would
+                 * unmount and remount the element every time it moved, and a
+                 * remounted element has no previous value to transition FROM —
+                 * the same trap the health bar hit in Cradle.tsx.
+                 */
+                key={here.cat.uid}
+                onClick={() => setPick(on ? null : here.cat.uid)}
+                title={here.cat.name}
+                aria-label={`${here.cat.name}, ${here.doing ? DOING[here.doing.kind] : 'keeping to itself'}`}
+                style={{
+                  ...s.catCell,
+                  transform: `translate(${here.cell.x * 100}%, ${here.cell.y * 100}%)`,
+                  // Your own cats are ringed. In a yard of strangers' cats the
+                  // first question is always which ones are yours.
+                  outline: on ? '2px solid #e0a72c' : isMine ? '2px solid #7c3aed' : 'none',
+                  outlineOffset: -2,
+                  zIndex: on ? 3 : 2,
+                }}
+              >
+                {/*
+                  THE ANIMATION IS ON THE PORTRAIT, never on the tile. The tile's
+                  transform is its POSITION on the grid, and every one of these
+                  animates transform too — put one on the tile and the cat snaps
+                  to the top-left corner for as long as it plays.
+                */}
+                {here.cat.art
+                  ? <img src={here.cat.art} alt="" style={{ ...s.art, animation: actOf(here.doing) }} />
+                  : <span style={{ ...s.fallback, animation: actOf(here.doing) }}>{here.cat.name.slice(0, 1).toUpperCase()}</span>}
+                {/*
+                  THE MOOD SITS ON THE CAT, not beside it. There is no spare cell
+                  to put it in — the grid is 13 wide on a phone — and a glyph in
+                  the corner is what DF does anyway.
+
+                  aria-hidden because the button's own label already says what the
+                  cat is doing in words; a screen reader announcing "exclamation
+                  mark" after "saying hello" is the same fact twice.
+                */}
+                <span aria-hidden style={{ ...s.mood, color: mood.colour }}>{mood.glyph}</span>
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       {/*
@@ -228,6 +310,7 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 6,
     padding: 1,
     width: '100%',
+    position: 'relative',
   },
   cell: {
     aspectRatio: '1',
@@ -240,7 +323,38 @@ const s: Record<string, React.CSSProperties> = {
     minWidth: 0,
   },
   grass:    { color: '#2f4020', fontSize: 10, lineHeight: 1, userSelect: 'none' },
-  catCell:  { cursor: 'pointer', overflow: 'hidden', background: '#1a2013', position: 'relative' },
+  /*
+   * THE OVERLAY sits exactly over the grid's cells. It is inset by the same 1px
+   * padding the grid carries, so a cat at (0,0) lands on the first cell rather
+   * than a pixel off it.
+   *
+   * pointerEvents none on the layer, auto on each cat: the gaps between cats must
+   * not swallow a tap meant for the page.
+   */
+  overlay: {
+    position: 'absolute', left: 1, top: 1, right: 1, bottom: 1,
+    pointerEvents: 'none',
+  },
+  catCell: {
+    position: 'absolute', left: 0, top: 0,
+    width: `calc(100% / ${COLS})`, height: `calc(100% / ${ROWS})`,
+    // The gap the grid draws between cells, so an overlaid cat matches a prop.
+    padding: 0, border: 'none',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    cursor: 'pointer', overflow: 'hidden', background: '#1a2013',
+    pointerEvents: 'auto',
+    /*
+     * TRANSFORM, not left/top. A transform is composited rather than re-laying
+     * the page out on every frame, and it is the property the browser will
+     * animate cheaply with nine of these moving at once.
+     */
+    /*
+     * NO TRANSITION ON TRANSFORM, deliberately. The cat cuts to its new tile the
+     * way a sprite does. Only the selection ring eases, because that is the
+     * interface responding to a tap rather than the world moving.
+     */
+    transition: 'outline-color 150ms',
+  },
   art:      { width: '100%', height: '100%', objectFit: 'cover', imageRendering: 'pixelated', display: 'block' },
   fallback: { fontSize: 11, color: '#cfcfe0' },
   /*

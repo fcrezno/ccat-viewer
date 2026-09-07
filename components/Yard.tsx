@@ -236,6 +236,7 @@ export function Yard({
         <YardMap
           yard={state.state}
           mine={cats.filter(c => c.mine).map(c => c.uid)}
+          replay
           picked={full ? picked : undefined}
           onPick={full ? setPicked : undefined}
           onFurnish={prop => {

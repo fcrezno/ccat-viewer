@@ -44,6 +44,7 @@ export type Placed =
   | { what: 'cat';  cell: Cell; cat: Resident; doing: Memory | null }
   | { what: 'prop'; cell: Cell; prop: PropKind }
 
+
 /** The same xorshift the yard runs on, so a layout replays exactly like a visit. */
 function rng(seed: number) {
   let s = seed | 0
@@ -126,62 +127,170 @@ function beside(c: Cell, r: () => number): Cell {
 }
 
 /**
- * The whole yard, placed.
+ * HOW FAR BACK THE WALK IS COMPUTED.
  *
- * Furniture goes down first and keeps its cell, because a cat standing near the
- * toy is the thing being shown; a toy shoved aside by a cat would break it.
+ * Positions are derived by walking every cat forward from a start, so the cost is
+ * ticks x cats. A yard accumulates ticks for as long as it is visited, and there
+ * is no reason to replay a fortnight to know where somebody is standing: forty
+ * ticks is far more than enough to cross a 13x8 yard several times over.
  */
-export function layout(y: YardState): Placed[] {
-  const props = propCells(y)
-  const taken = new Set<number>()
-  const out: Placed[] = []
+const WALK_FROM = 40
 
-  for (const [prop, cell] of props) {
-    taken.add(key(cell))
-    out.push({ what: 'prop', cell, prop })
+/**
+ * A tile this cat can actually reach this turn: the one it wants, else any free
+ * neighbour, else where it already is. Never further than one step.
+ *
+ * The neighbours are tried in a fixed order so a blocked cat resolves the same
+ * way every time — the walk has to be deterministic or the map would shuffle on
+ * every render.
+ */
+function nearby(from: Cell, want: Cell, taken: Set<number>): Cell {
+  const inside = (c: Cell) => c.x >= 0 && c.x < COLS && c.y >= 0 && c.y < ROWS
+  if (inside(want) && !taken.has(key(want))) return want
+
+  for (const [dx, dy] of [
+    [0, -1], [1, 0], [0, 1], [-1, 0],
+    [1, -1], [1, 1], [-1, 1], [-1, -1],
+  ]) {
+    const c = { x: from.x + dx, y: from.y + dy }
+    if (inside(c) && !taken.has(key(c))) return c
   }
+  return from
+}
 
-  /* The newest memory each cat appears in — what it is currently doing. */
+/** One step, eight-directional. A creature moves ONE tile a turn, as in DF. */
+function step(from: Cell, to: Cell): Cell {
+  return {
+    x: from.x + Math.sign(to.x - from.x),
+    y: from.y + Math.sign(to.y - from.y),
+  }
+}
+
+/**
+ * WHERE EACH CAT WANTS TO BE at a given tick — not where it is.
+ *
+ * A cat that just played is heading for the toy; one that greeted somebody is
+ * heading for them; one nobody remembers is drifting around its own patch.
+ */
+function targets(y: YardState, tick: number, props: Map<PropKind, Cell>, at: Map<string, Cell>) {
   const last = new Map<string, Memory>()
-  for (const m of y.kept) { last.set(m.a, m); last.set(m.b, m) }
+  for (const m of y.kept) if (m.tick <= tick) { last.set(m.a, m); last.set(m.b, m) }
 
-  const placed = new Map<string, Cell>()
-
+  const want = new Map<string, Cell>()
   for (const cat of y.cats) {
     const doing = last.get(cat.uid) ?? null
-    const r = rng((y.seed ^ hash(cat.uid) ^ Math.imul(y.ticks + 1, 0x85ebca6b)) | 0)
+    const r = rng((y.seed ^ hash(cat.uid) ^ Math.imul(tick + 1, 0x85ebca6b)) | 0)
 
-    /* Its own spot, when it has done nothing anybody remembers. */
-    let want: Cell = {
-      x: Math.floor(r() * COLS),
-      y: Math.floor(r() * ROWS),
-    }
+    /* Nothing to do: its own patch, which only drifts a tile at a time anyway. */
+    let goal: Cell = { x: Math.floor(r() * COLS), y: Math.floor(r() * ROWS) }
 
     if (doing) {
       const wants = NEEDS[doing.kind]
       const propCell = wants ? props.get(wants) : undefined
       if (propCell) {
-        // It used furniture, so it is at the furniture.
-        want = beside(propCell, r)
+        goal = beside(propCell, r)
       } else {
-        /*
-         * It was with another cat. Stand by them — and if they have not been
-         * placed yet, take a spot and let THEM come to US, which is the same
-         * arrangement either way round.
-         */
         const otherUid = doing.a === cat.uid ? doing.b : doing.a
-        const there = placed.get(otherUid)
-        if (there) want = beside(there, r)
+        const there = at.get(otherUid)
+        if (there) goal = beside(there, r)
       }
     }
+    want.set(cat.uid, goal)
+  }
+  return want
+}
 
-    const cell = free(want, taken)
-    taken.add(key(cell))
-    placed.set(cat.uid, cell)
-    out.push({ what: 'cat', cell, cat, doing })
+/**
+ * WHERE EVERYBODY IS STANDING, having walked there.
+ *
+ * JP: "they shouldn't be teleporting from place to place… make their movements
+ * make sense… they should be walking, or at least moving within the tile frames
+ * to their location."
+ *
+ * The first version derived a position from a cat's latest memory and nothing
+ * else, so every tick placed it wherever that tick implied — and a cat that
+ * played by the toy and then greeted somebody across the yard simply appeared
+ * there. Correct about where it belonged, and nonsense as movement.
+ *
+ * Now each cat holds a position and takes ONE STEP a tick toward what it wants,
+ * eight-directionally, exactly as a creature in DF does. Crossing the yard takes
+ * as many turns as it takes. The path is not stored anywhere: walking from a
+ * fixed start with a seeded goal is deterministic, so the same yard always walks
+ * the same way and the map still cannot disagree with the simulation.
+ */
+function walk(y: YardState, upTo: number): Map<string, Cell> {
+  const props = propCells(y)
+  const propKeys = new Set([...props.values()].map(key))
+  /*
+   * THE WALK STARTS AT A FIXED TICK, anchored to the yard rather than to the tick
+   * being asked for.
+   *
+   * This was `upTo - WALK_FROM`, which slid the starting line forward with every
+   * question — so tick 44 and tick 45 were two DIFFERENT walks from two different
+   * starts, and comparing them showed cats moving four tiles in a turn. The walk
+   * has to be one path sampled at points, not a fresh path per point.
+   */
+  const from = Math.max(0, y.ticks - WALK_FROM)
+
+  /* Everybody starts on their own patch, seeded by who they are. */
+  const at = new Map<string, Cell>()
+  for (const cat of y.cats) {
+    const r = rng((y.seed ^ hash(cat.uid)) | 0)
+    at.set(cat.uid, { x: Math.floor(r() * COLS), y: Math.floor(r() * ROWS) })
   }
 
+  // Asked for a tick older than the walk goes back to: everybody is at the start.
+  if (upTo < from) return at
+
+  for (let t = from; t <= upTo; t++) {
+    const want = targets(y, t, props, at)
+    const taken = new Set<number>(propKeys)
+
+    for (const cat of y.cats) {
+      const here = at.get(cat.uid)!
+      const goal = want.get(cat.uid)!
+      const next = (here.x === goal.x && here.y === goal.y) ? here : step(here, goal)
+      /*
+       * A BLOCKED CAT STEPS ASIDE OR STAYS. It does NOT go looking for space.
+       *
+       * This used the same ring search the props use, which finds the nearest
+       * free tile however far that is — and that put moves of two and three tiles
+       * back into a walk that had just been made one tile a turn. Measured: 34 of
+       * 80 moves were longer than a step.
+       *
+       * Now the only tiles it will consider are the ones it could actually reach
+       * this turn, and if none of them are free it waits. A crowd round the bowl
+       * should look like a queue, not like cats being flung out of it.
+       */
+      const cell = nearby(here, next, taken)
+      taken.add(key(cell))
+      at.set(cat.uid, cell)
+    }
+  }
+  return at
+}
+
+/** The yard as it stood at a particular tick, everybody having walked there. */
+export function layoutAt(y: YardState, tick: number): Placed[] {
+  const props = propCells(y)
+  const at = walk(y, Math.max(0, Math.min(tick, y.ticks)))
+
+  const last = new Map<string, Memory>()
+  for (const m of y.kept) if (m.tick <= tick) { last.set(m.a, m); last.set(m.b, m) }
+
+  const out: Placed[] = []
+  const taken = new Set<number>()
+  for (const [prop, cell] of props) { taken.add(key(cell)); out.push({ what: 'prop', cell, prop }) }
+  for (const cat of y.cats) {
+    const cell = at.get(cat.uid)!
+    taken.add(key(cell))
+    out.push({ what: 'cat', cell, cat, doing: last.get(cat.uid) ?? null })
+  }
   return out
+}
+
+export function layout(y: YardState): Placed[] {
+  return layoutAt(y, y.ticks)
 }
 
 /**
@@ -199,6 +308,40 @@ export const DOING: Record<Memory['kind'], string> = {
   snub:     'ignoring someone',
   squabble: 'squabbling',
 }
+
+/**
+ * WHAT THE CAT ITSELF DOES — using the animations this app already has.
+ *
+ * JP: "the effects and animations that were previously on, that you didn't add."
+ *
+ * globals.css already carries a full set and the yard was using NONE of them.
+ * The tama-* ones are literally cat moods — bounce, shake, pulse, sway, float —
+ * written for the tamagotchi screen, and cradle-shake is the jolt the fight uses
+ * on a hit. Reusing them means the yard moves the way the rest of the game
+ * already moves, and there is one place to change how a cat behaves rather than
+ * two sets that drift.
+ *
+ * ── IT GOES ON THE PORTRAIT, NOT THE TILE ────────────────────────────────────
+ *
+ * The tile carries `transform: translate()` for its position on the grid. Every
+ * one of these animations also animates `transform`, so putting them on the tile
+ * would overwrite the position and pile every cat into the top-left corner. The
+ * portrait inside is free to move.
+ */
+export const ACTS: Record<Memory['kind'], string> = {
+  greet:    'tama-bounce 0.7s ease-in-out infinite',
+  play:     'tama-bounce 0.45s ease-in-out infinite',
+  groom:    'tama-sway 2.5s ease-in-out infinite',
+  showoff:  'tama-float 1.6s ease-in-out infinite',
+  share:    'tama-float 3s ease-in-out infinite',
+  snub:     'tama-pulse 2s ease-in-out infinite',
+  squabble: 'tama-shake 0.5s ease-in-out infinite',
+}
+
+/** Doing nothing is still doing something: it breathes. */
+export const RESTING = 'tama-pulse 3.4s ease-in-out infinite'
+
+export const actOf = (doing: Memory | null) => (doing ? ACTS[doing.kind] : RESTING)
 
 /**
  * THE MOOD GLYPH — one character over a cat, the way DF does it.
