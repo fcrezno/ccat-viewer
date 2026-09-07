@@ -367,6 +367,24 @@ export const diary = (y: YardState, uid: string, most = 20) =>
   y.kept.filter(m => m.a === uid || m.b === uid).slice(-most).reverse()
 
 /**
+ * EVERYTHING THAT IS STILL REMEMBERED BETWEEN TWO CATS, newest first.
+ *
+ * JP: "one of my most favourite things in Dwarf Fortress was looking at
+ * conversations dwarves would have… right now I only see that they're friends,
+ * and I don't think that should be what I should be seeing. I should be seeing
+ * cat one and cat two are talking, and then click into detail."
+ *
+ * A bond word is a VERDICT — the sum of this list, reduced to one adjective. It
+ * is the answer, and he is right that it is the least interesting thing on the
+ * page. This is the working: the actual events between two cats, which is what
+ * the verdict was computed from and what a conversation in DF is made of.
+ *
+ * Nothing is stored for it. Every memory already names both cats.
+ */
+export const between = (y: YardState, a: string, b: string, most = 20) =>
+  y.kept.filter(m => same(m, a, b)).slice(-most).reverse()
+
+/**
  * How a bond reads. PLACEHOLDER WORDS — the full build says the same, and they
  * are JP's to replace. Nothing here should put prose in his game.
  *

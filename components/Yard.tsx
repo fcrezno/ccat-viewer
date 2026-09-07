@@ -1,10 +1,11 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { bond, reads, temperOf, waiting, type Memory, type Resident } from '@/lib/yard'
+import { between, bond, reads, temperOf, waiting, type Memory, type Resident } from '@/lib/yard'
 import { visit, furnish, DEMO_KEY, MAX_TICKS, type Visit } from '@/lib/yardstore'
 import { YardMap } from '@/components/YardMap'
 import { CatSheet } from '@/components/CatSheet'
+import { thoughtOf } from '@/lib/yardmap'
 
 /**
  * THE YARD — what your cats did with the cats of people you follow.
@@ -118,6 +119,29 @@ function CatName({ cat, on, off }: { cat: YardCat; on: () => void; off: () => vo
  * yard taking the whole screen it now sits at the top of. Two reads as a stub;
  * four starts pushing the rest of the page down again.
  */
+/**
+ * WHAT A PAIR IS DOING — the headline on a conversation.
+ *
+ * JP: "I should be seeing cat one and cat two are talking. And then if I click on
+ * that message line, then I can go into detail what they're talking about."
+ *
+ * The row used to read "#205 and #139 — friendly", which is a VERDICT: the sum of
+ * everything between them reduced to one adjective, and the least interesting
+ * thing available. This says what is happening instead, taken from the last thing
+ * that passed between them.
+ *
+ * PLACEHOLDER PROSE like the rest, and JP's to replace.
+ */
+const TOGETHER: Record<Memory['kind'], string> = {
+  greet:    'are talking',
+  play:     'are chasing each other',
+  groom:    'are grooming',
+  showoff:  'are showing off',
+  share:    'are sharing',
+  snub:     'are not speaking',
+  squabble: 'are arguing',
+}
+
 const PREVIEW_LINES = 3
 
 export function Yard({
@@ -149,6 +173,8 @@ export function Yard({
   const [peek, setPeek] = useState<YardCat | null>(null)
   const [grown, setGrown] = useState(false)
   const [picked, setPicked] = useState<string | null>(null)
+  /** Which pair's conversation is open. One at a time — this is a log, not a tree. */
+  const [talking, setTalking] = useState<string | null>(null)
   const clear = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const byUid = useMemo(() => new Map(cats.map(c => [c.uid, c])), [cats])
@@ -205,15 +231,27 @@ export function Yard({
 
   const pickedCat = picked ? byUid.get(picked) ?? null : null
 
-  /* Every pair that has any history, strongest feeling first. */
-  const pairs: { a: YardCat; b: YardCat; n: number }[] = []
+  /*
+   * EVERY PAIR WITH A HISTORY, MOST RECENTLY ACTIVE FIRST.
+   *
+   * It used to sort by the strongest bond, which is a ranking of VERDICTS. JP:
+   * "right now I only see that they're friends, and I don't think that should be
+   * what I should be seeing." Who is talking RIGHT NOW is the live thing; who
+   * happens to be fondest is a summary of the past.
+   */
+  const pairs: { a: YardCat; b: YardCat; n: number; last: Memory }[] = []
   for (let i = 0; i < cats.length; i++) {
     for (let j = i + 1; j < cats.length; j++) {
-      const n = bond(state.state, cats[i].uid, cats[j].uid)
-      if (n !== 0) pairs.push({ a: cats[i], b: cats[j], n })
+      const shared = between(state.state, cats[i].uid, cats[j].uid, 1)
+      if (!shared.length) continue
+      pairs.push({
+        a: cats[i], b: cats[j],
+        n: bond(state.state, cats[i].uid, cats[j].uid),
+        last: shared[0],
+      })
     }
   }
-  pairs.sort((x, y) => Math.abs(y.n) - Math.abs(x.n))
+  pairs.sort((x, y) => y.last.tick - x.last.tick)
 
   return (
     <div style={{ position: 'relative' }}>
@@ -333,23 +371,68 @@ export function Yard({
           */}
           {(!compact || grown || shown.length === 0) && pairs.length > 0 && (
             <>
-              <p style={rule}>HOW THEY GET ON</p>
-              {pairs.slice(0, 8).map(({ a, b, n }) => (
-                <p key={a.uid + b.uid} style={line}>
-                  <CatName cat={a} on={() => show(a)} off={hide} />
-                  {' and '}
-                  <CatName cat={b} on={() => show(b)} off={hide} />
-                  {' — '}
-                  {/*
-                    KEYED ON THE WORD, not on the number. The thresholds were
-                    written out here as `n >= 15` and `n <= -15` and were left
-                    behind when reads() was recalibrated, so a pair reading
-                    "friendly" was being painted grey. Reading the word means the
-                    colour cannot disagree with it again.
-                  */}
-                  <span style={{ color: BOND_INK[reads(n)] ?? INK_FAINT }}>{reads(n)}</span>
-                </p>
-              ))}
+              <p style={rule}>WHO IS TALKING</p>
+              {pairs.slice(0, 8).map(({ a, b, n, last }) => {
+                const id = a.uid + b.uid
+                const open = talking === id
+                const said = open ? between(state.state, a.uid, b.uid, 8) : []
+                return (
+                  <div key={id}>
+                    {/*
+                      THE WHOLE LINE OPENS IT, not a chevron at the end. On a phone
+                      a row is the target; a separate control is a smaller one for
+                      no reason.
+                    */}
+                    <button
+                      onClick={() => setTalking(open ? null : id)}
+                      aria-expanded={open}
+                      style={pairRow}
+                    >
+                      <span>
+                        <span style={{ color: a.mine ? '#a06a10' : '#5b3fa8' }}>{a.name}</span>
+                        {' and '}
+                        <span style={{ color: b.mine ? '#a06a10' : '#5b3fa8' }}>{b.name}</span>
+                        {' '}
+                        <span style={{ color: DEED_INK[last.kind] }}>{TOGETHER[last.kind]}</span>
+                      </span>
+                      {/*
+                        The verdict is kept, but demoted to the end of the line
+                        where it belongs — it is the summary, not the news.
+                      */}
+                      <span style={{ color: BOND_INK[reads(n)] ?? INK_FAINT, fontSize: 11 }}>
+                        {reads(n)}
+                      </span>
+                    </button>
+
+                    {open && (
+                      <div style={convo}>
+                        {said.map((m, i) => {
+                          const speaker = m.a === a.uid ? a : b
+                          const other = m.a === a.uid ? b : a
+                          const t = thoughtOf(m, speaker.uid, other.name)
+                          const ago = state.state.ticks - m.tick
+                          return (
+                            <div key={i} style={convoRow}>
+                              <span>
+                                <span style={{ color: speaker.mine ? '#a06a10' : '#5b3fa8' }}>
+                                  {speaker.name}
+                                </span>
+                                {' '}
+                                <span style={{ color: t.good ? '#2f7a44' : '#a01b1b' }}>
+                                  {t.text}
+                                </span>
+                              </span>
+                              <span style={{ color: '#8a8a7a', fontSize: 11, whiteSpace: 'nowrap' }}>
+                                {ago <= 0 ? 'just now' : `${ago}h`}
+                              </span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </>
           )}
         </div>
@@ -442,6 +525,26 @@ const paper: React.CSSProperties = {
 }
 
 const line: React.CSSProperties = { color: INK, fontSize: 13, margin: 0, lineHeight: 1.55 }
+
+/* A pair, as a row you can open. Printed, not chromed — it sits on the paper. */
+const pairRow: React.CSSProperties = {
+  display: 'flex', width: '100%', gap: 10, alignItems: 'baseline',
+  justifyContent: 'space-between', textAlign: 'left',
+  background: 'none', border: 0, padding: '2px 0',
+  font: 'inherit', fontSize: 13, color: INK, cursor: 'pointer',
+}
+
+/* What passed between them, indented under the pair like a quoted exchange. */
+const convo: React.CSSProperties = {
+  display: 'flex', flexDirection: 'column', gap: 3,
+  margin: '4px 0 8px 12px', paddingLeft: 10,
+  borderLeft: '2px solid rgba(0,0,0,0.12)',
+}
+
+const convoRow: React.CSSProperties = {
+  display: 'flex', gap: 10, justifyContent: 'space-between',
+  alignItems: 'baseline', fontSize: 12.5, lineHeight: 1.45,
+}
 
 /*
  * The grow control, printed rather than added.
