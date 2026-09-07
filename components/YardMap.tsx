@@ -245,7 +245,34 @@ export function YardMap({
                   cat is doing in words; a screen reader announcing "exclamation
                   mark" after "saying hello" is the same fact twice.
                 */}
-                <span aria-hidden style={{ ...s.mood, color: mood.colour }}>{mood.glyph}</span>
+                {/*
+                  IT BLINKS, AND THAT IS NOT A CONTRADICTION.
+
+                  JP: "they should be blinking like dwarf fortress."
+
+                  The POSE changes only on the turn, because a pose is world
+                  state. A blink is not — it is the display asking to be looked
+                  at, and in DF it runs on its own regardless of the game clock,
+                  the way the cursor and a warning do.
+
+                  `cradle-blink` is the app's own, at the timing render.mjs uses
+                  for CAUTION!/PERIL!, and its stops are 0%/49.9% then 50%/100% —
+                  a hard on and off with nothing to interpolate between.
+
+                  ONLY WHEN SOMETHING IS HAPPENING. The idle "?" holds steady: a
+                  blink is for attention, and every quiet cat flashing would be
+                  noise rather than a signal.
+                */}
+                <span
+                  aria-hidden
+                  style={{
+                    ...s.mood,
+                    color: mood.colour,
+                    animation: here.doing ? 'cradle-blink 0.74s steps(1, end) infinite' : undefined,
+                  }}
+                >
+                  {mood.glyph}
+                </span>
               </button>
             )
           })}
