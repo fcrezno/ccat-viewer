@@ -105,7 +105,12 @@ export function CatSheet({
       <div style={s.rule}>HOW IT FEELS ABOUT THE OTHERS</div>
       {felt.length ? (
         <div style={s.list}>
-          {felt.map(({ o, n }) => (
+          {/*
+            THE STRONGEST FEW. The whole pair list is on the page already, under
+            HOW THEY GET ON — repeating all of it per cat was most of the wall.
+            What is worth saying here is who this one cares about MOST.
+          */}
+          {felt.slice(0, 4).map(({ o, n }) => (
             <div key={o.uid} style={s.feltRow}>
               <span style={{ color: mine.includes(o.uid) ? '#a06a10' : '#5b3fa8' }}>{o.name}</span>
               <span style={s.dots} />
@@ -118,62 +123,43 @@ export function CatSheet({
       )}
 
       {/*
-        THOUGHTS SIT ABOVE THE DIARY, because they are the reading and the diary
-        is the record. DF puts them the same way round: how the dwarf FEELS
-        first, then what happened.
+        ONE LIST, NOT TWO.
 
-        Fewer of them than diary lines. A thought is a sentence and twelve of
-        them is a wall; the diary underneath is already the complete list.
+        JP: "this is a lot of info to have, can we make this more bite size?"
+
+        There were two — WHAT IT THINKS and WHAT IT REMEMBERS — and they were the
+        SAME EVENTS printed twice: a thought is a reading of a memory, so the
+        second list said everything the first had just said with the deed name
+        instead of the feeling. Seventeen rows to carry six facts.
+
+        A thought already names the other cat. Adding the hour to it gives
+        everything both lists had, in one, and strictly more than either: what
+        happened, how the cat took it, and how close it is to being forgotten.
       */}
-      <div style={s.rule}>WHAT IT THINKS</div>
+      <div style={s.rule}>ON ITS MIND</div>
       {said.length ? (
         <div style={s.list}>
-          {said.slice(0, 5).map((m, i) => {
+          {said.slice(0, 7).map((m, i) => {
             const other = byUid.get(m.a === cat.uid ? m.b : m.a)
             const thought = thoughtOf(m, cat.uid, other?.name ?? 'somebody')
-            return (
-              <div key={i} style={s.thought}>
-                {/*
-                  A BULLET THAT CARRIES THE FEELING. DF marks a thought as good
-                  or bad and so does this — and it reads the DELTA, so a kindness
-                  that went wrong is marked bad however kindly it was meant.
-                */}
-                <span style={{ color: thought.good ? '#2f7a44' : '#a01b1b', flexShrink: 0 }}>
-                  {thought.good ? '+' : '−'}
-                </span>
-                <span>{thought.text}</span>
-              </div>
-            )
-          })}
-        </div>
-      ) : (
-        <p style={s.none}>It has nothing on its mind.</p>
-      )}
-
-      <div style={s.rule}>WHAT IT REMEMBERS</div>
-      {said.length ? (
-        <div style={s.list}>
-          {said.map((m, i) => {
-            const other = byUid.get(m.a === cat.uid ? m.b : m.a)
             const ago = yard.ticks - m.tick
             return (
               <div key={i} style={s.memRow}>
-                {/*
-                  ONE FLEX ITEM, not two. The row is a flex container, and a flex
-                  item's leading whitespace is TRIMMED — so "playing" and " with
-                  #53" as separate items rendered as "playingwith #53" however the
-                  space was written in the JSX. Wrapping them makes the space an
-                  ordinary one inside a single item, where it survives.
-                */}
                 <span>
-                  <span style={{ color: DEED_INK[m.kind] }}>{DOING[m.kind]}</span>
-                  {other && <span style={{ color: '#8a8a7a' }}> with {other.name}</span>}
+                  {/*
+                    The bullet carries the feeling, and it reads the DELTA rather
+                    than the deed — a kindness that went wrong is marked bad
+                    however kindly it was meant.
+                  */}
+                  <span style={{ color: thought.good ? '#2f7a44' : '#a01b1b' }}>
+                    {thought.good ? '+' : '−'}
+                  </span>
+                  {' '}{thought.text}
                 </span>
                 <span style={s.dots} />
                 {/*
-                  HOW LONG AGO, and it is not decoration: a memory lasts SPAN
-                  ticks and one tick is an hour, so "22h" is a line about to stop
-                  counting toward the bond. That is the mechanism, said plainly.
+                  A memory lasts SPAN ticks and one tick is an hour, so "22h" is a
+                  line about to stop counting toward the bond.
                 */}
                 <span style={s.ago}>{ago <= 0 ? 'just now' : `${ago}h`}</span>
               </div>
@@ -181,7 +167,7 @@ export function CatSheet({
           })}
         </div>
       ) : (
-        <p style={s.none}>It has not done anything anybody remembers.</p>
+        <p style={s.none}>Nothing on its mind yet.</p>
       )}
     </div>
   )
