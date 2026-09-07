@@ -62,11 +62,15 @@ const PROP_WHY: Record<PropKind, string> = {
  * portrait across the ground was the thing this file argued against in the first
  * place, and a tween is exactly that slide with easing on it.
  *
- * So the STEP is the animation. Ten ticks at 550ms is about five and a half
- * seconds, and each one lands as a hard cut. Faster reads as flicker; slower and
- * you are waiting between frames.
+ * So the STEP is the animation, and each one lands as a hard cut. Faster reads as
+ * flicker; slower and you are waiting between frames.
+ *
+ * TWENTY-FOUR TICKS because it now LOOPS rather than running once — a full day,
+ * which is also exactly as much as a visit ever plays out. Ten made the repeat
+ * obvious; a day at 550ms is thirteen seconds, which is long enough that it reads
+ * as the yard getting on with itself rather than as a cycle.
  */
-const REPLAY_TICKS = 10
+const REPLAY_TICKS = 24
 const STEP_MS = 550
 
 /** DF grass, scattered deterministically so it does not crawl on re-render. */
@@ -128,12 +132,29 @@ export function YardMap({
       && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
     if (still) { setAt(null); return }
 
+    /*
+     * IT KEEPS GOING AS LONG AS THE SCREEN IS UP.
+     *
+     * JP: "this should be going as long as the screen is up."
+     *
+     * It used to run the window once and stop, which left the yard frozen the
+     * moment you had watched it — a dead map under a live page.
+     *
+     * IT LOOPS RATHER THAN TICKING FOR REAL, and that is on purpose. Advancing
+     * the simulation while somebody watches would break the scale the whole thing
+     * is tuned on: one tick is one HOUR, a memory lasts 24 of them, and a bond has
+     * to be kept up daily. Leave the tab open for ten minutes at this pace and a
+     * week of yard time would pass, memories would churn through their span, and
+     * "come back tomorrow" would stop meaning anything.
+     *
+     * So the day plays and plays again. Nothing is invented — it is the hours
+     * that actually happened, on repeat.
+     */
     setAt(from)
     let t = from
     const id = setInterval(() => {
-      t += 1
-      if (t >= yard.ticks) { setAt(null); clearInterval(id) }
-      else setAt(t)
+      t = t + 1 >= yard.ticks ? from : t + 1
+      setAt(t)
     }, STEP_MS)
     return () => clearInterval(id)
   }, [replay, yard.ticks, yard.seed])
