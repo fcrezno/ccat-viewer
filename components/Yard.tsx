@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { bond, reads, temperOf, waiting, type Memory, type Resident } from '@/lib/yard'
-import { visit, MAX_TICKS, type Visit } from '@/lib/yardstore'
+import { visit, furnish, MAX_TICKS, type Visit } from '@/lib/yardstore'
+import { YardMap } from '@/components/YardMap'
 
 /**
  * THE YARD — what your cats did with the cats of people you follow.
@@ -10,17 +11,25 @@ import { visit, MAX_TICKS, type Visit } from '@/lib/yardstore'
  * JP: "for the yard we're still doing bromir text; but when interacting with cats
  * u can mouse over their name and see their pfp."
  *
- * ── IT IS TEXT, AND THAT IS THE DESIGN ───────────────────────────────────────
+ * ── A MAP AND A LOG, WHICH IS DWARF FORTRESS's ARRANGEMENT ───────────────────
  *
- * No arena, no sprites walking about. The cats are 250x199 PORTRAITS, not
- * characters with walk cycles, so a garden of them milling around is not art this
- * game has — and faking it with sliding portraits would look worse than saying
- * what happened.
+ * JP, 2026-09-07: "for the yard i would like it to be similar to the look of
+ * dwarf fortress; but a very petit version… these cats arent mineing or anything;
+ * so i would just like to focus on the social aspects."
  *
- * Text also carries the thing that actually matters here, which is HISTORY. A
- * bond is the sum of what is still remembered, and a list of remembered events is
- * the most direct way to show that. The desktop build is where this becomes a
- * place you can walk around in.
+ * This file used to argue that a map was impossible, and the argument was sound
+ * as far as it went: the cats are 250x199 PORTRAITS with no walk cycles, so a
+ * garden of them milling about is not art this game has, and sliding portraits
+ * around would look worse than saying what happened.
+ *
+ * A DF OVERWORLD NEEDS NO WALK CYCLE. Nothing animates — a creature is one tile
+ * that is simply there, and the map is read rather than watched. That is exactly
+ * what a portrait can do, so the objection was to ANIMATION, not to a map.
+ *
+ * The text stayed, because it carries the thing that actually matters, which is
+ * HISTORY: a bond is the sum of what is still remembered. So the map says who is
+ * stood with whom right now, and the lines below say how it got that way. See
+ * components/YardMap.tsx.
  *
  * ── THE NAME IS THE PORTRAIT ─────────────────────────────────────────────────
  *
@@ -56,12 +65,13 @@ const SAYS: Record<Memory['kind'], [string, string, string]> = {
   play:     ['', ' and ', ' chased each other around.'],
   groom:    ['', ' cleaned ', "'s ears."],
   showoff:  ['', ' showed off in front of ', '.'],
+  share:    ['', ' let ', ' eat first.'],
   snub:     ['', ' walked past ', ' without looking.'],
   squabble: ['', ' and ', ' fell out over nothing.'],
 }
 
+/* `art` now lives on Resident itself, because the map draws every cat. */
 export type YardCat = Resident & {
-  art?: string
   owner?: { fid: number; username: string; pfp: string | null } | null
   mine?: boolean
 }
@@ -161,6 +171,25 @@ export function Yard({ cats, busy }: { cats: YardCat[]; busy?: boolean }) {
             : `While you were away — ${state.hours} hour${state.hours === 1 ? '' : 's'}${
                 state.hours >= MAX_TICKS ? ' (as much as the yard plays out)' : ''}.`}
       </p>
+
+      {/*
+        THE MAP SITS ABOVE THE LOG, which is DF's own arrangement: the world
+        first, then the announcements about it. The map tells you the SHAPE of
+        things — who is stood together, who is off on their own, what there is to
+        do out there — and the lines below say what actually happened.
+      */}
+      <div style={{ marginBottom: 14 }}>
+        <YardMap
+          yard={state.state}
+          mine={cats.filter(c => c.mine).map(c => c.uid)}
+          onFurnish={prop => {
+            const s = furnish(prop)
+            // Null only before a first visit has been saved, which cannot be
+            // reached from here — the map is not rendered until one has.
+            if (s) setState({ ...state, state: s })
+          }}
+        />
+      </div>
 
       {recent.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>

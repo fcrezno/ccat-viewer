@@ -1,4 +1,4 @@
-import { open, catchUp, type Memory, type Resident, type YardState } from '@/lib/yard'
+import { open, catchUp, PROPS, type Memory, type PropKind, type Resident, type YardState } from '@/lib/yard'
 
 /**
  * THE YARD, BETWEEN VISITS.
@@ -71,6 +71,15 @@ function reconcile(prev: Stored | null, cats: Resident[], seed: number): YardSta
     ticks: prev.ticks,
     cats,
     turnedAway: 0,
+    /*
+     * FURNITURE SURVIVES A VISIT. It is the one thing in the yard the player
+     * chose, and a yard that forgot it every morning would be asking them to
+     * furnish it again forever.
+     *
+     * Read defensively: a yard stored before props existed has none of this, and
+     * an older value must open an empty yard rather than crash a new one.
+     */
+    props: Array.isArray(prev.props) ? prev.props : [],
     kept: prev.kept.filter(m => here.has(m.a) && here.has(m.b)),
   }
 }
@@ -107,6 +116,47 @@ export function visit(cats: Resident[]): Visit {
 
   save({ ...state, at: now })
   return { state, happened, hours, fresh: !prev }
+}
+
+/**
+ * Put something in the yard, or take it away. Returns the yard as it now stands.
+ *
+ * WRITES STRAIGHT THROUGH, and does not run any ticks. Furnishing is not an event
+ * in the yard's history — the cats do not remember the day the toy arrived, they
+ * simply start playing. Ticking here would also mean the number of times somebody
+ * fiddled with the furniture changed how much time had passed.
+ *
+ * The effect shows up on the NEXT visit, which is the same promise the rest of
+ * the yard makes: come back later and they will have got on with it.
+ */
+/*
+ * ONE PROP AT A TIME, AND THE STORE DECIDES WHAT IS THERE NOW.
+ *
+ * This took the whole new set, and it had a real bug: three buttons tapped in
+ * quick succession all computed their new set from the SAME rendered value, so
+ * the last tap won and the other two were lost. Measured — putting out all three
+ * left only the perch.
+ *
+ * Reading the current set from storage inside the toggle removes the race
+ * entirely, because every call starts from what is actually saved rather than
+ * from whatever the caller last rendered.
+ */
+export function furnish(prop: PropKind): YardState | null {
+  const prev = load()
+  if (!prev) return null
+  const now = Array.isArray(prev.props) ? prev.props : []
+  const next: Stored = {
+    ...prev,
+    props: PROPS.filter(p => (p === prop ? !now.includes(p) : now.includes(p))),
+  }
+  save(next)
+  return next
+}
+
+/** What is out there now, without arriving. Null before the first visit. */
+export function furniture(): PropKind[] {
+  const prev = load()
+  return prev && Array.isArray(prev.props) ? prev.props : []
 }
 
 /** Start again. For a yard that has gone wrong, or a cat list worth resetting. */

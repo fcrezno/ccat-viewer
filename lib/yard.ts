@@ -47,7 +47,30 @@ export type Memory = {
   delta: number
 }
 
-export type DeedKind = 'greet' | 'play' | 'groom' | 'showoff' | 'snub' | 'squabble'
+export type DeedKind = 'greet' | 'play' | 'groom' | 'showoff' | 'share' | 'snub' | 'squabble'
+
+/**
+ * FURNITURE. It is MECHANICAL, not scenery — this is the rule the full build
+ * measured and it is why the yard is worth furnishing at all.
+ *
+ * A toy, a bowl and a perch each make one deed POSSIBLE. Take the toy away and
+ * cats stop playing; the desktop measured 8 play events with it and 0 without.
+ * Scenery that only decorated would make furnishing a menu rather than a choice.
+ *
+ * `share` comes back with the bowl. It was dropped from the petite yard along
+ * with the props, for the stated reason that "a phone has nowhere to put them" —
+ * which was true of a wall of text and is not true of a map.
+ */
+export type PropKind = 'toy' | 'bowl' | 'perch'
+
+export const PROPS: PropKind[] = ['toy', 'bowl', 'perch']
+
+/** What each deed needs standing in the yard before it can happen at all. */
+export const NEEDS: Partial<Record<DeedKind, PropKind>> = {
+  play:    'toy',
+  share:   'bowl',
+  showoff: 'perch',
+}
 
 export type Deed = {
   kind: DeedKind
@@ -81,6 +104,7 @@ export const DEEDS: Deed[] = [
   { kind: 'play',     delta:  3, need:  -70 },
   { kind: 'groom',    delta:  4, need:   30 },
   { kind: 'showoff',  delta:  2, need:  -20 },
+  { kind: 'share',    delta:  2, need:  -70 },
   { kind: 'snub',     delta: -2, need:  -60 },
   { kind: 'squabble', delta: -4, need: -100 },
 ]
@@ -150,8 +174,15 @@ function rng(seed: number) {
  */
 export const adopted = (uid: string) => !!uid && !uid.startsWith('guest:')
 
-/** One cat standing in the yard. */
-export type Resident = { uid: string; name: string; face?: string | null }
+/**
+ * One cat standing in the yard.
+ *
+ * `art` is carried here rather than looked up per render because the map draws
+ * every resident as its own portrait, and /api/yard already knows the URL — the
+ * alternative is the viewer rebuilding it from a uid and the two disagreeing the
+ * first time a collection changes where its images live.
+ */
+export type Resident = { uid: string; name: string; face?: string | null; art?: string | null }
 
 export type YardState = {
   seed: number
@@ -159,6 +190,8 @@ export type YardState = {
   cats: Resident[]
   /** Guest cats that asked to come in. They cannot bond; see `adopted`. */
   turnedAway: number
+  /** What is standing in the yard. See `NEEDS` — this decides what can happen. */
+  props: PropKind[]
   /** Everything anyone still remembers, oldest first. */
   kept: Memory[]
 }
@@ -170,13 +203,19 @@ export type YardState = {
  * A yard also needs two cats to be a yard at all — one cat has nobody to have a
  * history with — so `waiting` is the honest answer to "where is everybody".
  */
-export function open(seed: number, cats: Resident[]): YardState {
+export function open(seed: number, cats: Resident[], props: PropKind[] = []): YardState {
   const let_in = cats.filter(c => adopted(c.uid))
   return {
     seed: seed | 0,
     ticks: 0,
     cats: let_in,
     turnedAway: cats.length - let_in.length,
+    /*
+     * AN EMPTY YARD IS THE DEFAULT, and that is the point. A yard with nothing in
+     * it can only greet, groom, snub and squabble — the cats have no reason to do
+     * anything together until somebody puts something there.
+     */
+    props: PROPS.filter(p => props.includes(p)),
     kept: [],
   }
 }
@@ -221,14 +260,24 @@ function choose(
   t: ReturnType<typeof temperOf>,
   b: number,
   aff: number,
+  props: PropKind[],
   r: () => number,
 ): Deed | null {
   /*
    * HISTORY GATES, VALUES ONLY LEAN. Folding affinity into what is POSSIBLE let
    * one bad matchup lock out every warm deed from the first tick. A rivalry may
    * make a row likely; it must never make friendship impossible.
+   *
+   * FURNITURE GATES THE SAME WAY, and only the deed that needs it. No toy means
+   * no play; it does not make a cat quieter in general, it removes one thing it
+   * could have done. That is what makes furnishing the yard a real choice rather
+   * than a difficulty setting.
    */
-  const open = DEEDS.filter(d => b >= d.need)
+  const open = DEEDS.filter(d => {
+    if (b < d.need) return false
+    const wants = NEEDS[d.kind]
+    return !wants || props.includes(wants)
+  })
   if (!open.length) return null
 
   let best: Deed | null = null
@@ -271,7 +320,7 @@ export function tick(y: YardState): { state: YardState; happened: Memory[] } {
 
     const target = others[Math.min(Math.floor(r() * others.length), others.length - 1)]
     const b = bond({ ...y, ticks, kept }, me.uid, target.uid)
-    const deed = choose(t, b, affinity(me, target), r)
+    const deed = choose(t, b, affinity(me, target), y.props, r)
     if (!deed) continue
 
     let delta = deed.delta
