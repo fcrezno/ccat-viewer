@@ -159,6 +159,25 @@ export function furniture(): PropKind[] {
   return prev && Array.isArray(prev.props) ? prev.props : []
 }
 
+/**
+ * Who was in the yard when it was last looked at.
+ *
+ * The yard's own page needs the resident list and cannot rebuild it the way the
+ * Cradle does: that list is the player's OWN cats — found through a wallet, a
+ * connector and two collections — joined to the cats of everybody they follow.
+ * Reproducing that on a second page would be a second copy of the hardest lookup
+ * in the app, free to disagree with the first.
+ *
+ * The saved yard already holds exactly that list, because `visit()` wrote it. So
+ * the page reads it rather than earning it again. The cost is honest and small:
+ * somebody who opens /yard having never opened the game sees nothing, and is
+ * told to start at the front door.
+ */
+export function residents(): Resident[] {
+  const prev = load()
+  return prev && Array.isArray(prev.cats) ? prev.cats : []
+}
+
 /** Start again. For a yard that has gone wrong, or a cat list worth resetting. */
 export function forget() {
   try { window.localStorage.removeItem(KEY) } catch {}

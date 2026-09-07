@@ -59,15 +59,28 @@ function ground(x: number, y: number, seed: number): string {
 }
 
 export function YardMap({
-  yard, mine, onFurnish,
+  yard, mine, onFurnish, picked, onPick,
 }: {
   yard: YardState
   mine: string[]
+  /**
+   * WHO IS SELECTED, owned by the caller.
+   *
+   * The map kept this itself, which was right while it was the only thing that
+   * cared. The yard's own page shows a full sheet for the selected cat, so the
+   * selection has to be visible above the map — and two copies of it would let
+   * the ringed tile and the open sheet name different cats.
+   */
+  picked?: string | null
+  onPick?: (uid: string | null) => void
   /** Toggles ONE prop. The store decides what is out there, which is what stops
    *  three quick taps from clobbering each other. */
   onFurnish?: (prop: PropKind) => void
 }) {
-  const [picked, setPicked] = useState<string | null>(null)
+  /* Uncontrolled on the front page, controlled on the yard's own. */
+  const [ownPick, setOwnPick] = useState<string | null>(null)
+  const sel_uid = picked !== undefined ? picked : ownPick
+  const setPick = (u: string | null) => (onPick ? onPick(u) : setOwnPick(u))
 
   const placed = useMemo(() => layout(yard), [yard])
 
@@ -77,7 +90,7 @@ export function YardMap({
     return m
   }, [placed])
 
-  const sel = placed.find(p => p.what === 'cat' && p.cat.uid === picked) as
+  const sel = placed.find(p => p.what === 'cat' && p.cat.uid === sel_uid) as
     (Placed & { what: 'cat' }) | undefined
 
   /*
@@ -97,12 +110,12 @@ export function YardMap({
 
           if (here?.what === 'cat') {
             const isMine = mine.includes(here.cat.uid)
-            const on = picked === here.cat.uid
+            const on = sel_uid === here.cat.uid
             const mood = moodOf(here.doing)
             return (
               <button
                 key={i}
-                onClick={() => setPicked(on ? null : here.cat.uid)}
+                onClick={() => setPick(on ? null : here.cat.uid)}
                 title={here.cat.name}
                 aria-label={`${here.cat.name}, ${here.doing ? DOING[here.doing.kind] : 'keeping to itself'}`}
                 style={{

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { bond, reads, temperOf, waiting, type Memory, type Resident } from '@/lib/yard'
 import { visit, furnish, MAX_TICKS, type Visit } from '@/lib/yardstore'
 import { YardMap } from '@/components/YardMap'
+import { CatSheet } from '@/components/CatSheet'
 
 /**
  * THE YARD — what your cats did with the cats of people you follow.
@@ -114,7 +115,7 @@ function CatName({ cat, on, off }: { cat: YardCat; on: () => void; off: () => vo
 const PREVIEW_LINES = 3
 
 export function Yard({
-  cats, busy, compact = false,
+  cats, busy, compact = false, full = false,
 }: {
   cats: YardCat[]
   busy?: boolean
@@ -128,10 +129,20 @@ export function Yard({
    * log is shown differs.
    */
   compact?: boolean
+  /**
+   * The yard's own page. The whole log, the pair list, and a creature sheet for
+   * whichever cat is selected.
+   *
+   * Still the same component. `full` and `compact` are two ends of one dial
+   * rather than two implementations, so a fix to the simulation, the map or the
+   * furniture lands in both without being copied.
+   */
+  full?: boolean
 }) {
   const [state, setState] = useState<Visit | null>(null)
   const [peek, setPeek] = useState<YardCat | null>(null)
   const [grown, setGrown] = useState(false)
+  const [picked, setPicked] = useState<string | null>(null)
   const clear = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const byUid = useMemo(() => new Map(cats.map(c => [c.uid, c])), [cats])
@@ -186,6 +197,8 @@ export function Yard({
   const shown = compact && !grown ? recent.slice(0, PREVIEW_LINES) : recent
   const more = recent.length - shown.length
 
+  const pickedCat = picked ? byUid.get(picked) ?? null : null
+
   /* Every pair that has any history, strongest feeling first. */
   const pairs: { a: YardCat; b: YardCat; n: number }[] = []
   for (let i = 0; i < cats.length; i++) {
@@ -217,6 +230,8 @@ export function Yard({
         <YardMap
           yard={state.state}
           mine={cats.filter(c => c.mine).map(c => c.uid)}
+          picked={full ? picked : undefined}
+          onPick={full ? setPicked : undefined}
           onFurnish={prop => {
             const s = furnish(prop)
             // Null only before a first visit has been saved, which cannot be
@@ -225,6 +240,22 @@ export function Yard({
           }}
         />
       </div>
+
+      {/*
+        THE SHEET SITS DIRECTLY UNDER THE MAP, where the tap happened. Putting it
+        below the log would mean tapping a cat and watching the answer appear off
+        the bottom of the screen.
+      */}
+      {full && pickedCat && (
+        <div style={{ marginBottom: 14 }}>
+          <CatSheet
+            cat={pickedCat}
+            yard={state.state}
+            others={cats}
+            onClose={() => setPicked(null)}
+          />
+        </div>
+      )}
 
       {/*
         THE YARD'S LOG IS ON THE SAME PAPER AS THE BATTLE LOG.
