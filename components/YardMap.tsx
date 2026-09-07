@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { COLS, ROWS, DOING, layout, type Placed } from '@/lib/yardmap'
+import { COLS, ROWS, DOING, layout, moodOf, type Placed } from '@/lib/yardmap'
 import { bond, reads, temperOf, type PropKind, type YardState } from '@/lib/yard'
 
 /**
@@ -98,12 +98,13 @@ export function YardMap({
           if (here?.what === 'cat') {
             const isMine = mine.includes(here.cat.uid)
             const on = picked === here.cat.uid
+            const mood = moodOf(here.doing)
             return (
               <button
                 key={i}
                 onClick={() => setPicked(on ? null : here.cat.uid)}
                 title={here.cat.name}
-                aria-label={`${here.cat.name}${here.doing ? ', ' + DOING[here.doing.kind] : ''}`}
+                aria-label={`${here.cat.name}, ${here.doing ? DOING[here.doing.kind] : 'keeping to itself'}`}
                 style={{
                   ...s.cell,
                   ...s.catCell,
@@ -116,6 +117,16 @@ export function YardMap({
                 {here.cat.art
                   ? <img src={here.cat.art} alt="" style={s.art} />
                   : <span style={s.fallback}>{here.cat.name.slice(0, 1).toUpperCase()}</span>}
+                {/*
+                  THE MOOD SITS ON THE CAT, not beside it. There is no spare cell
+                  to put it in — the grid is 13 wide on a phone — and a glyph in
+                  the corner is what DF does anyway.
+
+                  aria-hidden because the button's own label already says what the
+                  cat is doing in words; a screen reader announcing "exclamation
+                  mark" after "saying hello" is the same fact twice.
+                */}
+                <span aria-hidden style={{ ...s.mood, color: mood.colour }}>{mood.glyph}</span>
               </button>
             )
           }
@@ -216,9 +227,25 @@ const s: Record<string, React.CSSProperties> = {
     minWidth: 0,
   },
   grass:    { color: '#2f4020', fontSize: 10, lineHeight: 1, userSelect: 'none' },
-  catCell:  { cursor: 'pointer', overflow: 'hidden', background: '#1a2013' },
+  catCell:  { cursor: 'pointer', overflow: 'hidden', background: '#1a2013', position: 'relative' },
   art:      { width: '100%', height: '100%', objectFit: 'cover', imageRendering: 'pixelated', display: 'block' },
   fallback: { fontSize: 11, color: '#cfcfe0' },
+  /*
+   * SMALL, TOP RIGHT, AND OUTLINED. It sits on top of a full-colour portrait,
+   * so a plain glyph would vanish over a pale cat and over a dark one both. The
+   * shadow is a ring rather than a drop, which keeps it legible whatever is
+   * underneath without reading as a second element.
+   *
+   * pointerEvents none so it never eats the tap meant for the cat.
+   */
+  mood: {
+    // NOT a negative offset: the tile clips its overflow to keep the portrait
+    // square, so -1 quietly shaved the top off every glyph.
+    position: 'absolute', top: 0, right: 1,
+    fontSize: 12, lineHeight: 1, fontWeight: 'bold',
+    textShadow: '0 0 2px #000, 0 0 2px #000, 0 1px 2px #000',
+    pointerEvents: 'none', userSelect: 'none',
+  },
   propCell: { background: '#1f2617' },
   propIcon: { fontSize: 13, lineHeight: 1, userSelect: 'none' },
   readout:  { marginTop: 8, fontSize: 12, minHeight: 18, lineHeight: 1.4 },

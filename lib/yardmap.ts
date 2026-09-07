@@ -199,3 +199,45 @@ export const DOING: Record<Memory['kind'], string> = {
   snub:     'ignoring someone',
   squabble: 'squabbling',
 }
+
+/**
+ * THE MOOD GLYPH — one character over a cat, the way DF does it.
+ *
+ * JP: "dwarves usually act with, like, question marks, exclamation points, stuff
+ * like that in terms of how they would see their animations."
+ *
+ * That is the thing DF gets for free that a portrait grid does not: you can read
+ * a whole map at a glance without reading a word. Nine portraits all look equally
+ * busy; nine portraits where two are hearts and one is a red cross do not.
+ *
+ * ── CP437, NOT EMOJI ─────────────────────────────────────────────────────────
+ *
+ * These are the characters DF's own tileset carries — ! ? ♥ ♪ ☼ — rather than
+ * emoji. Three reasons, and the third is the one that decides it:
+ *
+ *   they are one colour, so the glyph can be tinted to carry the mood too
+ *   they are drawn at any size without turning to mush over the art
+ *   the perch already proved a newer emoji renders as an empty box here
+ *
+ * ── IDLE IS A QUESTION MARK ──────────────────────────────────────────────────
+ *
+ * A cat nobody remembers doing anything gets `?`. That is not filler: in a nine
+ * cat yard the ones NOT joining in are the interesting ones, and before this they
+ * looked exactly like everybody else.
+ */
+export type Mood = { glyph: string; colour: string }
+
+export const MOOD: Record<Memory['kind'], Mood> = {
+  greet:    { glyph: '!', colour: '#8ab4f8' },  // hello — social, blue
+  play:     { glyph: '♪', colour: '#7ee787' },  // chasing about — green
+  groom:    { glyph: '♥', colour: '#ff9ecd' },  // the warmest thing they do
+  share:    { glyph: '♦', colour: '#c9a2ff' },  // giving something up
+  showoff:  { glyph: '☼', colour: '#e0a72c' },  // DF's own sun. look at me
+  snub:     { glyph: '·', colour: '#6a6a80' },  // barely anything, and grey
+  squabble: { glyph: '✖', colour: '#ef4444' },  // the only red on the map
+}
+
+/** Nothing anybody remembers. See above — this is a state worth showing. */
+export const IDLE: Mood = { glyph: '?', colour: '#7a7a95' }
+
+export const moodOf = (doing: Memory | null): Mood => (doing ? MOOD[doing.kind] : IDLE)

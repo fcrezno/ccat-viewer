@@ -255,7 +255,28 @@ export function Yard({ cats, busy }: { cats: YardCat[]; busy?: boolean }) {
 const fine: React.CSSProperties = { color: '#63637d', fontSize: 11, margin: 0, lineHeight: 1.6 }
 const say: React.CSSProperties = { color: '#a9a9c0', fontSize: 13, margin: 0, lineHeight: 1.6 }
 const label: React.CSSProperties = { fontSize: 10, letterSpacing: 2, color: '#7a7a95', margin: '4px 0 8px' }
+/*
+ * THE CARD IS AS WIDE AS WHAT IS IN IT.
+ *
+ * It was full width, and it holds a 64px portrait and two short lines — a name
+ * and an owner. Stretched across the column that left most of the box empty and
+ * it read as a bar rather than a card, which is what made it look wrong sitting
+ * under the map.
+ *
+ * `fit-content` shrink-wraps it. `maxWidth: 100%` keeps a long username from
+ * pushing it past the column, and `minWidth: 0` on the text block inside lets the
+ * name ellipsize rather than force the card wider.
+ *
+ * The bottom margin is not decoration either: sticky pins it 8px off the bottom
+ * of the viewport, and without clearance it lands flush against the section's own
+ * border and reads as cut off.
+ */
 const card: React.CSSProperties = {
-  position: 'sticky', bottom: 8, marginTop: 12, display: 'flex', gap: 10, alignItems: 'center',
+  position: 'sticky', bottom: 8,
+  marginTop: 12, marginBottom: 4,
+  width: 'fit-content', maxWidth: '100%',
+  display: 'flex', gap: 10, alignItems: 'center',
   background: '#12121c', border: '1px solid #21212f', borderRadius: 10, padding: 8,
+  // It floats over the log when pinned, so it needs its own ground and a lift.
+  boxShadow: '0 4px 14px rgba(0,0,0,0.45)',
 }
