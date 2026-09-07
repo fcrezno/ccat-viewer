@@ -154,7 +154,82 @@ async function following(fid: number, key: string | undefined) {
   return out
 }
 
+/**
+ * THE DEMO YARD — real cats, real holders, nobody's follow graph.
+ *
+ * JP: "maybe have a demo yard… that features random holder's cats."
+ *
+ * Without this the front page shows the yard ONLY to somebody the app can already
+ * identify — a wallet or a Farcaster context. Everyone else got nothing at all,
+ * which is a poor state for the thing that is now the first item on the page and
+ * flatly contradicts the pitch that no wallet is needed.
+ *
+ * ── THEY ARE NOT INVENTED ────────────────────────────────────────────────────
+ *
+ * `catsByOwner()` already holds every minted cat against the address that holds
+ * it, and it is already cached — so a demo costs one metadata fetch per cat and
+ * no extra chain work at all. The cats shown are minted tokens that people
+ * actually own, which is the point: a stranger sees the real collection getting
+ * on with itself.
+ *
+ * ── ONE PER HOLDER ───────────────────────────────────────────────────────────
+ *
+ * Picked across DIFFERENT addresses rather than at random from the whole set. A
+ * uniform draw would keep handing back several cats from the same large holder,
+ * and a yard of one person's cats is not a demonstration of cats meeting.
+ *
+ * ── NO OWNER IS CLAIMED ──────────────────────────────────────────────────────
+ *
+ * The address is known, the Farcaster account behind it is not — that needs a
+ * reverse lookup this does not do. So `owner` is null and the UI must say "a cat
+ * somebody owns" rather than "somebody you follow", which would be a lie.
+ */
+async function demoYard(n: number) {
+  const owned = await catsByOwner()
+
+  /* One cat per address, so the yard is a crowd rather than a collection. */
+  const holders = [...owned.entries()].filter(([, uids]) => uids.length)
+  const picked: string[] = []
+  const seed = Math.floor(Date.now() / (10 * 60 * 1000))   // rotates every ten minutes
+  for (let i = 0; i < holders.length && picked.length < n; i++) {
+    const [, uids] = holders[(i * 7919 + seed) % holders.length]
+    const uid = uids[(seed + i) % uids.length]
+    if (!picked.includes(uid)) picked.push(uid)
+  }
+
+  const residents: (Resident & { owner: null; art: string; demo: true })[] = []
+  for (const uid of picked) {
+    const [colKey, id] = uid.split(':')
+    const col = COLLECTIONS.find(c => c.key === colKey)
+    if (!col) continue
+    const meta = await fetchMeta(col, id)
+    residents.push({
+      uid,
+      name: `#${id}`,
+      face: meta?.attributes?.find(a => /face/i.test(a.trait_type ?? ''))?.value ?? null,
+      owner: null,
+      art: meta?.image ?? '',
+      demo: true,
+    })
+  }
+  return residents
+}
+
 export async function GET(req: NextRequest) {
+  /*
+   * ?demo=1 asks for the demo yard and needs no identity at all. Checked before
+   * the fid, because requiring one to be told you do not need one is silly.
+   */
+  if (req.nextUrl.searchParams.get('demo')) {
+    const n = Math.max(2, Math.min(12, Number(req.nextUrl.searchParams.get('n')) || 8))
+    try {
+      const residents = await demoYard(n)
+      return NextResponse.json({ residents, demo: true, cats: residents.length, followed: 0 })
+    } catch {
+      return NextResponse.json({ error: 'could not read the yard right now' }, { status: 502 })
+    }
+  }
+
   const fid = Number(req.nextUrl.searchParams.get('fid'))
   if (!Number.isInteger(fid) || fid <= 0)
     return NextResponse.json({ error: 'which account? pass ?fid=' }, { status: 400 })

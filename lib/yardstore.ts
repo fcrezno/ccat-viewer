@@ -26,7 +26,21 @@ import { open, catchUp, PROPS, type Memory, type PropKind, type Resident, type Y
  * land in the same place, which is also the honest thing to tell somebody.
  */
 
+/**
+ * WHICH YARD IS BEING REMEMBERED.
+ *
+ * The demo yard on the front page is a real simulation of real cats, so it earns
+ * memories and bonds exactly like a player's own — and it must NOT be written
+ * over the player's. Somebody who looks at the demo, then connects a wallet,
+ * would otherwise find their first real yard already carrying a stranger's
+ * history and a seed it did not choose.
+ *
+ * A separate key rather than a flag that skips saving, because the demo is worth
+ * remembering between visits: come back tomorrow and the demo has moved on too,
+ * which is the whole thing being demonstrated.
+ */
 const KEY = 'cradle.yard.v1'
+export const DEMO_KEY = 'cradle.yard.demo.v1'
 const HOUR = 60 * 60 * 1000
 
 /** A day away is as much as the yard will play out. See above. */
@@ -34,10 +48,10 @@ export const MAX_TICKS = 24
 
 type Stored = YardState & { at: number }
 
-function load(): Stored | null {
+function load(key = KEY): Stored | null {
   if (typeof window === 'undefined') return null
   try {
-    const raw = window.localStorage.getItem(KEY)
+    const raw = window.localStorage.getItem(key)
     if (!raw) return null
     const v = JSON.parse(raw)
     // A half-written or hand-edited value must start a fresh yard, not crash one.
@@ -48,8 +62,8 @@ function load(): Stored | null {
   }
 }
 
-function save(s: Stored) {
-  try { window.localStorage.setItem(KEY, JSON.stringify(s)) } catch {}
+function save(s: Stored, key = KEY) {
+  try { window.localStorage.setItem(key, JSON.stringify(s)) } catch {}
 }
 
 /**
@@ -102,8 +116,8 @@ export type Visit = {
  * exactly N ticks, which is also why two devices given the same cats and the same
  * absence produce the same yard.
  */
-export function visit(cats: Resident[]): Visit {
-  const prev = load()
+export function visit(cats: Resident[], key = KEY): Visit {
+  const prev = load(key)
   const now = Date.now()
 
   const seed = prev?.seed ?? ((Math.random() * 0xffffffff) >>> 0)
@@ -114,7 +128,7 @@ export function visit(cats: Resident[]): Visit {
 
   const { state, happened } = hours > 0 ? catchUp(base, hours) : { state: base, happened: [] }
 
-  save({ ...state, at: now })
+  save({ ...state, at: now }, key)
   return { state, happened, hours, fresh: !prev }
 }
 
@@ -141,21 +155,21 @@ export function visit(cats: Resident[]): Visit {
  * entirely, because every call starts from what is actually saved rather than
  * from whatever the caller last rendered.
  */
-export function furnish(prop: PropKind): YardState | null {
-  const prev = load()
+export function furnish(prop: PropKind, key = KEY): YardState | null {
+  const prev = load(key)
   if (!prev) return null
   const now = Array.isArray(prev.props) ? prev.props : []
   const next: Stored = {
     ...prev,
     props: PROPS.filter(p => (p === prop ? !now.includes(p) : now.includes(p))),
   }
-  save(next)
+  save(next, key)
   return next
 }
 
 /** What is out there now, without arriving. Null before the first visit. */
-export function furniture(): PropKind[] {
-  const prev = load()
+export function furniture(key = KEY): PropKind[] {
+  const prev = load(key)
   return prev && Array.isArray(prev.props) ? prev.props : []
 }
 
@@ -173,12 +187,12 @@ export function furniture(): PropKind[] {
  * somebody who opens /yard having never opened the game sees nothing, and is
  * told to start at the front door.
  */
-export function residents(): Resident[] {
-  const prev = load()
+export function residents(key = KEY): Resident[] {
+  const prev = load(key)
   return prev && Array.isArray(prev.cats) ? prev.cats : []
 }
 
 /** Start again. For a yard that has gone wrong, or a cat list worth resetting. */
-export function forget() {
-  try { window.localStorage.removeItem(KEY) } catch {}
+export function forget(key = KEY) {
+  try { window.localStorage.removeItem(key) } catch {}
 }

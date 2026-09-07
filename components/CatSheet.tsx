@@ -83,7 +83,7 @@ export function CatSheet({
             <span style={{ ...s.mood, color: mood.colour }}>{mood.glyph}</span>
           </div>
           <div style={s.owner}>
-            {cat.mine ? 'yours' : cat.owner ? `@${cat.owner.username}` : 'somebody you follow'}
+            {cat.mine ? 'yours' : cat.owner ? `@${cat.owner.username}` : cat.demo ? 'somebody owns this one' : 'somebody you follow'}
             {' · '}{t.label}
           </div>
           <div style={s.doing}>{last ? DOING[last.kind] : 'keeping to itself'}</div>

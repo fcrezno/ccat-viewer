@@ -1135,15 +1135,56 @@ export function Cradle() {
     const asked = Number(new URLSearchParams(window.location.search).get('fid'))
     const who = fcFid ?? (Number.isInteger(asked) && asked > 0 ? asked : null)
 
-    if (!who) { setYardCats(mine); return }
     let live = true
     setYardBusy(true)
+
+    /*
+     * THE DEMO YARD, when there is nobody to show.
+     *
+     * JP: "maybe have a demo yard… that features random holder's cats."
+     *
+     * The yard is the first thing on this page now, and it needs at least two
+     * ADOPTED cats to be a yard at all. Without a wallet and without Farcaster
+     * that is nobody — so the front door showed an empty space to exactly the
+     * audience the whole pitch is aimed at, the one that has not connected
+     * anything.
+     *
+     * ?demo=1 answers with real minted cats belonging to real holders, one per
+     * address. A stranger sees the actual collection getting on with itself, and
+     * lib/yardstore keeps it under its own key so it can never be written over
+     * somebody's real yard.
+     */
+    const demo = () =>
+      fetch('/api/yard?demo=1&n=8')
+        .then(r => r.json())
+        .then(d => {
+          if (!live) return
+          const cats: YardCat[] = (d?.residents ?? []).map((r: YardCat) => ({ ...r, mine: false, demo: true }))
+          // Still nothing? Then there is genuinely nothing, and the section hides.
+          setYardCats(cats.length > 1 ? cats : mine)
+        })
+        .catch(() => { if (live) setYardCats(mine) })
+
+    if (!who) {
+      // Your own cats are a shelf, not a yard — under two there is nothing to watch.
+      if (mine.length > 1) {
+        setYardCats(mine)
+        setYardBusy(false)
+      } else {
+        demo().finally(() => { if (live) setYardBusy(false) })
+      }
+      return () => { live = false }
+    }
+
     fetch(`/api/yard?fid=${who}`)
       .then(r => r.json())
       .then(d => {
         if (!live) return
         const theirs: YardCat[] = (d?.residents ?? []).map((r: YardCat) => ({ ...r, mine: false }))
-        setYardCats([...mine, ...theirs])
+        const all = [...mine, ...theirs]
+        // Followed nobody who owns one, and hold fewer than two yourself.
+        if (all.length > 1) setYardCats(all)
+        else return demo()
       })
       // A yard that cannot reach its neighbours still has your own cats in it.
       .catch(() => { if (live) setYardCats(mine) })

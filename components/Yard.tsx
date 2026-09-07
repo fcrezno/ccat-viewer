@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { bond, reads, temperOf, waiting, type Memory, type Resident } from '@/lib/yard'
-import { visit, furnish, MAX_TICKS, type Visit } from '@/lib/yardstore'
+import { visit, furnish, DEMO_KEY, MAX_TICKS, type Visit } from '@/lib/yardstore'
 import { YardMap } from '@/components/YardMap'
 import { CatSheet } from '@/components/CatSheet'
 
@@ -75,6 +75,12 @@ const SAYS: Record<Memory['kind'], [string, string, string]> = {
 export type YardCat = Resident & {
   owner?: { fid: number; username: string; pfp: string | null } | null
   mine?: boolean
+  /**
+   * A cat in the DEMO yard: minted, owned by somebody real, but not reached
+   * through anybody's follow graph. The address is known and the Farcaster
+   * account behind it is not, so the copy must not claim one.
+   */
+  demo?: boolean
 }
 
 /** A cat's name in a sentence: hover, tap or focus to see whose it is. */
@@ -165,7 +171,7 @@ export function Yard({
     if (!cats.length) { setState(null); visited.current = null; return }
     if (visited.current === key) return
     visited.current = key
-    setState(visit(cats))
+    setState(visit(cats, cats.some(c => c.demo) ? DEMO_KEY : undefined))
   }, [key])
 
   const show = useCallback((c: YardCat) => {
@@ -233,7 +239,7 @@ export function Yard({
           picked={full ? picked : undefined}
           onPick={full ? setPicked : undefined}
           onFurnish={prop => {
-            const s = furnish(prop)
+            const s = furnish(prop, cats.some(c => c.demo) ? DEMO_KEY : undefined)
             // Null only before a first visit has been saved, which cannot be
             // reached from here — the map is not rendered until one has.
             if (s) setState({ ...state, state: s })
@@ -269,7 +275,16 @@ export function Yard({
         without a heading or a rule between them. You look at the dark thing to
         see where everyone is and at the warm thing to read what they did.
       */}
-      {(recent.length > 0 || pairs.length > 0) && (
+      {/*
+        ONLY IF THERE IS SOMETHING TO PUT ON IT.
+
+        This asked whether the yard had any history AT ALL, which is not the same
+        question as whether anything is about to be drawn. Look in twice within an
+        hour and there are no new lines, the preview hides the pair list, and the
+        grow control hides itself because there is nothing to grow — so an empty
+        sheet of paper rendered under the map.
+      */}
+      {(shown.length > 0 || pairs.length > 0) && (
         <div style={paper}>
           {shown.map((m, i) => {
             const a = name(m.a), b = name(m.b)
@@ -308,7 +323,14 @@ export function Yard({
             </button>
           )}
 
-          {(!compact || grown) && pairs.length > 0 && (
+          {/*
+            The preview normally leaves the pair list for the yard's own page —
+            EXCEPT when there are no new lines to show, because then it is the
+            only thing there is. On a quiet day the standing state of the yard is
+            more use than a blank sheet, and it is the more interesting half
+            anyway: the log is what just happened, this is where they stand.
+          */}
+          {(!compact || grown || shown.length === 0) && pairs.length > 0 && (
             <>
               <p style={rule}>HOW THEY GET ON</p>
               {pairs.slice(0, 8).map(({ a, b, n }) => (
