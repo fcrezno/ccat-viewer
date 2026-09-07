@@ -89,7 +89,13 @@ function CatName({ cat, on, off }: { cat: YardCat; on: () => void; off: () => vo
       onClick={e => { e.preventDefault(); on() }}
       style={{
         background: 'none', border: 0, padding: 0, font: 'inherit', cursor: 'pointer',
-        color: cat.mine ? '#ffd166' : '#c4b5fd',
+        /*
+         * PAPER INKS. These were #ffd166 and #c4b5fd, which are for a dark
+         * ground — on the log's paper they were very nearly invisible. The gold
+         * is the same one the fight log prints a win in, so "this one is yours"
+         * is the same colour in both places.
+         */
+        color: cat.mine ? '#a06a10' : '#5b3fa8',
         borderBottom: '1px dotted currentColor',
       }}
     >
@@ -191,14 +197,26 @@ export function Yard({ cats, busy }: { cats: YardCat[]; busy?: boolean }) {
         />
       </div>
 
-      {recent.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+      {/*
+        THE YARD'S LOG IS ON THE SAME PAPER AS THE BATTLE LOG.
+
+        Cradle.tsx states the rule for the fight and it holds here for the same
+        reason: "everything else is dark; the log is the one warm surface, and it
+        is where the eye should go."
+
+        It also does something the fight log does not have to: the map above is
+        dark, so paper underneath separates the WORLD from the ACCOUNT of it
+        without a heading or a rule between them. You look at the dark thing to
+        see where everyone is and at the warm thing to read what they did.
+      */}
+      {(recent.length > 0 || pairs.length > 0) && (
+        <div style={paper}>
           {recent.map((m, i) => {
             const a = name(m.a), b = name(m.b)
             if (!a || !b) return null
             const [before, mid, after] = SAYS[m.kind]
             return (
-              <p key={i} style={say}>
+              <p key={i} style={{ ...line, color: DEED_INK[m.kind] }}>
                 {before}
                 <CatName cat={a} on={() => show(a)} off={hide} />
                 {mid}
@@ -207,26 +225,29 @@ export function Yard({ cats, busy }: { cats: YardCat[]; busy?: boolean }) {
               </p>
             )
           })}
-        </div>
-      )}
 
-      {pairs.length > 0 && (
-        <>
-          <p style={label}>HOW THEY GET ON</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            {pairs.slice(0, 8).map(({ a, b, n }) => (
-              <p key={a.uid + b.uid} style={say}>
-                <CatName cat={a} on={() => show(a)} off={hide} />
-                {' and '}
-                <CatName cat={b} on={() => show(b)} off={hide} />
-                {' — '}
-                <span style={{ color: n >= 15 ? '#5fc27e' : n <= -15 ? '#d1495b' : '#7a7a95' }}>
-                  {reads(n)}
-                </span>
-              </p>
-            ))}
-          </div>
-        </>
+          {pairs.length > 0 && (
+            <>
+              <p style={rule}>HOW THEY GET ON</p>
+              {pairs.slice(0, 8).map(({ a, b, n }) => (
+                <p key={a.uid + b.uid} style={line}>
+                  <CatName cat={a} on={() => show(a)} off={hide} />
+                  {' and '}
+                  <CatName cat={b} on={() => show(b)} off={hide} />
+                  {' — '}
+                  {/*
+                    KEYED ON THE WORD, not on the number. The thresholds were
+                    written out here as `n >= 15` and `n <= -15` and were left
+                    behind when reads() was recalibrated, so a pair reading
+                    "friendly" was being painted grey. Reading the word means the
+                    colour cannot disagree with it again.
+                  */}
+                  <span style={{ color: BOND_INK[reads(n)] ?? INK_FAINT }}>{reads(n)}</span>
+                </p>
+              ))}
+            </>
+          )}
+        </div>
       )}
 
       {/*
@@ -252,9 +273,77 @@ export function Yard({ cats, busy }: { cats: YardCat[]; busy?: boolean }) {
   )
 }
 
+/*
+ * THE SAME PAPER AND INK AS THE FIGHT, copied deliberately rather than imported.
+ *
+ * Cradle.tsx keeps them as module constants and does not export them, and there
+ * is no shared theme file to put them in. Reaching into that file for two colours
+ * would couple the yard to the fight screen's internals for no gain — but the
+ * VALUES must match, because two nearly-identical papers side by side look like a
+ * mistake where one paper looks like a decision.
+ */
+const PAPER = '#f2eee3'
+const INK = '#1a1a1a'
+const INK_FAINT = '#6b6b60'
+
+/**
+ * WHAT COLOUR EACH DEED IS PRINTED IN.
+ *
+ * Taken from the fight log's own KIND_INK rather than picked fresh: that palette
+ * was already chosen to sit on this exact paper, and a second set of inks would
+ * drift away from it. Warm deeds are green and gold, flashy is the crit orange,
+ * a snub is the same grey as a miss, and a squabble is the KO red.
+ *
+ * The mood glyphs on the map are NOT these colours, and that is correct — those
+ * sit on a dark tile over cat art, these sit on paper. Same meaning, different
+ * ground.
+ */
+const DEED_INK: Record<Memory['kind'], string> = {
+  greet:    '#3f6ea8',
+  play:     '#2f7a44',
+  share:    '#2f7a44',
+  groom:    '#a06a10',
+  showoff:  '#c2410c',
+  snub:     INK_FAINT,
+  squabble: '#a01b1b',
+}
+
+/** Keyed by what `reads()` says, so the two cannot disagree. */
+const BOND_INK: Record<string, string> = {
+  inseparable: '#a06a10',
+  friendly:    '#2f7a44',
+  wary:        INK_FAINT,
+  cold:        '#c2410c',
+  enemies:     '#a01b1b',
+}
+
 const fine: React.CSSProperties = { color: '#63637d', fontSize: 11, margin: 0, lineHeight: 1.6 }
 const say: React.CSSProperties = { color: '#a9a9c0', fontSize: 13, margin: 0, lineHeight: 1.6 }
 const label: React.CSSProperties = { fontSize: 10, letterSpacing: 2, color: '#7a7a95', margin: '4px 0 8px' }
+
+/*
+ * Not a fixed height, unlike the fight's log.
+ *
+ * That one is 320 tall because it fills a line at a time and the box must not
+ * resize under the reader as it types. This one arrives complete, so a fixed
+ * height would either crop the account of the day or leave a pale gap under a
+ * quiet one. It grows to what happened.
+ */
+const paper: React.CSSProperties = {
+  background: PAPER, color: INK, borderRadius: 14, padding: '16px 16px 14px',
+  boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.08)',
+  marginBottom: 14,
+  display: 'flex', flexDirection: 'column', gap: 6,
+}
+
+const line: React.CSSProperties = { color: INK, fontSize: 13, margin: 0, lineHeight: 1.55 }
+
+/* The divider inside the paper. Ruled, the way a printed sheet would be. */
+const rule: React.CSSProperties = {
+  fontSize: 10, letterSpacing: 2, color: '#8a8a7a',
+  margin: '8px 0 2px', paddingTop: 10,
+  borderTop: '1px solid rgba(0,0,0,0.10)',
+}
 /*
  * THE CARD IS AS WIDE AS WHAT IS IN IT.
  *
