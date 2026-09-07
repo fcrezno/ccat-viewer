@@ -102,7 +102,19 @@ export const SPAN = 24
 export const DEEDS: Deed[] = [
   { kind: 'greet',    delta:  1, need:  -40 },
   { kind: 'play',     delta:  3, need:  -70 },
-  { kind: 'groom',    delta:  4, need:   30 },
+  /*
+   * GROOM'S GATE IS 10, NOT 30, AND THAT IS MEASURED.
+   *
+   * At 30 it fired twice in four hundred ticks. Not because grooming should be
+   * rare — because a bond simply does not reach 30. Sampled over 9600 readings
+   * the range is -29 to +18 with a median of -3, so a gate at 30 was outside the
+   * scale the simulation actually produces.
+   *
+   * It still needs real warmth: 10 sits inside the top tenth of bonds, so you
+   * still do not groom a cat you have just met. It is now reachable by a pair who
+   * have been getting on, which is what the rule was always for.
+   */
+  { kind: 'groom',    delta:  4, need:   10 },
   { kind: 'showoff',  delta:  2, need:  -20 },
   { kind: 'share',    delta:  2, need:  -70 },
   { kind: 'snub',     delta: -2, need:  -60 },
@@ -357,11 +369,31 @@ export const diary = (y: YardState, uid: string, most = 20) =>
 /**
  * How a bond reads. PLACEHOLDER WORDS — the full build says the same, and they
  * are JP's to replace. Nothing here should put prose in his game.
+ *
+ * ── THE THRESHOLDS ARE MEASURED, NOT GUESSED ─────────────────────────────────
+ *
+ * They used to be 40 / 15 / -15 / -40, written for the -100..100 the bond is
+ * CLAMPED to rather than the range it actually occupies. Over 9600 readings from
+ * 60 yards, furnished and bare, the real spread is:
+ *
+ *   min -29 · 1% -20 · 10% -12 · median -3 · 90% +7 · 99% +13 · max +18
+ *
+ * So four fifths of the scale was never used, and the words landed like this:
+ *
+ *   enemies 0.0%   cold 5.3%   wary 94.4%   friendly 0.3%   inseparable 0.0%
+ *
+ * Two of the five could not happen at all and almost every pair in the game read
+ * "wary" forever — which says the yard is doing nothing, when it is not.
+ *
+ * These cuts put the extremes at roughly the top and bottom 1-2%, so
+ * "inseparable" and "enemies" stay rare enough to mean something and the middle
+ * three actually move. The BOND was not touched: this is the vocabulary being
+ * fitted to the simulation rather than the simulation to the vocabulary.
  */
 export function reads(b: number): string {
-  if (b >= 40) return 'inseparable'
-  if (b >= 15) return 'friendly'
-  if (b > -15) return 'wary'
-  if (b > -40) return 'cold'
+  if (b >= 13) return 'inseparable'
+  if (b >= 5)  return 'friendly'
+  if (b > -9)  return 'wary'
+  if (b > -19) return 'cold'
   return 'enemies'
 }
