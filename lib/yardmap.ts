@@ -310,38 +310,54 @@ export const DOING: Record<Memory['kind'], string> = {
 }
 
 /**
- * WHAT THE CAT ITSELF DOES — using the animations this app already has.
+ * WHAT A CAT'S BODY IS DOING — and it only ever changes on the turn.
  *
- * JP: "the effects and animations that were previously on, that you didn't add."
+ * JP, three times: "no interpolation", "make it more janky", "or like how DF
+ * handles dwarf interactions".
  *
- * globals.css already carries a full set and the yard was using NONE of them.
- * The tama-* ones are literally cat moods — bounce, shake, pulse, sway, float —
- * written for the tamagotchi screen, and cradle-shake is the jolt the fight uses
- * on a hit. Reusing them means the yard moves the way the rest of the game
- * already moves, and there is one place to change how a cat behaves rather than
- * two sets that drift.
+ * The first attempt reused the tama-* animations from the tamagotchi screen.
+ * Stepping them with `steps(1, end)` was not enough and it was the wrong fix: a
+ * CSS animation runs on ITS OWN clock, so the cats kept moving between ticks
+ * while the world stood still. In Dwarf Fortress nothing moves between turns —
+ * a creature is a character on a tile, and it is somewhere else when the turn
+ * advances or it is not.
+ *
+ * So there is no animation and no transition here at all. A pose is a small whole
+ * number of pixels derived from the CURRENT TICK, held until the tick changes,
+ * and cut to instantly when it does. That is a real discontinuity, which is what
+ * feedback-animation-literal.md says janky actually means.
  *
  * ── IT GOES ON THE PORTRAIT, NOT THE TILE ────────────────────────────────────
  *
- * The tile carries `transform: translate()` for its position on the grid. Every
- * one of these animations also animates `transform`, so putting them on the tile
- * would overwrite the position and pile every cat into the top-left corner. The
- * portrait inside is free to move.
+ * The tile's transform is its POSITION on the grid. Putting a pose there would
+ * overwrite the position and pile every cat into the top-left corner.
  */
-export const ACTS: Record<Memory['kind'], string> = {
-  greet:    'tama-bounce 0.7s ease-in-out infinite',
-  play:     'tama-bounce 0.45s ease-in-out infinite',
-  groom:    'tama-sway 2.5s ease-in-out infinite',
-  showoff:  'tama-float 1.6s ease-in-out infinite',
-  share:    'tama-float 3s ease-in-out infinite',
-  snub:     'tama-pulse 2s ease-in-out infinite',
-  squabble: 'tama-shake 0.5s ease-in-out infinite',
+export function poseOf(doing: Memory | null, tick: number): string {
+  if (!doing) return 'none'          // Standing still stands still.
+  const beat = tick % 2 === 0
+
+  switch (doing.kind) {
+    /*
+     * BIG ENOUGH TO SEE. These were 1-2px, which on a 30px tile is nothing at
+     * all — a pose that cannot be seen is not a pose. A quarter of a tile reads
+     * as a shove; a pixel reads as a rendering artefact.
+     */
+    // A shove, thrown the other way each turn.
+    case 'squabble': return `translateX(${beat ? 5 : -5}px)`
+    // Off the ground on alternate turns. Two frames, no arc between them.
+    case 'play':     return beat ? 'translateY(-6px)' : 'none'
+    case 'greet':    return beat ? 'translateY(-3px)' : 'none'
+    // Held, not alternating — it is posing, not moving.
+    case 'showoff':  return 'translateY(-5px)'
+    case 'groom':    return beat ? 'translateX(3px)' : 'none'
+    case 'share':    return beat ? 'translateY(2px)' : 'none'
+    /*
+     * TURNED AWAY, literally. A snub is the one deed that is about facing, and a
+     * horizontal flip says it in one frame with no motion at all.
+     */
+    case 'snub':     return 'scaleX(-1)'
+  }
 }
-
-/** Doing nothing is still doing something: it breathes. */
-export const RESTING = 'tama-pulse 3.4s ease-in-out infinite'
-
-export const actOf = (doing: Memory | null) => (doing ? ACTS[doing.kind] : RESTING)
 
 /**
  * THE MOOD GLYPH — one character over a cat, the way DF does it.

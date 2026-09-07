@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { COLS, ROWS, DOING, actOf, layout, layoutAt, moodOf, type Placed } from '@/lib/yardmap'
+import { COLS, ROWS, DOING, layout, layoutAt, moodOf, poseOf, type Placed } from '@/lib/yardmap'
 import { bond, reads, temperOf, type PropKind, type YardState } from '@/lib/yard'
 
 /**
@@ -140,6 +140,9 @@ export function YardMap({
 
   const placed = useMemo(() => (at === null ? layout(yard) : layoutAt(yard, at)), [yard, at])
 
+  /* The turn being shown, which is what every pose is keyed on. */
+  const shownTick = at === null ? yard.ticks : at
+
   const byCell = useMemo(() => {
     const m = new Map<number, Placed>()
     for (const p of placed) m.set(p.cell.y * COLS + p.cell.x, p)
@@ -223,9 +226,16 @@ export function YardMap({
                   animates transform too — put one on the tile and the cat snaps
                   to the top-left corner for as long as it plays.
                 */}
+                {/*
+                  THE POSE IS ON THE PORTRAIT, never on the tile — the tile's
+                  transform is its position, and a pose there would overwrite it.
+
+                  No animation and no transition: it is a whole number of pixels
+                  held until the tick changes, and cut to when it does.
+                */}
                 {here.cat.art
-                  ? <img src={here.cat.art} alt="" style={{ ...s.art, animation: actOf(here.doing) }} />
-                  : <span style={{ ...s.fallback, animation: actOf(here.doing) }}>{here.cat.name.slice(0, 1).toUpperCase()}</span>}
+                  ? <img src={here.cat.art} alt="" style={{ ...s.art, transform: poseOf(here.doing, shownTick) }} />
+                  : <span style={{ ...s.fallback, transform: poseOf(here.doing, shownTick) }}>{here.cat.name.slice(0, 1).toUpperCase()}</span>}
                 {/*
                   THE MOOD SITS ON THE CAT, not beside it. There is no spare cell
                   to put it in — the grid is 13 wide on a phone — and a glyph in
@@ -349,11 +359,12 @@ const s: Record<string, React.CSSProperties> = {
      * animate cheaply with nine of these moving at once.
      */
     /*
-     * NO TRANSITION ON TRANSFORM, deliberately. The cat cuts to its new tile the
-     * way a sprite does. Only the selection ring eases, because that is the
-     * interface responding to a tap rather than the world moving.
+     * NOTHING TRANSITIONS. Not the position, not the ring.
+     *
+     * The transform was already instant; the ring still eased its colour, which
+     * is a small thing that was still the wrong thing. "NO INTERPOLATION" is a
+     * rule about the whole surface, not just about walking.
      */
-    transition: 'outline-color 150ms',
   },
   art:      { width: '100%', height: '100%', objectFit: 'cover', imageRendering: 'pixelated', display: 'block' },
   fallback: { fontSize: 11, color: '#cfcfe0' },
