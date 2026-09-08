@@ -797,18 +797,46 @@ const shut: React.CSSProperties = {
 }
 
 const facing: React.CSSProperties = {
-  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
-  padding: '12px 14px',
+  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+  padding: '12px 10px',
   borderBottom: '1px solid rgba(0,0,0,0.10)',
 }
 
+/*
+ * PINNED TO THE PORTRAIT'S WIDTH, so the column cannot decide its own size.
+ *
+ * The name and the temperament sit under the portrait, and either can be wider
+ * than it is. Left to itself the column would take that width from the text
+ * between the two cats, which is the one part with a measured budget.
+ */
 const mugBox: React.CSSProperties = {
   display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-  minWidth: 0,
+  width: 84, flexShrink: 0, minWidth: 0,
 }
 
+/*
+ * 84 WIDE, WHICH IS THE ART'S OWN SHAPE AT A SIZE YOU CAN READ A FACE AT.
+ *
+ * It was 64x51, borrowed from the peek card — but that card is a label beside a
+ * name, and this is the reason the window exists. The cats are 250x199, so 84x67
+ * holds the ratio exactly and nothing is squashed.
+ *
+ * 84 AND NOT MORE, AND THAT IS MEASURED. The window is 347 wide on a phone, and
+ * two portraits plus the gaps and the padding leave 135 for the column between
+ * them. All eight pairs in a full yard fit that on one line — the column comes
+ * out 52 tall for every one of them.
+ *
+ * At 88 the longest of them, "are not speaking", wrapped. That pushed the names
+ * below the portraits and left the row lopsided, which is a worse trade than the
+ * four pixels.
+ *
+ * The border is inside the 84: box-sizing is border-box here, so the drawn
+ * portrait is 84x67 even though clientWidth reports 80. Measure this one with
+ * getBoundingClientRect or it looks like it is being shrunk.
+ */
 const mug: React.CSSProperties = {
-  width: 64, height: 51, objectFit: 'cover', imageRendering: 'pixelated',
+  width: 84, height: 67,
+  objectFit: 'cover', imageRendering: 'pixelated',
   borderRadius: 6, border: '2px solid rgba(0,0,0,0.18)', display: 'block',
 }
 
