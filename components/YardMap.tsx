@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { COLS, ROWS, DOING, layout, layoutAt, moodOf, poseOf, type Placed } from '@/lib/yardmap'
-import { bond, PROPS, reads, temperOf, type PropKind, type YardState } from '@/lib/yard'
+import { bond, reads, temperOf, type PropKind, type YardState } from '@/lib/yard'
+import { ITEMS, skinOf } from '@/lib/items'
 
 /**
  * THE YARD, DRAWN — a Dwarf Fortress overworld at cat scale.
@@ -30,69 +31,6 @@ import { bond, PROPS, reads, temperOf, type PropKind, type YardState } from '@/l
  * hover does not exist. Selection is a tap that also answers to a mouse and to
  * the keyboard, rather than a hover that most people would never trigger.
  */
-
-/*
- * THE FURNITURE IS DRAWN, NOT TYPED, and that is a bug fix as much as it is
- * taste. The perch used to be 🪵 — Emoji 13, 2020 — and rendered as an empty box
- * on this Windows build. A piece of furniture the player cannot see is worse
- * than a plain one, and a file we ship cannot fail to draw.
- *
- * These are JP's own, from the same hand as the fonts and the faces.
- *
- * ── ONE PROP, SEVERAL FACES ──────────────────────────────────────────────────
- *
- * A prop is a MECHANIC, not an object: the toy is whatever makes `play`
- * possible. So twenty drawings are twenty SKINS over four mechanics rather than
- * twenty new rules — nothing is re-tuned, and nothing here is decoration. Every
- * item standing in a yard is doing the job its prop does.
- *
- * WHICH ONE A YARD GETS IS THE YARD'S, drawn from its seed rather than chosen.
- * Two people's yards do not look alike, and a yard keeps its own feather or its
- * own handheld for as long as it exists.
- */
-type Item = { file: string; label: string }
-
-const ITEMS: Record<PropKind, Item[]> = {
-  toy: [
-    { file: 'feather', label: 'a feather' },
-    { file: 'gameboy', label: 'a handheld' },
-    { file: 'walnut',  label: 'a walnut' },
-    { file: 'gum',     label: 'a stick of gum' },
-    { file: 'film',    label: 'a roll of film' },
-    { file: 'pills',   label: 'a bottle that rattles' },
-    { file: 'lighter', label: 'a lighter' },
-  ],
-  bowl: [
-    { file: 'chips',     label: 'a bag of chips' },
-    { file: 'pizza',     label: 'a slice of pizza' },
-    { file: 'banana',    label: 'a banana' },
-    { file: 'donut',     label: 'a donut' },
-    { file: 'pineapple', label: 'a pineapple' },
-    { file: 'cup',       label: 'a cup of something' },
-    { file: 'beer',      label: 'a can of something' },
-  ],
-  perch: [
-    { file: 'magazine', label: 'a magazine to sit on' },
-    { file: 'vinyl',    label: 'a record to sit on' },
-    { file: 'gun',      label: 'something to stand over' },
-  ],
-  wash: [
-    { file: 'soap', label: 'a bar of soap' },
-  ],
-}
-
-/**
- * WHICH ITEM THIS YARD'S PROP IS.
- *
- * Salted with the prop's own place in PROPS, because the seed alone would move
- * all four together — every yard would get the first of each, or the second of
- * each, and the variety would be between yards instead of inside one.
- */
-function skinOf(kind: PropKind, seed: number): Item {
-  const list = ITEMS[kind]
-  const salt = Math.imul(PROPS.indexOf(kind) + 1, 0x9e3779b1)
-  return list[((seed ^ salt) >>> 0) % list.length]
-}
 
 /** What each one lets the cats DO. The picture says what it is; this says what it changes. */
 const PROP_WHY: Record<PropKind, string> = {
