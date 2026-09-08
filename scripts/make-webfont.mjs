@@ -148,8 +148,21 @@ for (let idx = 0; idx < METRICS.length; idx++) {
   glyphs.push(new opentype.Glyph({
     name: 'uni' + code.toString(16).toUpperCase().padStart(4, '0'),
     unicode: code,
-    /* The game puts TRACKING between glyphs; a font puts it in the advance. */
-    advanceWidth: (width + TRACKING) * U,
+    /*
+     * TRACKING IS NOT IN THE ADVANCE, and getting that wrong is visible.
+     *
+     * BitmapText puts TRACKING between glyphs and NEVER after the last one in a
+     * word — words are separate flex items with a columnGap. Baking it into
+     * every advance therefore added one unit per word, so a sentence came out
+     * about 4% wide and word gaps were 6 where the sheet says 5. On screen that
+     * is sentences wrapping a line early.
+     *
+     * It goes in `letter-spacing` instead (globals.css), which CSS applies after
+     * every character. That reproduces the between-glyph spacing exactly — and
+     * the one trailing unit it leaves on each word is why SPACE is narrowed by
+     * TRACKING below, so a word gap comes back to exactly 5.
+     */
+    advanceWidth: (code === 32 ? width - TRACKING : width) * U,
     path,
   }))
 }
@@ -169,4 +182,5 @@ fs.writeFileSync(OUT, Buffer.from(font.toArrayBuffer()))
 console.log(`\n  ${OUT}`)
 console.log(`  ${glyphs.length - 1} glyphs (${drawn} with ink), ${boxes} rectangles`)
 console.log(`  em ${EM}  ascender ${BASELINE_ROW * U}  descender ${-(CELL_H - BASELINE_ROW) * U}`)
+console.log(`  tracking lives in letter-spacing: ${(TRACKING / CELL_H).toFixed(5)}em`)
 console.log(`  ${(fs.statSync(OUT).size / 1024).toFixed(1)} kB\n`)

@@ -35,7 +35,15 @@
  */
 @font-face {
   font-family: 'CradleFont';
-  src: url('/fonts/CradleFont.otf') format('opentype');
+  /*
+   * ?v BUMPS WHEN THE FONT IS REGENERATED.
+   *
+   * The filename does not change, so a browser that already has it keeps it —
+   * which bit during development: the page went on rendering the previous
+   * advances while the file on disk was already correct, and the measurements
+   * said the fix had not worked. Change the metrics, change this.
+   */
+  src: url('/fonts/CradleFont.otf?v=2') format('opentype');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
@@ -100,6 +108,48 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-game);
+  /*
+   * THE SHEET'S TRACKING, AS LETTER-SPACING.
+   *
+   * font.png is drawn with 1px between glyphs, and BitmapText applies it as a
+   * margin BETWEEN them — never after the last one in a word, because words are
+   * separate flex items with their own gap.
+   *
+   * A font advance cannot express "except at the end of a word", so baking it in
+   * made every word one unit wide and every gap 6 where the sheet says 5. A
+   * sentence came out ~4% over and wrapped a line early, which is what the pair
+   * rows were showing: the sentence breaking underneath its own bond word.
+   *
+   * Here instead, where it lands between characters the way it was drawn. 1/24
+   * em, because the cell is 24px tall — so it scales with font-size and stays
+   * one sheet pixel at every size.
+   *
+   * The space glyph is narrowed by the same amount in scripts/make-webfont.mjs
+   * to absorb the one trailing unit CSS leaves on each word. Change one and the
+   * other has to move with it.
+   *
+   * IT IS ON `*`, NOT HERE, AND THAT IS THE WHOLE REASON THIS COMMENT IS LONG.
+   * See below.
+   */
+}
+
+/*
+ * `em` IN letter-spacing RESOLVES ONCE, THEN INHERITS AS A FIXED LENGTH.
+ *
+ * Declared on body it computed against BODY's font-size — 0.04167em of 16px =
+ * 0.667px — and every descendant inherited that absolute 0.667px whatever size
+ * it was set in. So 24px headings got two thirds of the tracking they wanted and
+ * 11px labels got a quarter more, which is the opposite of scaling.
+ *
+ * Measured: 'A' came out 12.67 where the sheet says 13, and a sentence landed 5%
+ * under instead of matching.
+ *
+ * On `*` each element resolves the em against its OWN font-size, so one sheet
+ * pixel stays one sheet pixel at every size. Inline styles still win, which is
+ * what keeps the deliberately-tracked labels (`letterSpacing: 2`) as they were.
+ */
+*, *::before, *::after {
+  letter-spacing: 0.04167em;
 }
 
 /*
