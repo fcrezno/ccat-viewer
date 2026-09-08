@@ -396,11 +396,27 @@ export function tick(y: YardState): { state: YardState; happened: Memory[] } {
 }
 
 /** Run a whole absence at once. Being away N ticks IS N ticks. */
-export function catchUp(y: YardState, ticks: number): { state: YardState; happened: Memory[] } {
+export function catchUp(
+  y: YardState,
+  ticks: number,
+  /**
+   * Called with the state either side of EVERY tick, if anybody is watching.
+   *
+   * Added for the chronicle, which has to notice the exact hour a bond crossed
+   * from one word to another. Comparing only the start and the end of a visit
+   * would date a crossing "sometime in the last nine hours" and would miss a
+   * pair that fell out and made up while you were away.
+   *
+   * An observer, not a hook: it cannot change what happens, and `catchUp` does
+   * exactly what it did before when nothing is passed.
+   */
+  onTick?: (before: YardState, after: YardState) => void,
+): { state: YardState; happened: Memory[] } {
   let state = y
   const happened: Memory[] = []
   for (let i = 0; i < ticks; i++) {
     const step = tick(state)
+    onTick?.(state, step.state)
     state = step.state
     happened.push(...step.happened)
   }

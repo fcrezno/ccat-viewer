@@ -1,4 +1,5 @@
 import { open, catchUp, PROPS, type Memory, type PropKind, type Resident, type YardState } from '@/lib/yard'
+import { crossings, record, forgetHistory, history, lastWords, type Entry } from '@/lib/chronicle'
 
 /**
  * THE YARD, BETWEEN VISITS.
@@ -39,7 +40,7 @@ import { open, catchUp, PROPS, type Memory, type PropKind, type Resident, type Y
  * remembering between visits: come back tomorrow and the demo has moved on too,
  * which is the whole thing being demonstrated.
  */
-const KEY = 'cradle.yard.v1'
+export const KEY = 'cradle.yard.v1'
 export const DEMO_KEY = 'cradle.yard.demo.v1'
 const HOUR = 60 * 60 * 1000
 
@@ -126,8 +127,26 @@ export function visit(cats: Resident[], key = KEY): Visit {
   const elapsed = prev ? now - prev.at : 0
   const hours = Math.min(MAX_TICKS, Math.floor(elapsed / HOUR))
 
-  const { state, happened } = hours > 0 ? catchUp(base, hours) : { state: base, happened: [] }
+  /*
+   * THE CHRONICLE IS WRITTEN AS THE HOURS PASS, not afterwards.
+   *
+   * A visit can run 24 ticks at once, and two cats can fall out and make up
+   * inside that. Watching each tick catches both crossings and dates them to the
+   * right hour; comparing the two ends of the visit would have caught neither.
+   */
+  const noted: Entry[] = []
+  /*
+   * CARRIED ON FROM WHAT IS ALREADY WRITTEN. Without this, a pair that crossed
+   * into "friendly" last week and stayed there would be recorded as crossing
+   * again on the first tick of every visit — `crossings` would have nothing to
+   * compare against but the tick before it.
+   */
+  const said = lastWords(history(key))
+  const { state, happened } = hours > 0
+    ? catchUp(base, hours, (was, is) => noted.push(...crossings(was, is, said)))
+    : { state: base, happened: [] }
 
+  record(key, noted)
   save({ ...state, at: now }, key)
   return { state, happened, hours, fresh: !prev }
 }
@@ -195,4 +214,9 @@ export function residents(key = KEY): Resident[] {
 /** Start again. For a yard that has gone wrong, or a cat list worth resetting. */
 export function forget(key = KEY) {
   try { window.localStorage.removeItem(key) } catch {}
+  /*
+   * The chronicle goes with it. It is keyed off the yard and describes cats that
+   * yard held; leaving it behind would give the next yard somebody else's past.
+   */
+  forgetHistory(key)
 }

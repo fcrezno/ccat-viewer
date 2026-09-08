@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { between, bond, reads, temperOf, waiting, type Memory, type Resident } from '@/lib/yard'
-import { visit, furnish, DEMO_KEY, MAX_TICKS, type Visit } from '@/lib/yardstore'
+import { visit, furnish, DEMO_KEY, KEY, MAX_TICKS, type Visit } from '@/lib/yardstore'
+import { history, record, type Entry } from '@/lib/chronicle'
 import { YardMap } from '@/components/YardMap'
 import { CatSheet } from '@/components/CatSheet'
 import { thoughtOf } from '@/lib/yardmap'
-import { moodFor, settle, settled } from '@/lib/mood'
+import { moodFor, settle, settled, MOOD_INK } from '@/lib/mood'
 import { inkFor } from '@/lib/catink'
 import { BitmapText, type Run } from '@/components/BitmapText'
 
@@ -194,6 +195,19 @@ const TOGETHER: Record<Memory['kind'], string> = {
   squabble: 'are arguing',
 }
 
+/**
+ * WHAT A REMEMBERED MOMENT SAYS.
+ *
+ * PLACEHOLDER PROSE, JP's to replace, like everything else the yard says.
+ *
+ * The chronicle stores no words at all — an entry is two uids, the two bond
+ * words it moved between, and the hour. The sentence is built here, so changing
+ * these changes every entry ever written, including the ones already in storage.
+ */
+const TURNED = '{a} and {b} are {to} now.'
+const WENT_OUT = '{a} went out with you.'
+const STAYED_IN = '{a} never got out that day.'
+
 /** The fight log's own pace, so both logs in the game type at the same speed. */
 const LINE_MS = 850
 
@@ -378,6 +392,19 @@ export function Yard({
    * reads localStorage, and storage does not tell React it changed. Bumping the
    * counter is what re-runs this so an answered ask disappears.
    */
+  /*
+   * WHICH YARD THIS IS. The demo yard and your own are two separate stores, and
+   * the chronicle has to follow the same split — a demo's past is not yours.
+   */
+  const yardKey = cats.some(c => c.demo) ? DEMO_KEY : KEY
+
+  /*
+   * WHAT THE YARD REMEMBERS. Read once per render rather than kept in state —
+   * it is storage, and `answers` already forces a re-read whenever this session
+   * adds to it. Nothing else writes to it while the page is open.
+   */
+  const past: Entry[] = useMemo(() => history(yardKey), [yardKey, state, answers])
+
   const raw = state ? moodFor(state.state, cats) : null
   const mood = useMemo(
     () => (state && raw && !settled(state.state, raw) ? raw : null),
@@ -385,7 +412,16 @@ export function Yard({
   )
 
   const answer = (uid: string) => {
-    if (state && raw) settle(state.state, raw)
+    if (state && raw) {
+      settle(state.state, raw)
+      /*
+       * THE ONE ENTRY THE YARD DOES NOT WRITE FOR ITSELF. Every other line in
+       * the chronicle is the simulation crossing a threshold on its own; this
+       * one is you. It is also the only one that says the yard and the game are
+       * the same game.
+       */
+      record(yardKey, [{ at: state.state.ticks, what: 'mood', a: uid, answered: true }])
+    }
     setAnswers(n => n + 1)
     onFight?.(uid)
   }
@@ -473,7 +509,7 @@ export function Yard({
           picked={full ? picked : undefined}
           onPick={full ? setPicked : undefined}
           onFurnish={prop => {
-            const s = furnish(prop, cats.some(c => c.demo) ? DEMO_KEY : undefined)
+            const s = furnish(prop, yardKey)
             // Null only before a first visit has been saved, which cannot be
             // reached from here — the map is not rendered until one has.
             if (s) setState({ ...state, state: s })
@@ -557,6 +593,76 @@ export function Yard({
             what just happened; this is where everybody stands afterwards. The box
             scrolls between them rather than making it a choice.
           */}
+          {/*
+            WHAT THE YARD REMEMBERS — the half of it that does not fade.
+            
+            JP asked how the yard could make stories the way a fortress does. The
+            log is what just happened and it scrolls away; the pair list is where
+            everybody stands right now. Neither of them is a PAST. This is: the
+            hours things BECAME true, kept after the memories behind them have
+            gone.
+
+            Under the pair list rather than above it, because it is the least
+            urgent thing on the page and the most rewarding — you go looking for
+            it, the way you go looking for Legends.
+
+            FULL ONLY. The front page is a preview and this is the part that pays
+            off after weeks, not the part that sells the first look.
+          */}
+          {full && past.length > 0 && (
+            <>
+              <div style={rule}><BitmapText text="WHAT THE YARD REMEMBERS" scale={1} color="#8a8a7a" /></div>
+              {past.slice(0, 12).map((e, i) => {
+                const a = name(e.a)
+                const b = e.what === 'bond' ? name(e.b) : null
+                if (!a || (e.what === 'bond' && !b)) return null
+                const ago = state.state.ticks - e.at
+
+                /*
+                 * BUILT FROM THE TEMPLATE, not from words typed here. Splitting
+                 * on the placeholders is what makes TURNED and the two mood
+                 * lines the ONLY place the wording lives — edit one and every
+                 * entry already in storage changes with it, because the entries
+                 * never held any words in the first place.
+                 */
+                const runs: Run[] = e.what === 'bond'
+                  ? (() => {
+                      const [head, r1] = TURNED.split('{a}')
+                      const [mid, r2] = r1.split('{b}')
+                      const [join, tail] = r2.split('{to}')
+                      return [
+                        { text: head },
+                        { text: a.name, color: nameInk(a) },
+                        { text: mid },
+                        { text: b!.name, color: nameInk(b!) },
+                        { text: join },
+                        { text: e.to, color: BOND_INK[e.to] ?? INK_FAINT },
+                        { text: tail },
+                      ]
+                    })()
+                  : (() => {
+                      const [head, tail] = (e.answered ? WENT_OUT : STAYED_IN).split('{a}')
+                      return [
+                        { text: head },
+                        { text: a.name, color: nameInk(a) },
+                        { text: tail, color: MOOD_INK },
+                      ]
+                    })()
+
+                return (
+                  <div key={i} style={convoRow}>
+                    <Bit runs={runs} />
+                    <BitmapText
+                      text={ago <= 0 ? 'just now' : `${ago}h`}
+                      scale={1}
+                      color="#8a8a7a"
+                    />
+                  </div>
+                )
+              })}
+            </>
+          )}
+
           {pairs.length > 0 && (
             <>
               <div style={rule}><BitmapText text="WHO IS TALKING" scale={1} color="#8a8a7a" /></div>
