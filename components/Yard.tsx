@@ -150,6 +150,26 @@ function Bit({ runs, scale = 1 }: { runs: { text: string; color?: string }[]; sc
 }
 
 /**
+ * ONE SIDE OF A CONVERSATION: the portrait, the name, and the temperament.
+ *
+ * The temperament is here rather than left to the creature sheet because it is
+ * the reason the lines below read the way they do. A cat that keeps snubbing the
+ * other is not being arbitrary — it is bold, and bold leans that way. One word
+ * turns a list of events into an explanation.
+ */
+function Mug({ cat }: { cat: YardCat }) {
+  return (
+    <div style={mugBox}>
+      {cat.art
+        ? <img src={cat.art} alt="" style={mug} />
+        : <div style={{ ...mug, background: '#ddd6c4' }} />}
+      <BitmapText text={cat.name} scale={1} color={cat.mine ? '#a06a10' : '#5b3fa8'} />
+      <BitmapText text={temperOf(cat.face).label} scale={1} color="#8a8a7a" />
+    </div>
+  )
+}
+
+/**
  * WHAT A PAIR IS DOING — the headline on a conversation.
  *
  * JP: "I should be seeing cat one and cat two are talking. And then if I click on
@@ -221,6 +241,9 @@ export function Yard({
 
   /** The paper, so it can be scrolled as it fills. */
   const logRef = useRef<HTMLDivElement>(null)
+
+  /** The conversation window's close control, which takes the focus when it opens. */
+  const shutRef = useRef<HTMLButtonElement>(null)
   const clear = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const byUid = useMemo(() => new Map(cats.map(c => [c.uid, c])), [cats])
@@ -278,7 +301,24 @@ export function Yard({
    */
   useEffect(() => {
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: 'smooth' })
-  }, [rolled, talking])
+  }, [rolled])
+
+  /*
+   * ESCAPE SHUTS THE CONVERSATION. Bound to the window rather than to the panel,
+   * so it works whether or not anything inside it has focus.
+   */
+  useEffect(() => {
+    if (!talking) return
+    /*
+     * THE WINDOW TAKES THE FOCUS. Without this it stays on the row behind the
+     * scrim, so a keyboard is still walking the page underneath a panel that is
+     * covering it.
+     */
+    shutRef.current?.focus()
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setTalking(null) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [talking])
 
   const show = useCallback((c: YardCat) => {
     if (clear.current) clearTimeout(clear.current)
@@ -335,6 +375,15 @@ export function Yard({
     }
   }
   pairs.sort((x, y) => y.last.tick - x.last.tick)
+
+  /*
+   * THE CONVERSATION THAT IS OPEN, found in the list rather than copied out of
+   * it. The pair list is rebuilt from the yard every time an hour passes, so a
+   * row held in state would leave the window showing a conversation that has
+   * since moved on — and it would keep showing it after the memory faded.
+   */
+  const chat = talking ? pairs.find(q => q.a.uid + q.b.uid === talking) ?? null : null
+  const said = chat ? between(state.state, chat.a.uid, chat.b.uid, 20) : []
 
   return (
     <div style={{ position: 'relative' }}>
@@ -443,8 +492,6 @@ export function Yard({
               <div style={rule}><BitmapText text="WHO IS TALKING" scale={1} color="#8a8a7a" /></div>
               {pairs.slice(0, 8).map(({ a, b, n, last }) => {
                 const id = a.uid + b.uid
-                const open = talking === id
-                const said = open ? between(state.state, a.uid, b.uid, 8) : []
                 return (
                   <div key={id}>
                     {/*
@@ -453,8 +500,8 @@ export function Yard({
                       no reason.
                     */}
                     <button
-                      onClick={() => setTalking(open ? null : id)}
-                      aria-expanded={open}
+                      onClick={() => setTalking(id)}
+                      aria-haspopup="dialog"
                       style={pairRow}
                     >
                       <Bit runs={[
@@ -469,36 +516,110 @@ export function Yard({
                       */}
                       <BitmapText text={reads(n)} scale={1} color={BOND_INK[reads(n)] ?? INK_FAINT} />
                     </button>
-
-                    {open && (
-                      <div style={convo}>
-                        {said.map((m, i) => {
-                          const speaker = m.a === a.uid ? a : b
-                          const other = m.a === a.uid ? b : a
-                          const t = thoughtOf(m, speaker.uid, other.name)
-                          const ago = state.state.ticks - m.tick
-                          return (
-                            <div key={i} style={convoRow}>
-                              <Bit runs={[
-                                { text: speaker.name, color: speaker.mine ? '#a06a10' : '#5b3fa8' },
-                                { text: ' ' + t.text, color: t.good ? '#2f7a44' : '#a01b1b' },
-                              ]} />
-                              <BitmapText
-                                text={ago <= 0 ? 'just now' : `${ago}h`}
-                                scale={1}
-                                color="#8a8a7a"
-                              />
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
                   </div>
                 )
               })}
             </>
           )}
         </div>
+      )}
+
+      {/*
+        THE CONVERSATION OPENS IN A WINDOW OVER THE YARD.
+
+        JP: "make it so that you can click on the conversations and also open up
+        a, like, a little side window or, like, a window within a window, so you
+        know what they're talking about."
+
+        It used to unfold UNDER the row, inside the log. That is a disclosure, not
+        a window, and the box it lives in scrolls: opening one pushed every other
+        pair down, and the row you tapped could slide out from under you while you
+        were reading it. DF does not do that either — it draws a panel on top and
+        leaves the map exactly where it was.
+
+        FIXED, NOT ABSOLUTE. The yard is a map and a log stacked, which is taller
+        than a phone screen. A panel centred inside that block would open above or
+        below whatever the reader is actually looking at; fixed to the viewport it
+        opens where their eyes already are.
+
+        NOTHING FADES IN. The rule holds here as it does on the map: the window is
+        there or it is not.
+      */}
+      {chat && (
+        <>
+          <div style={scrim} onClick={() => setTalking(null)} aria-hidden />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${chat.a.name} and ${chat.b.name}`}
+            style={windowBox}
+          >
+            {/* The title bar is what makes it read as a window rather than a card. */}
+            <div style={titleBar}>
+              <Bit runs={[
+                { text: chat.a.name, color: chat.a.mine ? '#a06a10' : '#5b3fa8' },
+                { text: ' and ' },
+                { text: chat.b.name, color: chat.b.mine ? '#a06a10' : '#5b3fa8' },
+              ]} />
+              <button
+                ref={shutRef}
+                onClick={() => setTalking(null)}
+                aria-label="Close"
+                style={shut}
+              >
+                <BitmapText text="X" scale={1} color="#8a8a7a" />
+              </button>
+            </div>
+
+            {/*
+              THE TWO OF THEM, FACING EACH OTHER, with the verdict between them.
+              The row in the log could only NAME the pair. There is room here to
+              show who is talking, which is the reason to open a window at all.
+            */}
+            <div style={facing}>
+              <Mug cat={chat.a} />
+              <div style={middle}>
+                <Bit runs={[{ text: TOGETHER[chat.last.kind], color: DEED_INK[chat.last.kind] }]} />
+                <BitmapText
+                  text={reads(chat.n)}
+                  scale={1}
+                  color={BOND_INK[reads(chat.n)] ?? INK_FAINT}
+                />
+              </div>
+              <Mug cat={chat.b} />
+            </div>
+
+            {/*
+              WHAT PASSED BETWEEN THEM, newest first — the same direction the log
+              and the creature sheet read in, so the page never asks anybody to
+              turn around halfway through.
+
+              TWENTY, not the eight the row used to unfold. A window has somewhere
+              to put them: this scrolls and the frame around it does not move.
+            */}
+            <div style={windowBody}>
+              {said.map((m, i) => {
+                const speaker = m.a === chat.a.uid ? chat.a : chat.b
+                const other = m.a === chat.a.uid ? chat.b : chat.a
+                const t = thoughtOf(m, speaker.uid, other.name)
+                const ago = state.state.ticks - m.tick
+                return (
+                  <div key={i} style={convoRow}>
+                    <Bit runs={[
+                      { text: speaker.name, color: speaker.mine ? '#a06a10' : '#5b3fa8' },
+                      { text: ' ' + t.text, color: t.good ? '#2f7a44' : '#a01b1b' },
+                    ]} />
+                    <BitmapText
+                      text={ago <= 0 ? 'just now' : `${ago}h`}
+                      scale={1}
+                      color="#8a8a7a"
+                    />
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </>
       )}
 
       {/*
@@ -612,18 +733,97 @@ const pairRow: React.CSSProperties = {
   font: 'inherit', fontSize: 13, color: INK, cursor: 'pointer',
 }
 
-/* What passed between them, indented under the pair like a quoted exchange. */
-const convo: React.CSSProperties = {
-  display: 'flex', flexDirection: 'column', gap: 3,
-  margin: '4px 0 8px 12px', paddingLeft: 10,
-  borderLeft: '2px solid rgba(0,0,0,0.12)',
-}
-
 const convoRow: React.CSSProperties = {
   display: 'flex', gap: 10, justifyContent: 'space-between',
   alignItems: 'baseline', fontSize: 12.5, lineHeight: 1.45,
 }
 
+
+/*
+ * THE SCRIM DIMS THE YARD, IT DOES NOT HIDE IT.
+ *
+ * The map underneath is what the conversation is ABOUT. Blanking it would break
+ * the one connection worth keeping: the two names in the title bar are two tiles
+ * still visible behind it.
+ */
+const scrim: React.CSSProperties = {
+  position: 'fixed', inset: 0, zIndex: 40,
+  background: 'rgba(6,6,12,0.72)',
+}
+
+/*
+ * THE WINDOW. Same paper as the log, because it holds the same kind of writing —
+ * lifted off the page by a hard frame and a shadow, which is the whole
+ * difference between a panel that is ON the page and one that is OVER it.
+ *
+ * THE BORDER IS STATED IN FULL, AND IT IS 2px. React warns outright when a
+ * shorthand and its longhand meet on one element across a state change, and 2 is
+ * the width this app actually uses — assuming 1 is the mistake that has already
+ * been made here once.
+ *
+ * overflow hidden on the frame, scrolling on the body inside it: the title bar
+ * and the two portraits stay put while the exchange moves under them.
+ */
+const windowBox: React.CSSProperties = {
+  position: 'fixed', zIndex: 41,
+  left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
+  width: 'min(460px, calc(100vw - 28px))',
+  maxHeight: 'min(78vh, 560px)',
+  display: 'flex', flexDirection: 'column',
+  background: PAPER, color: INK,
+  border: '2px solid #171720', borderRadius: 12,
+  boxShadow: '0 18px 48px rgba(0,0,0,0.6)',
+  overflow: 'hidden',
+}
+
+const titleBar: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+  padding: '10px 12px',
+  background: 'rgba(0,0,0,0.05)',
+  borderBottom: '2px solid rgba(0,0,0,0.14)',
+}
+
+/*
+ * 32 SQUARE, WHICH IS A THUMB.
+ *
+ * It was the glyph's own size plus a few pixels of padding, which is about 14px
+ * of target on a phone. The scrim and Escape both close the window as well, but
+ * the X is the one people will aim for, and it is the one that has to be hittable.
+ */
+const shut: React.CSSProperties = {
+  background: 'none', border: 0, padding: 0, cursor: 'pointer',
+  width: 32, height: 32,
+  display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
+}
+
+const facing: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+  padding: '12px 14px',
+  borderBottom: '1px solid rgba(0,0,0,0.10)',
+}
+
+const mugBox: React.CSSProperties = {
+  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+  minWidth: 0,
+}
+
+const mug: React.CSSProperties = {
+  width: 64, height: 51, objectFit: 'cover', imageRendering: 'pixelated',
+  borderRadius: 6, border: '2px solid rgba(0,0,0,0.18)', display: 'block',
+}
+
+/* What they are doing, and the verdict, between the two of them. */
+const middle: React.CSSProperties = {
+  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+  textAlign: 'center', minWidth: 0,
+}
+
+/* The exchange. This is the part that scrolls; the frame around it does not. */
+const windowBody: React.CSSProperties = {
+  display: 'flex', flexDirection: 'column', gap: 5,
+  padding: '12px 14px 14px',
+  overflowY: 'auto',
+}
 
 /* The divider inside the paper. Ruled, the way a printed sheet would be. */
 const rule: React.CSSProperties = {
