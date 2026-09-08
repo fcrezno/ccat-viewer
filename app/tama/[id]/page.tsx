@@ -178,8 +178,10 @@ const s: Record<string, React.CSSProperties> = {
   actions:       { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 },
   btn:           { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '14px 0', border: '1px solid #2a2a3e', borderRadius: 14, cursor: 'pointer', fontSize: 13, fontWeight: 'bold', color: 'white', transition: 'transform 0.1s, opacity 0.1s' },
   btnIcon:       { fontSize: 24 },
-  btnFeed:       { background: '#1a120a', borderColor: '#f59e0b44' },
-  btnPet:        { background: '#120a1a', borderColor: '#7c3aed44' },
-  btnPlay:       { background: '#0a121a', borderColor: '#3b82f644' },
+  // The full `border` shorthand, not `borderColor`: btn sets the shorthand,
+  // so mixing the two lets React drop one. 1px matches btn.
+  btnFeed:       { background: '#1a120a', border: '1px solid #f59e0b44' },
+  btnPet:        { background: '#120a1a', border: '1px solid #7c3aed44' },
+  btnPlay:       { background: '#0a121a', border: '1px solid #3b82f644' },
   warning:       { display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' as const, fontSize: 13, color: '#ef4444', fontWeight: 'bold' },
 }

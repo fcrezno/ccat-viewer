@@ -17,7 +17,7 @@ function CatCard({ cat, selected, onClick }: { cat: Cat; selected: boolean; onCl
   const showBadge = COLLECTIONS.length > 1 && cat.collection === 'v1'
 
   return (
-    <div onClick={onClick} style={{ ...s.card, position: 'relative', borderColor: selected ? '#7c3aed' : '#1e1e2e', transform: selected ? 'scale(0.97)' : 'scale(1)', transition: 'all 0.15s ease' }}>
+    <div onClick={onClick} style={{ ...s.card, position: 'relative', border: selected ? '1px solid #7c3aed' : '1px solid #1e1e2e', transform: selected ? 'scale(0.97)' : 'scale(1)', transition: 'all 0.15s ease' }}>
       {meta?.image
         ? <img src={meta.image} loading="lazy" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block', imageRendering: col.pixelArt ? 'pixelated' : 'auto' }} />
         : <div style={s.placeholder}><span style={{ fontSize: 24 }}>🐱</span></div>
