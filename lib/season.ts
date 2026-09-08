@@ -152,15 +152,23 @@ function unpack(packed: string): Omit<Run, 'season'> & { season: number } | null
   }
 
   /*
-   * The runner is only trusted when BOTH halves parse. A tag naming a cat with
-   * no fid, or a fid that is not a number, is treated as unclaimable rather than
-   * half-claimable — there is no useful middle state for a prize.
+   * The runner is only trusted when BOTH halves parse: a uid that looks like one,
+   * and an fid that is an integer. A tag whose fid is not a number at all is
+   * still treated as unclaimable — there is no useful middle state for a prize.
+   *
+   * ZERO IS A NUMBER, and that is the whole of this fix on the reading side.
+   * `fid > 0` here would have undone `tagFor` above: the tag would carry the
+   * runner and this would throw it away again, and a browser guest would still
+   * have won nothing. Both halves had the same check and both had to go.
+   *
+   * A guest is `guest:<n>` with fid 0. The UID test is what keeps this honest —
+   * a demo run has no uid to pass it.
    */
   let runner: Runner | null = null
   if (who) {
     const [uid, fidRaw, flag] = who.split('@')
     const fid = Number(fidRaw)
-    if (UID.test(uid ?? '') && Number.isInteger(fid) && fid > 0) {
+    if (UID.test(uid ?? '') && Number.isInteger(fid) && fid >= 0) {
       runner = { uid, fid, continued: flag === 'c' }
     }
   }
@@ -184,8 +192,28 @@ export function tagFor(
   const real = pairs.filter(p => p.w && p.l)
   if (!real.length) return null
   const banked = score && score.uid && score.points > 0 ? score : null
-  // A runner with no uid is a demo cat: it can be shown, never claimed.
-  const who = runner?.uid && runner.fid > 0 ? runner : null
+  /*
+   * THE UID IS WHAT MAKES A RUN CLAIMABLE. NOT THE FID.
+   *
+   * This read `runner.fid > 0` while its own comment said "a runner with no uid
+   * is a demo cat" — the comment was right and the code had drifted. The demo
+   * runner is the one with no UID; every other comment in this repo says so.
+   *
+   * The cost was exact and it was measured: a browser guest is given
+   * `fid: Number(fid) || 0` by /api/gauntlet, so the fid test dropped the runner,
+   * `winsFor` returned 0 for want of one, and somebody who had just won three
+   * fights got a tag saying they had won nothing. The one audience the V3 mint
+   * exists for could play and could never claim.
+   *
+   * THE FID WAS NEVER V3's ANCHOR. It is V2's: a tag names an fid so a copied tag
+   * is worthless to the copier, and V2's claim checks a Quick Auth token against
+   * it. V3 has no Quick Auth and says so outright — see the header of
+   * app/api/v3-voucher/route.ts, which gates on the WALLET, treats replay as
+   * `minted(wallet)` on chain, and accepts that wallets are free.
+   *
+   * So a fid of 0 is not a broken runner here. It is the normal one.
+   */
+  const who = runner?.uid ? runner : null
   return `${PREFIX}${SEASON}.${sign<Payload>({ p: pack(real, seed, banked, who) })}`
 }
 
