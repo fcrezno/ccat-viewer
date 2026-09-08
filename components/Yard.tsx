@@ -9,7 +9,7 @@ import { CatSheet } from '@/components/CatSheet'
 import { thoughtOf } from '@/lib/yardmap'
 import { moodFor, settle, settled, MOOD_INK } from '@/lib/mood'
 import { inkFor } from '@/lib/catink'
-import { BitmapText, type Run } from '@/components/BitmapText'
+import { type Run } from '@/components/BitmapText'
 
 /**
  * THE YARD — what your cats did with the cats of people you follow.
@@ -138,34 +138,53 @@ function CatName({ cat, on, off }: { cat: YardCat; on: () => void; off: () => vo
  * four starts pushing the rest of the page down again.
  */
 /**
- * A LINE OF THE GAME'S OWN FONT, built from pieces that can differ in colour.
+ * A yard line: one sentence, with the cat names in their own ink.
  *
- * JP: "you have to add my original font… I want the pixelated hand drawn stuff I
- * made, the same stuff that is used for the battle logs."
+ * ── IT IS REAL TEXT NOW ──────────────────────────────────────────────────────
  *
- * He is right and it had been skipped. The fight's log has always drawn through
- * BitmapText — font.png, the sheet he drew — while the yard's log sat in the
- * hand-lettered web font. Two logs in one game in two different faces.
+ * JP: "you have to add my original font… the same stuff that is used for the
+ * battle logs" — then, once it was: "all the fonts should be uniform."
  *
- * BitmapText takes ONE string and ONE colour, which is all the fight log needs:
- * its lines are short and single-ink. A yard line is a sentence with cat names
- * coloured inside it, so it is composed from segments — each its own run, laid
- * out in a wrapping row so the sentence still breaks like a sentence.
+ * Both are satisfied by the same move. font.png is a webfont now
+ * (scripts/make-webfont.mjs), so the sheet's face is available to ordinary CSS
+ * and the log does not need to be drawn glyph by glyph to wear it.
+ *
+ * That was the last thing making the log a different SIZE from everything around
+ * it. BitmapText draws at whole-pixel scales — 1 gives a 24px cell — so a log
+ * sitting next to 11-13px chrome was always going to look like a different font
+ * even once it was the same one. As text it takes the size of the box it is in.
+ *
+ * It also deletes work: no per-glyph spans, no masks, no measuring. The names
+ * are still their own colours because a run is now just a span.
  */
-/**
- * A yard line: one flow of the game's font, with the cat names in their own ink.
- *
- * The first version put a BitmapText per coloured piece inside a wrapping row.
- * Each of those is its own flex container, so the sentence came out as blocks
- * that wrapped independently — "#346  #51" on one line and "and are chasing each
- * other" on the next. BitmapText takes runs now and lays the whole line out as it
- * always laid out a line.
- *
- * The names are still tappable. A transparent button sits over the run rather
- * than splitting the text, so the reveal is unaffected.
- */
-function Bit({ runs, scale = 1 }: { runs: Run[]; scale?: number }) {
-  return <BitmapText runs={runs.filter(r => r.text)} scale={scale} color={INK} />
+function Bit({ runs }: { runs: Run[] }) {
+  return (
+    /*
+     * ONE ELEMENT, NOT A FRAGMENT, and that is the whole reason this wrapper
+     * still exists now that the text is real text.
+     *
+     * Every row it sits in is a flex container with the hour or the bond word
+     * pushed to the far end. Returning the runs loose would make each one its
+     * own flex item and the sentence would come apart across the row — which is
+     * the exact bug that made `runs` necessary in the first place. Inside one
+     * span they are just text, and they wrap like text.
+     */
+    <span>
+      {runs.filter(r => r.text).map((r, i) => (
+        <span
+          key={i}
+          className={r.beat ? 'yard-say' : undefined}
+          style={{
+            color: r.color ?? INK,
+            ...(r.beat ? {
+              ['--say-a' as string]: r.color ?? INK,
+              ['--say-b' as string]: r.beat,
+            } : null),
+          }}
+        >{r.text}</span>
+      ))}
+    </span>
+  )
 }
 
 /**
@@ -182,8 +201,8 @@ function Mug({ cat }: { cat: YardCat }) {
       {cat.art
         ? <img src={cat.art} alt="" style={mug} />
         : <div style={{ ...mug, background: '#ddd6c4' }} />}
-      <BitmapText text={cat.name} scale={1} color={nameInk(cat)} />
-      <BitmapText text={temperOf(cat.face).label} scale={1} color="#8a8a7a" />
+      <span style={{ color: nameInk(cat) }}>{cat.name}</span>
+      <span style={{ color: '#8a8a7a' }}>{temperOf(cat.face).label}</span>
     </div>
   )
 }
@@ -636,7 +655,7 @@ export function Yard({
           */}
           {full && past.length > 0 && (
             <>
-              <div style={rule}><BitmapText text="WHAT THE YARD REMEMBERS" scale={1} color="#8a8a7a" /></div>
+              <div style={rule}>WHAT THE YARD REMEMBERS</div>
               {past.slice(0, 12).map((e, i) => {
                 const a = name(e.a)
                 const b = e.what === 'bond' ? name(e.b) : null
@@ -677,11 +696,7 @@ export function Yard({
                 return (
                   <div key={i} style={convoRow}>
                     <Bit runs={runs} />
-                    <BitmapText
-                      text={ago <= 0 ? 'just now' : `${ago}h`}
-                      scale={1}
-                      color="#8a8a7a"
-                    />
+                    <span style={{ color: '#8a8a7a', whiteSpace: 'nowrap' }}>{ago <= 0 ? 'just now' : `${ago}h`}</span>
                   </div>
                 )
               })}
@@ -690,7 +705,7 @@ export function Yard({
 
           {pairs.length > 0 && (
             <>
-              <div style={rule}><BitmapText text="WHO IS TALKING" scale={1} color="#8a8a7a" /></div>
+              <div style={rule}>WHO IS TALKING</div>
               {pairs.slice(0, 8).map(({ a, b, n, last }) => {
                 const id = a.uid + b.uid
                 return (
@@ -715,7 +730,7 @@ export function Yard({
                         The verdict is kept, but demoted to the end of the line
                         where it belongs — it is the summary, not the news.
                       */}
-                      <BitmapText text={reads(n)} scale={1} color={BOND_INK[reads(n)] ?? INK_FAINT} />
+                      <span style={{ color: BOND_INK[reads(n)] ?? INK_FAINT }}>{reads(n)}</span>
                     </button>
                   </div>
                 )
@@ -768,7 +783,7 @@ export function Yard({
                 aria-label="Close"
                 style={shut}
               >
-                <BitmapText text="X" scale={1} color="#8a8a7a" />
+                <span style={{ color: '#8a8a7a' }}>X</span>
               </button>
             </div>
 
@@ -781,11 +796,7 @@ export function Yard({
               <Mug cat={chat.a} />
               <div style={middle}>
                 <Bit runs={[{ text: TOGETHER[chat.last.kind], color: DEED_INK[chat.last.kind] }]} />
-                <BitmapText
-                  text={reads(chat.n)}
-                  scale={1}
-                  color={BOND_INK[reads(chat.n)] ?? INK_FAINT}
-                />
+                <span style={{ color: BOND_INK[reads(chat.n)] ?? INK_FAINT }}>{reads(chat.n)}</span>
               </div>
               <Mug cat={chat.b} />
             </div>
@@ -810,11 +821,7 @@ export function Yard({
                       { text: speaker.name, color: nameInk(speaker) },
                       { text: ' ' + t.text, color: t.good ? '#2f7a44' : '#a01b1b' },
                     ]} />
-                    <BitmapText
-                      text={ago <= 0 ? 'just now' : `${ago}h`}
-                      scale={1}
-                      color="#8a8a7a"
-                    />
+                    <span style={{ color: '#8a8a7a', whiteSpace: 'nowrap' }}>{ago <= 0 ? 'just now' : `${ago}h`}</span>
                   </div>
                 )
               })}
@@ -948,6 +955,15 @@ const paper: React.CSSProperties = {
   boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.08)',
   marginBottom: 14,
   display: 'flex', flexDirection: 'column', gap: 6,
+  /*
+   * THE LOG'S SIZE LIVES HERE NOW.
+   *
+   * It used to be set by BitmapText's scale — one sheet pixel per CSS pixel, a
+   * 24px cell — which is why the log always read as bigger than the page around
+   * it. 13 is the app's own body size, so the log and the chrome finally agree.
+   */
+  fontSize: 13,
+  lineHeight: 1.5,
   /*
    * Shorter than the fight's 320 on the front page, because the yard is a
    * PREVIEW there and sits above everything else on the screen. The yard's own

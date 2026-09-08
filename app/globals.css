@@ -735,12 +735,41 @@ button, input, select, textarea, optgroup {
  * Every glyph of the verb gets it with no delay, so they move together and the
  * word jitters as one word rather than scattering.
  */
+/*
+ * IT PAINTS `color` NOW, NOT `background-color`.
+ *
+ * It had to be background-color while the yard's log went through BitmapText:
+ * every glyph was a CSS mask over a coloured box, so the box's background WAS the
+ * ink and `color` would have animated nothing. The log is real text since
+ * font.png became a webfont, so the ink is `color` again and the box behind it
+ * is nothing at all.
+ *
+ * The stops and the offsets are cradle-crit's, unchanged — same beat, same
+ * ±2px jitter, still driven by two variables so a squabble flashes red against a
+ * brighter red rather than against somebody else's colour.
+ *
+ * display: inline-block, because a transform does not apply to an inline box.
+ * Without it the jitter silently did nothing.
+ */
+/*
+ * THE ANIMATION LIVES HERE, not on the element.
+ *
+ * BitmapText set it inline, so when the log became real text the class came
+ * across and the animation did not — the beat was applied, both colours were
+ * set, and animationName read "none". It fires from the class now, so anything
+ * wearing .yard-say beats without the caller remembering to say so.
+ */
+.yard-say {
+  display: inline-block;
+  animation: yard-say 0.45s ease-out;
+}
+
 @keyframes yard-say {
-  0%   { background-color: var(--say-a); transform: translateX(0); }
-  25%  { background-color: var(--say-b); transform: translateX(-2px); }
-  50%  { background-color: var(--say-a); transform: translateX(2px); }
-  75%  { background-color: var(--say-b); transform: translateX(-1px); }
-  100% { background-color: var(--say-a); transform: translateX(0); }
+  0%   { color: var(--say-a); transform: translateX(0); }
+  25%  { color: var(--say-b); transform: translateX(-2px); }
+  50%  { color: var(--say-a); transform: translateX(2px); }
+  75%  { color: var(--say-b); transform: translateX(-1px); }
+  100% { color: var(--say-a); transform: translateX(0); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -752,9 +781,9 @@ button, input, select, textarea, optgroup {
 }
 
 @keyframes yard-flash {
-  0%   { background-color: var(--say-a); }
-  25%  { background-color: var(--say-b); }
-  50%  { background-color: var(--say-a); }
-  75%  { background-color: var(--say-b); }
-  100% { background-color: var(--say-a); }
+  0%   { color: var(--say-a); }
+  25%  { color: var(--say-b); }
+  50%  { color: var(--say-a); }
+  75%  { color: var(--say-b); }
+  100% { color: var(--say-a); }
 }
