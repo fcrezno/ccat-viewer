@@ -822,13 +822,19 @@ const mugBox: React.CSSProperties = {
  * holds the ratio exactly and nothing is squashed.
  *
  * 84 AND NOT MORE, AND THAT IS MEASURED. The window is 347 wide on a phone, and
- * two portraits plus the gaps and the padding leave 135 for the column between
- * them. All eight pairs in a full yard fit that on one line — the column comes
- * out 52 tall for every one of them.
+ * two portraits plus the gaps and the padding leave 139 for the column between
+ * them.
  *
- * At 88 the longest of them, "are not speaking", wrapped. That pushed the names
- * below the portraits and left the row lopsided, which is a worse trade than the
- * four pixels.
+ * That is a budget, not a guarantee, and the thing spending it is the DEED
+ * PHRASE — which is placeholder prose in TOGETHER and will change. Measured
+ * across a full demo yard: six of eight pairs fit one line, and the two showing
+ * "are chasing each other" take three. That is fine and deliberate. The column
+ * is centred and the row is centred with it, so a wrap makes the box taller
+ * without making it crooked.
+ *
+ * 84 is where the SHORT phrases stop wrapping, which is the case worth buying.
+ * At 88 even "are not speaking" went over, and that one pushed the names below
+ * the portraits and left the row lopsided — a worse trade than four pixels.
  *
  * The border is inside the 84: box-sizing is border-box here, so the drawn
  * portrait is 84x67 even though clientWidth reports 80. Measure this one with

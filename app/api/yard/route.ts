@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { COLLECTIONS, liveSupply, ownersOf, fetchMeta, makeUid } from '@/lib/collection'
+import { cast } from '@/lib/demonames'
 import type { Resident } from '@/lib/yard'
 
 /**
@@ -197,6 +198,21 @@ async function demoYard(n: number) {
     if (!picked.includes(uid)) picked.push(uid)
   }
 
+  /*
+   * THE DEMO YARD'S CATS ARE NAMED. JP: "for the demo yard i think it can share
+   * the names of the random cats."
+   *
+   * There is no name on a cat to share — see lib/demonames.ts for the metadata
+   * proving it — so the demo yard gives them one, drawn from the uid so a cat
+   * that rotates back in comes back as itself.
+   *
+   * DEMO ONLY. A real yard keeps the number, because a real yard already says
+   * whose the cat is and the number is the honest label for one nobody has
+   * claimed. Naming a stranger's cat in their OWN yard would be inventing a fact
+   * about somebody else's pet.
+   */
+  const named = cast(picked)
+
   const residents: (Resident & { owner: null; art: string; demo: true })[] = []
   for (const uid of picked) {
     const [colKey, id] = uid.split(':')
@@ -205,7 +221,7 @@ async function demoYard(n: number) {
     const meta = await fetchMeta(col, id)
     residents.push({
       uid,
-      name: `#${id}`,
+      name: named.get(uid) ?? `#${id}`,
       face: meta?.attributes?.find(a => /face/i.test(a.trait_type ?? ''))?.value ?? null,
       owner: null,
       art: meta?.image ?? '',
