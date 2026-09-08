@@ -1,5 +1,6 @@
 import { open, catchUp, PROPS, type Memory, type PropKind, type Resident, type YardState } from '@/lib/yard'
 import { crossings, record, forgetHistory, history, lastWords, type Entry } from '@/lib/chronicle'
+import { witnesses } from '@/lib/yardmap'
 
 /**
  * THE YARD, BETWEEN VISITS.
@@ -143,7 +144,16 @@ export function visit(cats: Resident[], key = KEY): Visit {
    */
   const said = lastWords(history(key))
   const { state, happened } = hours > 0
-    ? catchUp(base, hours, (was, is) => noted.push(...crossings(was, is, said)))
+    ? catchUp(base, hours, {
+        /*
+         * WITNESSES FIRST, so a bond an onlooker just moved is part of the hour
+         * the chronicle then reads. An opinion formed watching a row at 3am can
+         * change what happens at 4am, which is the only reason it is worth
+         * having.
+         */
+        witness: witnesses,
+        onTick: (was, is) => noted.push(...crossings(was, is, said)),
+      })
     : { state: base, happened: [] }
 
   record(key, noted)

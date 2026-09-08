@@ -66,6 +66,22 @@ import { BitmapText, type Run } from '@/components/BitmapText'
  * wrote a line whose wording did not fit the pattern — which is guaranteed, since
  * rewriting these is the entire point of them being placeholders.
  */
+/**
+ * WHAT A CAT SAYS ABOUT SOMETHING IT ONLY WATCHED.
+ *
+ * PLACEHOLDER PROSE, JP's to replace, like the rest.
+ *
+ * Same three pieces as SAYS, but the second name is the one being WATCHED, not
+ * the one being done to — so the sentence has to be built the other way round or
+ * it accuses an onlooker of a row it stood next to. Only the three loud deeds
+ * can be witnessed at all; see `witnesses` in lib/yardmap.ts.
+ */
+const WATCHED: Partial<Record<Memory['kind'], [string, string, string]>> = {
+  squabble: ['', ' saw ', ' fall out with somebody.'],
+  groom:    ['', ' saw ', ' cleaning somebody up.'],
+  showoff:  ['', ' saw ', ' showing off.'],
+}
+
 const SAYS: Record<Memory['kind'], [string, string, string]> = {
   greet:    ['', ' went over to say hello to ', '.'],
   play:     ['', ' and ', ' chased each other around.'],
@@ -559,7 +575,16 @@ export function Yard({
           {shown.slice(0, rolled).map((m, i) => {
             const a = name(m.a), b = name(m.b)
             if (!a || !b) return null
-            const [before, mid, after] = SAYS[m.kind]
+            /*
+             * A WATCHED LINE READS DIFFERENTLY, because it IS different: `a`
+             * was not in it. Falling back to SAYS when a kind has no watched
+             * wording would print the lie rather than nothing, so the line is
+             * dropped instead — witnesses only ever carry the three kinds that
+             * WATCHED covers, so this cannot silently swallow anything real.
+             */
+            const line = m.seen ? WATCHED[m.kind] : SAYS[m.kind]
+            if (!line) return null
+            const [before, mid, after] = line
             const ink = DEED_INK[m.kind]
             /*
              * THE VERB BEATS, THE NAMES DO NOT. The deed is what just happened;

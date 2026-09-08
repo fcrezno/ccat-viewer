@@ -207,14 +207,31 @@ function downhill(from: Cell, dist: Map<number, number>, taken: Set<number>): Ce
 }
 
 /**
+ * THE LAST THING EACH CAT ACTUALLY DID, up to this tick.
+ *
+ * WATCHED MEMORIES ARE NOT IT, and that filter is the whole reason this is one
+ * function instead of the two identical loops it replaced. A witnessed memory
+ * names the ONLOOKER as `a` and the cat it watched as `b`; counted as a deed it
+ * would draw a cat squabbling with somebody it never touched, give it the wrong
+ * glyph and pose, and walk it to the prop of a row it only saw.
+ *
+ * Both callers need the same answer — where a cat stands and what it is shown
+ * doing must agree — so they now cannot disagree.
+ */
+function latestDone(y: YardState, tick: number): Map<string, Memory> {
+  const last = new Map<string, Memory>()
+  for (const m of y.kept) if (m.tick <= tick && !m.seen) { last.set(m.a, m); last.set(m.b, m) }
+  return last
+}
+
+/**
  * WHERE EACH CAT WANTS TO BE at a given tick — not where it is.
  *
  * A cat that just played is heading for the toy; one that greeted somebody is
  * heading for them; one nobody remembers is drifting around its own patch.
  */
 function targets(y: YardState, tick: number, props: Map<PropKind, Cell>, at: Map<string, Cell>) {
-  const last = new Map<string, Memory>()
-  for (const m of y.kept) if (m.tick <= tick) { last.set(m.a, m); last.set(m.b, m) }
+  const last = latestDone(y, tick)
 
   const want = new Map<string, Cell>()
   for (const cat of y.cats) {
@@ -346,8 +363,7 @@ export function layoutAt(y: YardState, tick: number): Placed[] {
   const props = propCells(y)
   const at = walk(y, Math.max(0, Math.min(tick, y.ticks)))
 
-  const last = new Map<string, Memory>()
-  for (const m of y.kept) if (m.tick <= tick) { last.set(m.a, m); last.set(m.b, m) }
+  const last = latestDone(y, tick)
 
   const out: Placed[] = []
   const taken = new Set<number>()
@@ -492,9 +508,38 @@ const THOUGHT_LINES: Record<Memory['kind'], Lines> = {
  * The SAME event reads differently to each of them, which is the point: being
  * groomed and doing the grooming are not the same day.
  */
+/**
+ * What a cat thinks about something it only WATCHED.
+ *
+ * PLACEHOLDER PROSE, JP's to replace. Two sides, because a witnessed memory has
+ * two: the cat that looked up, and the cat it looked at.
+ */
+const SAW_LINES: Partial<Record<Memory['kind'], { did: string; got: string }>> = {
+  squabble: { did: 'saw {other} fall out with somebody', got: '{other} watched it fall out' },
+  groom:    { did: 'saw {other} cleaning somebody up',   got: '{other} watched it clean somebody up' },
+  showoff:  { did: 'saw {other} showing off',            got: '{other} watched it show off' },
+}
+
 export function thoughtOf(m: Memory, self: string, otherName: string): Thought {
   const mine = m.a === self
   const wrong = m.delta < 0
+
+  /*
+   * A WATCHED MEMORY IS NOT A DEED THIS CAT TOOK PART IN, and reading it through
+   * THOUGHT_LINES would say so: an onlooker's diary would claim it fell out with
+   * a cat it never touched. Its own two lines, and its own idea of good — which
+   * is the sign of what it SAW, already carried on the delta.
+   */
+  if (m.seen) {
+    const w = SAW_LINES[m.kind]
+    if (w) {
+      return {
+        text: (mine ? w.did : w.got).replace('{other}', otherName),
+        good: m.delta > 0,
+      }
+    }
+  }
+
   const l = THOUGHT_LINES[m.kind]
 
   const pick =
@@ -555,3 +600,96 @@ export const MOOD: Record<Memory['kind'], Mood> = {
 export const IDLE: Mood = { glyph: '?', colour: '#7a7a95' }
 
 export const moodOf = (doing: Memory | null): Mood => (doing ? MOOD[doing.kind] : IDLE)
+
+/**
+ * WHO SAW IT — the third cat in a two-cat event.
+ *
+ * JP asked how the yard could tell stories the way a fortress does. A chronicle
+ * gives it a past; this gives it SIDES.
+ *
+ * Every event in the yard has been strictly between two cats, so an opinion
+ * could only ever be first-hand. In DF a dwarf who merely WATCHES something
+ * forms a thought about it, and that is where a fortress's cliques and grudges
+ * come from — nobody arranges them. A cat that stood next to a squabble and
+ * thought less of the one who started it is the same machine.
+ *
+ * ── WHY THIS IS HERE AND NOT IN lib/yard.ts ──────────────────────────────────
+ *
+ * It needs to know who was standing WHERE, and that is worked out in this file.
+ * Putting it in the simulation would make lib/yard.ts import the map that draws
+ * it. `catchUp` takes it as a hook instead, so the dependency points one way.
+ *
+ * ── ONLY THE TWO THAT MOVE A BOND MOST, AND THAT IS MEASURED ─────────────────
+ *
+ * Nobody forms an opinion about a greeting, so this was first written as the
+ * three LOUD deeds — squabble, groom and showing off. Measured over 120 hours of
+ * a full yard that gave 94 witnessed memories against 227 in total: FORTY-ONE
+ * PER CENT of everything the yard remembered was second-hand, and almost all of
+ * it was showing off, which is both common and the least consequential of the
+ * three.
+ *
+ * A yard where half of what anybody knows is hearsay is not a yard with sides in
+ * it; it is a yard where nothing first-hand can be heard.
+ *
+ * So it is the two deeds that move a bond furthest — groom at +4 and squabble at
+ * -4 — which is the same cut the log's own beat uses in components/Yard.tsx, and
+ * for the same reason: if everything is worth remarking on, nothing is.
+ *
+ * ── ONE POINT, AND AT MOST TWO ONLOOKERS ─────────────────────────────────────
+ *
+ * A witnessed memory is worth 1 against a squabble's own 4. Watching should
+ * colour a yard slowly; if it moved bonds as hard as taking part, a single row
+ * in a crowd would swing the whole cast at once. Two onlookers per event caps
+ * how fast the list can grow — memories fade, but a crowded tile could otherwise
+ * add eight entries an hour.
+ */
+const WITNESSED: Memory['kind'][] = ['squabble', 'groom']
+const ONLOOKERS = 2
+
+export function witnesses(y: YardState, happened: Memory[]): Memory[] {
+  const loud = happened.filter(m => WITNESSED.includes(m.kind))
+  if (!loud.length) return []
+
+  const where = new Map<string, Cell>()
+  for (const p of layout(y)) if (p.what === 'cat') where.set(p.cat.uid, p.cell)
+
+  const out: Memory[] = []
+
+  for (const m of loud) {
+    const at = where.get(m.a)
+    const on = where.get(m.b)
+    if (!at || !on) continue
+
+    /*
+     * NEXT TO EITHER OF THEM. A cat beside the one being snapped at saw it just
+     * as well as one beside the cat doing the snapping.
+     */
+    const near = [...where.entries()]
+      .filter(([uid]) => uid !== m.a && uid !== m.b)
+      .filter(([, c]) =>
+        (Math.abs(c.x - at.x) <= 1 && Math.abs(c.y - at.y) <= 1) ||
+        (Math.abs(c.x - on.x) <= 1 && Math.abs(c.y - on.y) <= 1))
+      /* Sorted by uid so the same crowd always yields the same two onlookers. */
+      .sort((p, q) => (p[0] < q[0] ? -1 : 1))
+      .slice(0, ONLOOKERS)
+
+    for (const [uid] of near) {
+      out.push({
+        tick: m.tick,
+        a: uid,
+        b: m.a,
+        kind: m.kind,
+        /*
+         * THE SIGN OF WHAT THEY SAW, not of the deed's name. A groom that went
+         * wrong looked like a mess from the side too, and an onlooker who saw a
+         * cat make a mess of something does not think better of it for meaning
+         * well.
+         */
+        delta: m.delta >= 0 ? 1 : -1,
+        seen: true,
+      })
+    }
+  }
+
+  return out
+}

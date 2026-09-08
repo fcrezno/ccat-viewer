@@ -45,6 +45,19 @@ export type Memory = {
   b: string
   kind: DeedKind
   delta: number
+  /**
+   * THIS ONE WAS WATCHED, NOT DONE.
+   *
+   * `a` saw `b` do `kind` to somebody else, and thought less or more of them
+   * for it. The pair never touched — which is exactly why it matters. It is how
+   * an opinion reaches a cat that was not involved, and how a yard gets sides.
+   *
+   * It is an ordinary memory in every other way: it fades on the same clock and
+   * it counts toward the bond the same. Only the SENTENCE differs, and only
+   * because "Hazel fell out with Mochi" would be a lie about a cat that just
+   * watched it happen.
+   */
+  seen?: boolean
 }
 
 export type DeedKind = 'greet' | 'play' | 'groom' | 'showoff' | 'share' | 'snub' | 'squabble'
@@ -396,30 +409,63 @@ export function tick(y: YardState): { state: YardState; happened: Memory[] } {
 }
 
 /** Run a whole absence at once. Being away N ticks IS N ticks. */
+/**
+ * WHAT MAY BE ATTACHED TO A CATCH-UP.
+ *
+ * `tick()` stays pure and knows nothing about either of these. They exist
+ * because two things need to happen ONCE PER HOUR rather than once per visit,
+ * and both would otherwise have to duplicate this loop.
+ */
+export type CatchUpHooks = {
+  /**
+   * Called with the state either side of every tick, and it cannot change
+   * anything.
+   *
+   * The chronicle needs the exact hour a bond crossed from one word to another.
+   * Comparing only the two ends of a visit would date a crossing "sometime in
+   * the last nine hours" and would miss a pair that fell out and made up while
+   * you were away.
+   */
+  onTick?: (before: YardState, after: YardState) => void
+  /**
+   * MAY ADD MEMORIES, and this one is deliberately not an observer.
+   *
+   * Witnessing needs to know who was standing WHERE, and positions are worked
+   * out in lib/yardmap.ts — which imports from this file. Putting it inside
+   * `tick()` would make the simulation depend on the map that draws it.
+   *
+   * So the caller supplies it, and what it returns is folded in before the next
+   * hour runs — because an opinion formed at 3am has to be able to change what
+   * happens at 4am, or it is not part of the simulation at all.
+   */
+  witness?: (after: YardState, justHappened: Memory[]) => Memory[]
+}
+
 export function catchUp(
   y: YardState,
   ticks: number,
-  /**
-   * Called with the state either side of EVERY tick, if anybody is watching.
-   *
-   * Added for the chronicle, which has to notice the exact hour a bond crossed
-   * from one word to another. Comparing only the start and the end of a visit
-   * would date a crossing "sometime in the last nine hours" and would miss a
-   * pair that fell out and made up while you were away.
-   *
-   * An observer, not a hook: it cannot change what happens, and `catchUp` does
-   * exactly what it did before when nothing is passed.
-   */
-  onTick?: (before: YardState, after: YardState) => void,
+  hooks?: CatchUpHooks,
 ): { state: YardState; happened: Memory[] } {
   let state = y
   const happened: Memory[] = []
+
   for (let i = 0; i < ticks; i++) {
+    const before = state
+
     const step = tick(state)
-    onTick?.(state, step.state)
     state = step.state
-    happened.push(...step.happened)
+
+    /*
+     * WITNESSES LAND BEFORE onTick, so the chronicle sees the hour as it
+     * finished — including any bond an onlooker just moved.
+     */
+    const seen = hooks?.witness?.(state, step.happened) ?? []
+    if (seen.length) state = { ...state, kept: [...state.kept, ...seen] }
+
+    hooks?.onTick?.(before, state)
+    happened.push(...step.happened, ...seen)
   }
+
   return { state, happened }
 }
 
