@@ -32,7 +32,22 @@ import { CELL_H, SHEET_W, SHEET_H, TRACKING, cell, glyph, measure } from '@/lib/
  * what they always were — a run boundary is not a layout boundary, which is the
  * whole bug.
  */
-export type Run = { text: string; color?: string }
+export type Run = {
+  text: string
+  color?: string
+  /**
+   * THE SECOND COLOUR OF A BEAT, and the thing that switches one on.
+   *
+   * Set it and this run flashes between `color` and `beat` while jittering, once,
+   * as the line arrives — the fight log's crit treatment applied to ONE RUN
+   * instead of a whole line. See `yard-say` in globals.css.
+   *
+   * One run, because a yard line is a sentence with names in it. The fight
+   * colours a line by KIND and pops all of it; popping a yard line would move the
+   * two names that are supposed to hold still while the verb between them works.
+   */
+  beat?: string
+}
 
 export function BitmapText({
   text,
@@ -62,7 +77,12 @@ export function BitmapText({
 }) {
   const whole = runs ? runs.map(r => r.text).join('') : (text ?? '')
   const inks: string[] = []
-  if (runs) for (const r of runs) for (let i = 0; i < r.text.length; i++) inks.push(r.color ?? color)
+  /* The beat's other colour, per character, in step with `inks`. */
+  const beats: (string | undefined)[] = []
+  if (runs) for (const r of runs) for (let i = 0; i < r.text.length; i++) {
+    inks.push(r.color ?? color)
+    beats.push(r.beat)
+  }
 
   const words = whole.split(' ')
   /* Where each word starts in `whole`, so a glyph can find its own ink. */
@@ -92,6 +112,8 @@ export function BitmapText({
         <span key={wi} style={{ display: 'flex', flexShrink: 0 }}>
           {[...word].map((ch, i) => {
             const gi = glyphIndex++
+            const at = starts[wi] + i
+            const beat = beats[at]
             const [left, width] = glyph(ch)
             const c = cell(ch)
             const pos = `${-(c.x + left) * scale}px ${-c.y * scale}px`
@@ -99,12 +121,23 @@ export function BitmapText({
             return (
               <span
                 key={i}
-                className={fx ? 'cradle-fx' : undefined}
+                className={fx ? 'cradle-fx' : beat ? 'yard-say' : undefined}
                 style={{
                   width: width * scale,
                   height: CELL_H * scale,
                   marginRight: i === word.length - 1 ? 0 : TRACKING * scale,
-                  backgroundColor: inks.length ? (inks[starts[wi] + i] ?? color) : color,
+                  backgroundColor: inks.length ? (inks[at] ?? color) : color,
+                  /*
+                   * NO PER GLYPH DELAY, unlike the wave below. The wave STEPS its
+                   * delay so the letters travel; a beat is one movement of one
+                   * word, so every glyph has to start together or the word comes
+                   * apart as it plays.
+                   */
+                  ...(beat && !fx ? {
+                    ['--say-a' as string]: inks[at] ?? color,
+                    ['--say-b' as string]: beat,
+                    animation: 'yard-say 0.45s ease-out',
+                  } : null),
                   // VICTOR's own settings from the game: Amp 3, Freq 0.7, gold
                   // #b07a10 through #f0d060. The step is what makes it travel.
                   ...(fx ? {

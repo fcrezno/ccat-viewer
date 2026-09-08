@@ -6,7 +6,8 @@ import { visit, furnish, DEMO_KEY, MAX_TICKS, type Visit } from '@/lib/yardstore
 import { YardMap } from '@/components/YardMap'
 import { CatSheet } from '@/components/CatSheet'
 import { thoughtOf } from '@/lib/yardmap'
-import { BitmapText } from '@/components/BitmapText'
+import { inkFor } from '@/lib/catink'
+import { BitmapText, type Run } from '@/components/BitmapText'
 
 /**
  * THE YARD — what your cats did with the cats of people you follow.
@@ -102,7 +103,7 @@ function CatName({ cat, on, off }: { cat: YardCat; on: () => void; off: () => vo
          * is the same one the fight log prints a win in, so "this one is yours"
          * is the same colour in both places.
          */
-        color: cat.mine ? '#a06a10' : '#5b3fa8',
+        color: nameInk(cat),
         borderBottom: '1px dotted currentColor',
       }}
     >
@@ -145,7 +146,7 @@ function CatName({ cat, on, off }: { cat: YardCat; on: () => void; off: () => vo
  * The names are still tappable. A transparent button sits over the run rather
  * than splitting the text, so the reveal is unaffected.
  */
-function Bit({ runs, scale = 1 }: { runs: { text: string; color?: string }[]; scale?: number }) {
+function Bit({ runs, scale = 1 }: { runs: Run[]; scale?: number }) {
   return <BitmapText runs={runs.filter(r => r.text)} scale={scale} color={INK} />
 }
 
@@ -163,7 +164,7 @@ function Mug({ cat }: { cat: YardCat }) {
       {cat.art
         ? <img src={cat.art} alt="" style={mug} />
         : <div style={{ ...mug, background: '#ddd6c4' }} />}
-      <BitmapText text={cat.name} scale={1} color={cat.mine ? '#a06a10' : '#5b3fa8'} />
+      <BitmapText text={cat.name} scale={1} color={nameInk(cat)} />
       <BitmapText text={temperOf(cat.face).label} scale={1} color="#8a8a7a" />
     </div>
   )
@@ -194,6 +195,24 @@ const TOGETHER: Record<Memory['kind'], string> = {
 
 /** The fight log's own pace, so both logs in the game type at the same speed. */
 const LINE_MS = 850
+
+/**
+ * WHAT COLOUR A NAME IS. JP: "make each name color coded."
+ *
+ * Every cat had the same violet, so a line about two strangers gave the reader
+ * nothing to hold on to — the names were the one part of the sentence carrying
+ * WHO, and they all looked alike. Each cat now prints in its own background's
+ * colour, which is the colour of its tile on the map above. See lib/catink.ts.
+ *
+ * YOUR OWN CATS STAY GOLD, and that is not an oversight. `mine` is a fact about
+ * the reader, not about the cat, and it is the first question anybody asks of a
+ * yard full of other people's animals. The map rings them for the same reason.
+ * A cat's own colour is the answer to "which one is that"; gold is the answer to
+ * "which ones are mine", and the second question is the more urgent one.
+ */
+const MINE_INK = '#a06a10'
+const nameInk = (c: { uid: string; bg?: string | null; mine?: boolean }) =>
+  c.mine ? MINE_INK : inkFor(c.uid, c.bg)
 
 export function Yard({
   cats, busy, compact = false, full = false,
@@ -462,15 +481,22 @@ export function Yard({
             if (!a || !b) return null
             const [before, mid, after] = SAYS[m.kind]
             const ink = DEED_INK[m.kind]
+            /*
+             * THE VERB BEATS, THE NAMES DO NOT. The deed is what just happened;
+             * the two cats were already there. Moving them as well would turn a
+             * beat into the whole line twitching, which is the thing the fight
+             * log deliberately does not do.
+             */
+            const beat = Math.abs(m.delta) >= BEATS_AT ? DEED_BEAT[m.kind] : undefined
             return (
               <Bit
                 key={i}
                 runs={[
-                  { text: before, color: ink },
-                  { text: a.name, color: a.mine ? '#a06a10' : '#5b3fa8' },
-                  { text: mid, color: ink },
-                  { text: b.name, color: b.mine ? '#a06a10' : '#5b3fa8' },
-                  { text: after, color: ink },
+                  { text: before, color: ink, beat },
+                  { text: a.name, color: nameInk(a) },
+                  { text: mid, color: ink, beat },
+                  { text: b.name, color: nameInk(b) },
+                  { text: after, color: ink, beat },
                 ]}
               />
             )
@@ -505,9 +531,9 @@ export function Yard({
                       style={pairRow}
                     >
                       <Bit runs={[
-                        { text: a.name, color: a.mine ? '#a06a10' : '#5b3fa8' },
+                        { text: a.name, color: nameInk(a) },
                         { text: ' and ' },
-                        { text: b.name, color: b.mine ? '#a06a10' : '#5b3fa8' },
+                        { text: b.name, color: nameInk(b) },
                         { text: ' ' + TOGETHER[last.kind], color: DEED_INK[last.kind] },
                       ]} />
                       {/*
@@ -557,9 +583,9 @@ export function Yard({
             {/* The title bar is what makes it read as a window rather than a card. */}
             <div style={titleBar}>
               <Bit runs={[
-                { text: chat.a.name, color: chat.a.mine ? '#a06a10' : '#5b3fa8' },
+                { text: chat.a.name, color: nameInk(chat.a) },
                 { text: ' and ' },
-                { text: chat.b.name, color: chat.b.mine ? '#a06a10' : '#5b3fa8' },
+                { text: chat.b.name, color: nameInk(chat.b) },
               ]} />
               <button
                 ref={shutRef}
@@ -606,7 +632,7 @@ export function Yard({
                 return (
                   <div key={i} style={convoRow}>
                     <Bit runs={[
-                      { text: speaker.name, color: speaker.mine ? '#a06a10' : '#5b3fa8' },
+                      { text: speaker.name, color: nameInk(speaker) },
                       { text: ' ' + t.text, color: t.good ? '#2f7a44' : '#a01b1b' },
                     ]} />
                     <BitmapText
@@ -679,6 +705,41 @@ const DEED_INK: Record<Memory['kind'], string> = {
   snub:     INK_FAINT,
   squabble: '#a01b1b',
 }
+
+/**
+ * THE OTHER END OF A DEED'S FLASH.
+ *
+ * JP: "do the same thing we do in battles with verbs for animated text."
+ *
+ * The fight's crit line flashes #c2410c against #e0a010 — the ink it is already
+ * printed in, against a lighter, hotter version of the same hue. These are that
+ * same relationship for each deed, so a squabble flashes red against a brighter
+ * red rather than against somebody else's colour.
+ */
+const DEED_BEAT: Record<Memory['kind'], string> = {
+  greet:    '#6f9ed8',
+  play:     '#4fb06a',
+  share:    '#4fb06a',
+  groom:    '#e0a010',
+  showoff:  '#e86a2a',
+  snub:     '#9a9a90',
+  squabble: '#e04040',
+}
+
+/**
+ * WHICH LINES GET THE BEAT, and why it is not all of them.
+ *
+ * The fight animates ONE kind of line — the crit — and that is the whole reason
+ * it reads as something happening. If every line moved, none of them would.
+ *
+ * The yard's equivalent of a crit is the size of the thing that just happened,
+ * and the yard already has that number: the delta the memory carries. The deed
+ * table runs greet 1, showoff 2, share 2, snub -2, play 3, groom 4, squabble -4,
+ * so a cut at 4 is the two ends of the scale — the warmest thing two cats do and
+ * the worst. A fumbled kind deed lands here too, which is right: a groom that
+ * went wrong moved the bond just as far.
+ */
+const BEATS_AT = 4
 
 /** Keyed by what `reads()` says, so the two cannot disagree. */
 const BOND_INK: Record<string, string> = {

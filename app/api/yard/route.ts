@@ -223,6 +223,7 @@ async function demoYard(n: number) {
       uid,
       name: named.get(uid) ?? `#${id}`,
       face: meta?.attributes?.find(a => /face/i.test(a.trait_type ?? ''))?.value ?? null,
+      bg: meta?.attributes?.find(a => /background/i.test(a.trait_type ?? ''))?.value ?? null,
       owner: null,
       art: meta?.image ?? '',
       demo: true,
@@ -290,6 +291,7 @@ export async function GET(req: NextRequest) {
          */
         name: `#${id}`,
         face: meta?.attributes?.find(a => /face/i.test(a.trait_type ?? ''))?.value ?? null,
+        bg: meta?.attributes?.find(a => /background/i.test(a.trait_type ?? ''))?.value ?? null,
         owner,
         art: meta?.image ?? '',
       })

@@ -1,6 +1,7 @@
 'use client'
 
 import { bond, diary, reads, temperOf, type YardState } from '@/lib/yard'
+import { inkFor } from '@/lib/catink'
 import { DOING, moodOf, thoughtOf } from '@/lib/yardmap'
 import type { YardCat } from '@/components/Yard'
 
@@ -112,7 +113,8 @@ export function CatSheet({
           */}
           {felt.slice(0, 4).map(({ o, n }) => (
             <div key={o.uid} style={s.feltRow}>
-              <span style={{ color: mine.includes(o.uid) ? '#a06a10' : '#5b3fa8' }}>{o.name}</span>
+              {/* The same ink the log gives this cat, so a name means one cat everywhere. */}
+              <span style={{ color: mine.includes(o.uid) ? '#a06a10' : inkFor(o.uid, o.bg) }}>{o.name}</span>
               <span style={s.dots} />
               <span style={{ color: INK_FOR[reads(n)] ?? '#6b6b60' }}>{reads(n)}</span>
             </div>

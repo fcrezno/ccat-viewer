@@ -223,6 +223,14 @@ export type Resident = {
   owner?: { fid: number; username: string; pfp: string | null } | null
   /** A cat in the demo yard: minted and owned, but not through anyone follows. */
   demo?: boolean
+  /**
+   * THE `Background` TRAIT, which is what its name is printed in.
+   *
+   * Carried on the resident rather than looked up, for the same reason `face`
+   * is: the metadata fetch happens once in the API, and every surface that draws
+   * a cat is downstream of the saved yard. See lib/catink.ts.
+   */
+  bg?: string | null
 }
 
 export type YardState = {

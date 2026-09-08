@@ -635,3 +635,47 @@ button, input, select, textarea, optgroup {
   97.5% { transform: translate(0px, 0px); }
   100.0% { transform: translate(0px, 0px); }
 }
+
+/*
+ * THE VERB'S OWN BEAT — the yard's log doing what the fight's log does.
+ *
+ * JP: "do the same thing we do in battles with verbs for animated text."
+ *
+ * `cradle-crit` is that thing: when a crit lands, the line flashes between two
+ * colours and jitters ±2px. The stops and the offsets below are ITS stops and
+ * offsets, unchanged. Two differences, both forced:
+ *
+ *   IT PAINTS background-color, NOT color. BitmapText draws each glyph as a CSS
+ *   mask over a coloured box, so the ink IS the background — `color` would
+ *   animate nothing at all. cradle-glow already had to solve this.
+ *
+ *   THE COLOURS ARE VARIABLES. cradle-crit hard-codes the crit orange. A yard
+ *   line is whatever DEED_INK says it is, so the two ends are passed in and the
+ *   keyframe is the same movement whatever colour it is playing in.
+ *
+ * Every glyph of the verb gets it with no delay, so they move together and the
+ * word jitters as one word rather than scattering.
+ */
+@keyframes yard-say {
+  0%   { background-color: var(--say-a); transform: translateX(0); }
+  25%  { background-color: var(--say-b); transform: translateX(-2px); }
+  50%  { background-color: var(--say-a); transform: translateX(2px); }
+  75%  { background-color: var(--say-b); transform: translateX(-1px); }
+  100% { background-color: var(--say-a); transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /*
+   * The flash stays, the jitter goes — the same trade cradle-fx makes above. A
+   * beat that only changes colour still reads as a beat.
+   */
+  .yard-say { animation-name: yard-flash !important; }
+}
+
+@keyframes yard-flash {
+  0%   { background-color: var(--say-a); }
+  25%  { background-color: var(--say-b); }
+  50%  { background-color: var(--say-a); }
+  75%  { background-color: var(--say-b); }
+  100% { background-color: var(--say-a); }
+}
