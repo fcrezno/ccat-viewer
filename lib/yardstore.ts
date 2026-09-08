@@ -1,7 +1,8 @@
-import { open, catchUp, PROPS, type Memory, type PropKind, type Resident, type YardState } from '@/lib/yard'
+import { open, catchUp, CHORE_PROP, PROPS, type ChoreKind, type Memory, type PropKind, type Resident, type YardState } from '@/lib/yard'
 import { crossings, record, forgetHistory, history, lastWords, type Entry } from '@/lib/chronicle'
 import { witnesses } from '@/lib/yardmap'
 import { holdsProp } from '@/lib/loot'
+import { skillsOf, train, type Skills } from '@/lib/skills'
 
 /**
  * THE YARD, BETWEEN VISITS.
@@ -137,7 +138,19 @@ export function visit(cats: Resident[], key = KEY): Visit {
    * lib/loot.ts. The sim deals in four mechanics and knows nothing about
    * feathers.
    */
-  const carrying = cats.map(c => ({ ...c, holds: holdsProp(c.uid) }))
+  /*
+   * AND WHAT EACH CAT IS GOOD AT, read at the same door and for the same reason.
+   *
+   * A skill is the cat's, not the yard's. It is written AFTER the visit, from the
+   * chores the catch-up produced, so the hours the simulation runs on are the
+   * hours it started with — a cat cannot get better at cooking part-way through
+   * an evening it is already living. See lib/skills.ts.
+   */
+  const carrying = cats.map(c => ({
+    ...c,
+    holds: holdsProp(c.uid),
+    skill: skillsOf(c.uid),
+  }))
   const base = reconcile(prev, carrying, seed)
 
   const elapsed = prev ? now - prev.at : 0
@@ -170,6 +183,24 @@ export function visit(cats: Resident[], key = KEY): Visit {
         onTick: (was, is) => noted.push(...crossings(was, is, said)),
       })
     : { state: base, happened: [] }
+
+  /*
+   * THE HOURS PUT IN, BANKED. One pass over what happened rather than a hook, and
+   * one write for the whole visit — a day away is 24 ticks over several cats, and
+   * a hook would be that many read-modify-writes of the same key.
+   *
+   * It is safe to do this afterwards because `Resident.skill` was stamped at the
+   * door: nothing during the catch-up ever reads storage, so there is no window
+   * where the two disagree.
+   */
+  const put: Record<string, Skills> = {}
+  for (const m of happened) {
+    if (!m.alone) continue
+    const p = CHORE_PROP[m.kind as ChoreKind]
+    const got = (put[m.a] ??= {})
+    got[p] = (got[p] ?? 0) + 1
+  }
+  train(put)
 
   record(key, noted)
   save({ ...state, at: now }, key)

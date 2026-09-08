@@ -38,13 +38,32 @@
  * calling `tick()` N times on return.
  */
 
+/*
+ * ONE WAY ONLY. lib/skills.ts takes `PropKind` from here with `import type`,
+ * which is erased before it can be a runtime cycle, so this edge is the only real
+ * one and it points this way.
+ */
+import { lean, steadier } from './skills'
+
 /** One thing that happened, and how much it moved the pair. */
 export type Memory = {
   tick: number
   a: string
   b: string
-  kind: DeedKind
+  kind: ActKind
   delta: number
+  /**
+   * NOBODY ELSE WAS IN IT. `b` is `a` and `delta` is 0.
+   *
+   * A cat spent the hour on a chore — see lib/skills.ts. It is kept in the same
+   * list as the deeds because every surface that reads the yard reads that list:
+   * the log prints it, the map shows what a cat is doing, the diary remembers it.
+   * A second stream would mean four places learning about a second stream.
+   *
+   * It can never touch a bond. `delta` is 0, and `bond` and `between` skip it
+   * anyway — a relationship needs two cats, and this one has one.
+   */
+  alone?: true
   /**
    * THIS ONE WAS WATCHED, NOT DONE.
    *
@@ -61,6 +80,43 @@ export type Memory = {
 }
 
 export type DeedKind = 'greet' | 'play' | 'groom' | 'showoff' | 'share' | 'snub' | 'squabble'
+
+/**
+ * SOMETHING A CAT DOES ON ITS OWN, named after the skill it builds.
+ *
+ * One per prop, and that is not a coincidence: the yard already says a prop makes
+ * a deed possible, and a chore is the same prop used alone. See lib/skills.ts for
+ * why this is here at all and why it stops at the yard gate.
+ */
+export type ChoreKind = 'wits' | 'cook' | 'poise' | 'tidy'
+
+/** Anything a cat can spend an hour on, alone or otherwise. */
+export type ActKind = DeedKind | ChoreKind
+
+/** Which chore each prop is, and therefore which skill it trains. */
+export const TRAINS: Record<PropKind, ChoreKind> = {
+  toy: 'wits', bowl: 'cook', perch: 'poise', wash: 'tidy',
+}
+
+/** And back the other way, for reading a memory. */
+export const CHORE_PROP: Record<ChoreKind, PropKind> = {
+  wits: 'toy', cook: 'bowl', poise: 'perch', tidy: 'wash',
+}
+
+export const CHORES = Object.keys(CHORE_PROP) as ChoreKind[]
+
+export const isChore = (k: ActKind): k is ChoreKind =>
+  (CHORES as string[]).includes(k)
+
+/**
+ * WHICH PROP AN ACT IS ABOUT, whoever is doing it and however many of them.
+ *
+ * A deed needs the prop to be possible; a chore IS the prop being used alone. The
+ * map wants the same answer from both — it walks a cat to the thing it is using —
+ * and so does the description of a cat's day.
+ */
+export const propFor = (k: ActKind): PropKind | undefined =>
+  isChore(k) ? CHORE_PROP[k] : NEEDS[k]
 
 /**
  * FURNITURE. It is MECHANICAL, not scenery — this is the rule the full build
@@ -108,6 +164,14 @@ export type Deed = {
 
 export const BOND_MIN = -100
 export const BOND_MAX = 100
+
+/**
+ * HOW OFTEN A CAT KEEPS ITSELF BUSY instead of bothering somebody, before
+ * temperament leans it. Scaled by `1 - bold` at the call site.
+ *
+ * Measured, not chosen: see the note in `tick`.
+ */
+export const CHORE = 0.35
 
 /**
  * HOW LONG A MEMORY LASTS, in ticks. 24, as the full build measured.
@@ -263,6 +327,17 @@ export type Resident = {
    * Absent means it carries nothing, which is every cat until one wins something.
    */
   holds?: PropKind | null
+  /**
+   * HOURS THIS CAT HAS PUT IN AT EACH THING. See lib/skills.ts.
+   *
+   * Stamped on at the door by the store, for the same reason `holds` is: it
+   * belongs to the CAT and not to the yard, it is written after the visit rather
+   * than during it, and the simulation should not have to ask storage anything.
+   *
+   * Raw hours, not ranks. The ladder is skills.ts's business and a rung could
+   * move; the count of hours is the fact.
+   */
+  skill?: Partial<Record<PropKind, number>>
 }
 
 export type YardState = {
@@ -304,8 +379,16 @@ export function open(seed: number, cats: Resident[], props: PropKind[] = []): Ya
 /** Whether anything can happen here yet. Two adopted cats is the floor. */
 export const waiting = (y: YardState) => y.cats.length < 2
 
+/**
+ * A PAIR MEMORY BETWEEN THESE TWO. A chore is never one, whoever is asking.
+ *
+ * A chore stores `b === a`, so `same(chore, X, X)` would be true and a cat asked
+ * about its bond with ITSELF would get an answer. Nothing calls it that way
+ * today, and the guard costs one term and removes the class of bug rather than
+ * the instance.
+ */
 const same = (m: Memory, a: string, b: string) =>
-  (m.a === a && m.b === b) || (m.a === b && m.b === a)
+  !m.alone && ((m.a === a && m.b === b) || (m.a === b && m.b === a))
 
 /** How strongly a memory still counts. 1 when new, 0 when forgotten. */
 export const weight = (m: Memory, ticks: number) =>
@@ -344,6 +427,8 @@ function choose(
   props: PropKind[],
   /** What the acting cat is carrying of its own. See Resident.holds. */
   holds: PropKind | null,
+  /** Hours it has put in at each thing. See Resident.skill and lib/skills.ts. */
+  skill: Partial<Record<PropKind, number>>,
   r: () => number,
 ): Deed | null {
   /*
@@ -384,6 +469,20 @@ function choose(
     // latched at the floor.
     score += (warm ? b : -b) / 120
     score += (warm ? aff : -aff) * 0.1
+    /*
+     * AND A CAT REACHES FOR WHAT IT IS GOOD AT. It NEVER gates one.
+     *
+     * The rule above is that history gates and everything else leans, and a skill
+     * is emphatically an "everything else" — a cat that has never cooked can still
+     * share, it just reaches for it less often than the one who has. Bounded at
+     * 0.30 against a random term that spans 1.1 to 2.75, so practice is a thumb on
+     * the scale rather than a decision.
+     *
+     * Only the four deeds a prop stands behind can be practised. There is no
+     * getting better at saying hello.
+     */
+    const wants = NEEDS[d.kind]
+    if (wants) score += lean(skill[wants])
     score += r() * (0.5 + t.act * 3)
     if (score > bestScore) { bestScore = score; best = d }
   }
@@ -412,14 +511,61 @@ export function tick(y: YardState): { state: YardState; happened: Memory[] } {
     const t = temperOf(me.face)
     if (r() > 0.25 + t.act) continue
 
+    const skill = me.skill ?? {}
+
+    /*
+     * ALONE, OR WITH SOMEBODY. This roll happens WHATEVER is in the yard, so the
+     * random stream does not shift when the furniture changes — the same seed and
+     * the same hour give the same yard whether or not there was a chore to do.
+     *
+     * A BOLD CAT DOES NOT DO THE WASHING. `bold` already means "leans toward
+     * showing off and squabbling rather than greeting and grooming", which is the
+     * same axis: the cats who want an audience are the cats who do not sit down
+     * with the handheld for an hour. So smug (bold 0.70) spends about a tenth of
+     * its hours on itself and focused (bold 0.30) about a quarter, and neither of
+     * those had to be written down anywhere new.
+     */
+    const alone = r() < CHORE * (1 - t.bold)
+
+    if (alone) {
+      /*
+       * IT NEEDS THE THING, exactly as the deed does. A cat cannot practise on a
+       * perch that is not there, and its own held item counts — the same `||` that
+       * lets it play in a bare yard lets it train in one.
+       */
+      const usable = PROPS.filter(p => y.props.includes(p) || me.holds === p)
+      if (usable.length) {
+        const p = usable[Math.min(Math.floor(r() * usable.length), usable.length - 1)]
+        const m: Memory = {
+          tick: ticks, a: me.uid, b: me.uid, kind: TRAINS[p], delta: 0, alone: true,
+        }
+        kept.push(m)
+        happened.push(m)
+        continue
+      }
+      /*
+       * NOTHING TO DO, so the hour is spent doing nothing — it does NOT fall
+       * through to bothering another cat. A yard with no furniture in it should
+       * feel emptier, not busier.
+       */
+      continue
+    }
+
     const target = others[Math.min(Math.floor(r() * others.length), others.length - 1)]
     const b = bond({ ...y, ticks, kept }, me.uid, target.uid)
-    const deed = choose(t, b, affinity(me, target), y.props, me.holds ?? null, r)
+    const deed = choose(t, b, affinity(me, target), y.props, me.holds ?? null, skill, r)
     if (!deed) continue
 
     let delta = deed.delta
-    // A clumsy cat means well and still knocks the bowl over.
-    if (delta > 0 && r() < t.clumsy) delta = -Math.max(1, Math.floor(delta / 2))
+    /*
+     * A clumsy cat means well and still knocks the bowl over — until it has
+     * practised. `steadier` lowers exactly this chance and nothing else, which is
+     * why a skill can never inflate a bond: all it does is stop a kind deed coming
+     * out unkind. See lib/skills.ts.
+     */
+    const at = NEEDS[deed.kind]
+    const clumsy = at ? steadier(t.clumsy, skill[at]) : t.clumsy
+    if (delta > 0 && r() < clumsy) delta = -Math.max(1, Math.floor(delta / 2))
 
     const m: Memory = { tick: ticks, a: me.uid, b: target.uid, kind: deed.kind, delta }
     kept.push(m)
@@ -538,11 +684,30 @@ export const between = (y: YardState, a: string, b: string, most = 20) =>
  * "inseparable" and "enemies" stay rare enough to mean something and the middle
  * three actually move. The BOND was not touched: this is the vocabulary being
  * fitted to the simulation rather than the simulation to the vocabulary.
+ *
+ * ── RE-FITTED WHEN CHORES ARRIVED, FOR THE SAME REASON ───────────────────────
+ *
+ * They were 13 / 5 / -9 / -19, and chores invalidated the fitting rather than the
+ * cuts being wrong: cats now spend about a fifth of their hours on themselves, so
+ * a pair interacts a fifth less often and fewer memories of each other sit inside
+ * the 24-tick span at once. The whole scale compressed toward the middle.
+ *
+ * Measured again over 1440 yards at six different ages, from two days old to
+ * three months, so the words have to hold for a new yard and an old one both:
+ *
+ *   min -18 · 1% -9 · 5% -5 · median +2 · 95% +8 · 99% +11 · max +16
+ *
+ * At the old cuts "enemies" had become IMPOSSIBLE — 0.0%, because the bottom of
+ * the range no longer reached -19 — and "inseparable" was down to 0.6%.
+ *
+ * At these: enemies 0.4%, cold 3.5%, wary 72.3%, friendly 22.5%, inseparable
+ * 1.3%. Five words that can all happen, with the two ends rare enough to be worth
+ * reading. Same principle as before, applied to the yard as it now runs.
  */
 export function reads(b: number): string {
-  if (b >= 13) return 'inseparable'
+  if (b >= 11) return 'inseparable'
   if (b >= 5)  return 'friendly'
-  if (b > -9)  return 'wary'
-  if (b > -19) return 'cold'
+  if (b > -6)  return 'wary'
+  if (b > -12) return 'cold'
   return 'enemies'
 }

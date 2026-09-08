@@ -292,10 +292,44 @@ export function YardMap({
   const shownTick = at === null ? yard.ticks : at
 
   /*
-   * WHAT TIME IT IS. A tick is an hour, so the hour is the tick — there is
-   * nothing to store and nothing to keep in step.
+   * WHAT TIME IT IS: THE PLAYER'S OWN CLOCK.
+   *
+   * JP: "the timing looks weird in terms of the day and night cycles. Just make
+   * it, like, a regular twenty four hour clock."
+   *
+   * It used to be `yard.ticks % 24`, and that was the weirdness. `ticks` counts
+   * from whenever this yard was first opened, so hour 0 was not midnight — it was
+   * whatever moment the player happened to press the button, and every hour after
+   * it was offset by that. Open the yard at nine in the morning and it could
+   * honestly tell you it was 02:00 and draw a moon.
+   *
+   * AND THE REPLAY MADE IT STROBE, which is the part you actually see. The map
+   * loops 24 ticks at 550ms, so the clock ran a whole day every THIRTEEN SECONDS
+   * — measured on the page: 05:00 06:00 07:00 … 18:00 in eight seconds flat, sun
+   * up and moon out and up again, over and over.
+   *
+   * THE REPLAY MOVES THE CATS. IT DOES NOT MOVE THE SUN. That is the fix and it
+   * is the whole of it: where a cat is standing is a fact about a past hour, and
+   * what time it is, is a fact about now. Tying the second to the first was the
+   * mistake. The clock is the wall clock, it changes once an hour, the sun comes
+   * up at 06:00 and goes down at 18:00.
+   *
+   * Null until mounted, on purpose. This is a client component and Next still
+   * renders it on the server for the first HTML — reading the clock in a `useState`
+   * initialiser would put the server's hour in that HTML and the browser's hour in
+   * the first render, which is a hydration mismatch. Midday is the stand-in for
+   * one frame.
    */
-  const hour = ((shownTick % 24) + 24) % 24
+  const [now, setNow] = useState<number | null>(null)
+  useEffect(() => {
+    const read = () => setNow(new Date().getHours())
+    read()
+    /* Once a minute is plenty to catch an hour turning over, and it is free. */
+    const id = setInterval(read, 60_000)
+    return () => clearInterval(id)
+  }, [])
+
+  const hour = now ?? 12
   const night = hour < 6 || hour >= 18
   const sky = night ? NIGHT : DAY
 

@@ -1,9 +1,10 @@
 'use client'
 
-import { bond, diary, reads, temperOf, type YardState } from '@/lib/yard'
+import { bond, diary, reads, temperOf, PROPS, type YardState } from '@/lib/yard'
 import { inkFor } from '@/lib/catink'
 import { describe } from '@/lib/describe'
 import { lootOf, hold, itemByFile } from '@/lib/loot'
+import { skillsOf, rank, rankReads, toNext, SKILLS } from '@/lib/skills'
 import { useMemo, useState } from 'react'
 import { DOING, moodOf, thoughtOf } from '@/lib/yardmap'
 import type { YardCat } from '@/components/Yard'
@@ -83,6 +84,31 @@ export function CatSheet({
    */
   const [swaps, setSwaps] = useState(0)
   const loot = useMemo(() => lootOf(cat.uid), [cat.uid, swaps])
+
+  /*
+   * AND WHAT IT HAS LEARNED. Keyed on the tick rather than on `swaps`, because
+   * hours are banked by a VISIT — the yard moving forward is the only thing that
+   * can change them, and nothing on this sheet ever does.
+   *
+   * Strongest first: the sheet should open on what this cat is known for.
+   */
+  const learned = useMemo(
+    () =>
+      PROPS
+        .map(p => ({ prop: p, hours: skillsOf(cat.uid)[p] ?? 0 }))
+        .map(x => ({ ...x, r: rank(x.hours), next: toNext(x.hours) }))
+        /*
+         * ON THE LADDER, not merely started. Filtering on hours instead listed a
+         * cat's first hour as a row reading "untrained", which contradicts
+         * itself — the row says it does this and the word says it does not.
+         *
+         * The first rung is two hours, so nothing is hidden for long: a couple of
+         * days with the thing out and the row appears saying `dabbling`.
+         */
+        .filter(x => x.r > 0)
+        .sort((a, b) => b.hours - a.hours),
+    [cat.uid, yard.ticks],
+  )
   const byUid = new Map(others.map(o => [o.uid, o]))
 
   return (
@@ -195,6 +221,43 @@ export function CatSheet({
         <Meter label="BOLD"   value={t.bold}   of={0.70} hint="leans toward showing off and squabbling" />
         <Meter label="CLUMSY" value={t.clumsy} of={0.12} hint="how often a kind deed comes out wrong" />
       </div>
+
+      {/*
+        WHAT IT HAS LEARNED — and it sits directly under the meters on purpose.
+        Those three numbers are what a cat IS from the moment it is minted; these
+        are the only numbers on the sheet it has EARNED, and CLUMSY is the one
+        they act on. A cat that has practised is steadier than its face says.
+
+        JP: "a way to train, like, IVs… the yard itself to train their IVs as a
+        cat can use, like, games to get a little bit smarter or go on a computer
+        or do their laundry or cook."
+
+        Nothing is drawn until it has put an hour in somewhere, for the same
+        reason as the bag: four empty rows announce a system rather than a cat.
+
+        See lib/skills.ts — including why this is a yard skill and not a stat.
+      */}
+      {learned.length > 0 && (
+        <>
+          <div style={s.rule}>WHAT IT HAS LEARNED</div>
+          <div style={s.list}>
+            {learned.map(({ prop, hours, r, next }) => (
+              <div
+                key={prop}
+                style={s.feltRow}
+                title={
+                  `${hours} hour${hours === 1 ? '' : 's'} of ${SKILLS[prop].of}`
+                  + (next === null ? ' — as good as it gets' : ` · ${next} more to the next`)
+                }
+              >
+                <span style={{ color: '#3f6ea8' }}>{SKILLS[prop].name}</span>
+                <span style={s.dots} />
+                <span style={{ color: '#6b6b60' }}>{rankReads(r)}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       <div style={s.rule}>HOW IT FEELS ABOUT THE OTHERS</div>
       {felt.length ? (

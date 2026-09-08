@@ -1,4 +1,4 @@
-import { bond, diary, temperOf, NEEDS, type Memory, type Resident, type YardState } from './yard'
+import { bond, diary, temperOf, propFor, type Memory, type Resident, type YardState } from './yard'
 import { skinOf } from './items'
 
 /**
@@ -97,6 +97,14 @@ const FAVOURS: Partial<Record<Memory['kind'], string>> = {
   share:    'It is always at {item}.',
   showoff:  'It can usually be found on {item}.',
   groom:    'It has taken to {item}.',
+  /*
+   * THE SAME SENTENCE SHAPE FOR A CHORE, because it is the same observation: this
+   * cat is always at that thing. The difference is that nobody else is.
+   */
+  wits:     'It spends hours with {item}, alone.',
+  cook:     'It has been teaching itself to cook with {item}.',
+  poise:    'It practises on {item} when nobody is watching.',
+  tidy:     'It keeps itself very clean, with {item}.',
 }
 
 /** What it reaches for when the deed needs nothing standing there. */
@@ -176,7 +184,7 @@ export function likesOf(y: YardState, cat: Resident, others: Resident[]): string
     for (const [k, c] of n) if (!top || c > (n.get(top) ?? 0)) top = k
 
     if (top) {
-      const needs = NEEDS[top]
+      const needs = propFor(top)
       if (needs && FAVOURS[top] && y.props.includes(needs)) {
         out.push(fill(FAVOURS[top]!, { item: skinOf(needs, y.seed).label }))
       } else if (HABIT[top]) {

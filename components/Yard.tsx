@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { between, bond, reads, temperOf, waiting, type Memory, type Resident } from '@/lib/yard'
+import { between, bond, isChore, reads, temperOf, waiting, type ChoreKind, type DeedKind, type Memory, type Resident } from '@/lib/yard'
 import { visit, furnish, DEMO_KEY, KEY, MAX_TICKS, type Visit } from '@/lib/yardstore'
 import { history, record, type Entry } from '@/lib/chronicle'
 import { YardMap } from '@/components/YardMap'
@@ -82,7 +82,7 @@ const WATCHED: Partial<Record<Memory['kind'], [string, string, string]>> = {
   showoff:  ['', ' saw ', ' showing off.'],
 }
 
-const SAYS: Record<Memory['kind'], [string, string, string]> = {
+const SAYS: Record<DeedKind, [string, string, string]> = {
   greet:    ['', ' went over to say hello to ', '.'],
   play:     ['', ' and ', ' chased each other around.'],
   groom:    ['', ' cleaned ', "'s ears."],
@@ -90,6 +90,22 @@ const SAYS: Record<Memory['kind'], [string, string, string]> = {
   share:    ['', ' let ', ' eat first.'],
   snub:     ['', ' walked past ', ' without looking.'],
   squabble: ['', ' and ', ' fell out over nothing.'],
+}
+
+/**
+ * AND THE LINES WITH ONE CAT IN THEM.
+ *
+ * A chore is shaped differently from a deed and it needs a different sentence, not
+ * a third slot in the same one: there is no second name, so SAYS's `[before, mid,
+ * after]` would print the cat twice. One clause after the name is the whole thing.
+ *
+ * PLACEHOLDER PROSE, as everywhere else. See lib/skills.ts for what these are.
+ */
+const ALONE: Record<ChoreKind, string> = {
+  wits:  ' spent the hour teaching itself something.',
+  cook:  ' spent the hour learning to cook.',
+  poise: ' practised until it looked easy.',
+  tidy:  ' did the washing, properly this time.',
 }
 
 /* `art` now lives on Resident itself, because the map draws every cat. */
@@ -220,7 +236,7 @@ function Mug({ cat }: { cat: YardCat }) {
  *
  * PLACEHOLDER PROSE like the rest, and JP's to replace.
  */
-const TOGETHER: Record<Memory['kind'], string> = {
+const TOGETHER: Record<DeedKind, string> = {
   greet:    'are talking',
   play:     'are chasing each other',
   groom:    'are grooming',
@@ -229,6 +245,16 @@ const TOGETHER: Record<Memory['kind'], string> = {
   snub:     'are not speaking',
   squabble: 'are arguing',
 }
+
+/**
+ * A PAIR'S LAST MOMENT, IN WORDS. Null if it somehow was not a pair.
+ *
+ * It always is: every `last` here comes from `between()`, which drops chores
+ * because a chore has one cat in it. So this narrowing costs nothing and keeps
+ * TOGETHER exhaustive over the deeds — the property worth having, since a new
+ * deed should fail to compile until somebody writes its phrase.
+ */
+const together = (k: Memory['kind']) => (isChore(k) ? null : TOGETHER[k])
 
 /**
  * WHAT A REMEMBERED MOMENT SAYS.
@@ -594,6 +620,23 @@ export function Yard({
           {shown.slice(0, rolled).map((m, i) => {
             const a = name(m.a), b = name(m.b)
             if (!a || !b) return null
+
+            /*
+             * A CAT ON ITS OWN GETS ITS OWN SHAPE. `b` is `a` for a chore, so the
+             * three-part line below would print the same name at both ends.
+             */
+            if (isChore(m.kind)) {
+              const ink = DEED_INK[m.kind]
+              return (
+                <Bit
+                  key={i}
+                  runs={[
+                    { text: a.name, color: nameInk(a) },
+                    { text: ALONE[m.kind], color: ink },
+                  ]}
+                />
+              )
+            }
             /*
              * A WATCHED LINE READS DIFFERENTLY, because it IS different: `a`
              * was not in it. Falling back to SAYS when a kind has no watched
@@ -724,7 +767,7 @@ export function Yard({
                         { text: a.name, color: nameInk(a) },
                         { text: ' and ' },
                         { text: b.name, color: nameInk(b) },
-                        { text: ' ' + TOGETHER[last.kind], color: DEED_INK[last.kind] },
+                        { text: ' ' + (together(last.kind) ?? ''), color: DEED_INK[last.kind] },
                       ]} />
                       {/*
                         The verdict is kept, but demoted to the end of the line
@@ -795,7 +838,7 @@ export function Yard({
             <div style={facing}>
               <Mug cat={chat.a} />
               <div style={middle}>
-                <Bit runs={[{ text: TOGETHER[chat.last.kind], color: DEED_INK[chat.last.kind] }]} />
+                <Bit runs={[{ text: together(chat.last.kind) ?? '', color: DEED_INK[chat.last.kind] }]} />
                 <span style={{ color: BOND_INK[reads(chat.n)] ?? INK_FAINT }}>{reads(chat.n)}</span>
               </div>
               <Mug cat={chat.b} />
@@ -886,6 +929,16 @@ const DEED_INK: Record<Memory['kind'], string> = {
   showoff:  '#c2410c',
   snub:     INK_FAINT,
   squabble: '#a01b1b',
+  /*
+   * ONE INK FOR ALL FOUR CHORES, and a quiet one. The log is a page of things
+   * that happened BETWEEN cats; a chore is a cat on its own, and it should read
+   * as the quieter line it is rather than competing with a squabble. Same reason
+   * the map gives all four the same grey mark.
+   */
+  wits:     '#5a6f8a',
+  cook:     '#5a6f8a',
+  poise:    '#5a6f8a',
+  tidy:     '#5a6f8a',
 }
 
 /**
@@ -906,6 +959,10 @@ const DEED_BEAT: Record<Memory['kind'], string> = {
   showoff:  '#e86a2a',
   snub:     '#9a9a90',
   squabble: '#e04040',
+  wits:     '#8aa6c8',
+  cook:     '#8aa6c8',
+  poise:    '#8aa6c8',
+  tidy:     '#8aa6c8',
 }
 
 /**
@@ -1092,9 +1149,49 @@ const mugBox: React.CSSProperties = {
  * portrait is 84x67 even though clientWidth reports 80. Measure this one with
  * getBoundingClientRect or it looks like it is being shrunk.
  */
+/*
+ * ── AND PUSHED IN ON THE CAT, WHICH IS MEASURED AND NOT EYEBALLED ────────────
+ *
+ * JP: "you still haven't centered in the PFPs, or you haven't pushed them in."
+ *
+ * The frame was 84x67 — the CARD's ratio, 250x199. Matching the card means
+ * `cover` crops nothing, so the window showed the whole card: a small cat in the
+ * middle of a lot of background.
+ *
+ * WHERE THE CAT ACTUALLY IS, from the alpha channel of every layer in art/. All
+ * eight Body layers are identical to the pixel, so the body half is exact:
+ *
+ *   BODY   x 17.2% .. 76.8%      y 15.1% .. 100%   (it stands on the bottom edge)
+ *
+ * AND THE FACES ARE NOT ALL INSIDE THE BODY. Nine of the ten sit well within it;
+ * `Wont u` reaches x 16.4% .. 80.8%, wider than any body on both sides. Cropping
+ * to the body alone would have taken a piece off that one cat and left the other
+ * nine looking right, which is the kind of bug nobody finds for a month.
+ *
+ *   UNION  x 16.4% .. 80.8%   width 64.4%   centre 48.6%
+ *
+ * The animal is 161 x 169 of a 250 x 199 card — TALLER THAN WIDE, in a frame that
+ * was wider than tall. That is the whole problem: a portrait subject in a
+ * landscape box, filling 60% of the width with dead card on both sides.
+ *
+ * ── SO THE FRAME IS SOLVED, NOT CHOSEN ───────────────────────────────────────
+ *
+ * 84 x 93 scales by 93/199 = 0.4673, which renders the card 116.8 wide and crops
+ * 32.8px of background off it. `objectPosition: 45%` puts the union's 48.6%
+ * centre on the box's centre: 116.8(0.486) - 32.8p = 42, so p = 0.451.
+ *
+ * What that buys, measured rather than judged: the widest cat there is clears
+ * BOTH edges by 4.4px, and an ordinary one by 9px. The cat fills 85% of the frame
+ * in both directions where it used to fill 60% across.
+ *
+ * 84 WIDE IS UNCHANGED, deliberately. That number is the measured budget for the
+ * text column between the two portraits (see above) and pushing in must not spend
+ * it. Only the height grew.
+ */
 const mug: React.CSSProperties = {
-  width: 84, height: 67,
-  objectFit: 'cover', imageRendering: 'pixelated',
+  width: 84, height: 93,
+  objectFit: 'cover', objectPosition: '45% 50%',
+  imageRendering: 'pixelated',
   borderRadius: 6, border: '2px solid rgba(0,0,0,0.18)', display: 'block',
 }
 

@@ -1,4 +1,4 @@
-import { NEEDS, type Memory, type PropKind, type Resident, type YardState } from './yard'
+import { propFor, type Memory, type PropKind, type Resident, type YardState } from './yard'
 
 /**
  * WHERE EVERYTHING IS STANDING — a Dwarf Fortress overworld, cat-sized.
@@ -242,7 +242,7 @@ function targets(y: YardState, tick: number, props: Map<PropKind, Cell>, at: Map
     let goal: Cell = { x: Math.floor(r() * COLS), y: Math.floor(r() * ROWS) }
 
     if (doing) {
-      const wants = NEEDS[doing.kind]
+      const wants = propFor(doing.kind)
       const propCell = wants ? props.get(wants) : undefined
       if (propCell) {
         goal = beside(propCell, r)
@@ -394,6 +394,11 @@ export const DOING: Record<Memory['kind'], string> = {
   share:    'sharing',
   snub:     'ignoring someone',
   squabble: 'squabbling',
+  /* On its own with something. See lib/skills.ts. */
+  wits:     'working something out',
+  cook:     'cooking',
+  poise:    'practising',
+  tidy:     'doing the washing',
 }
 
 /**
@@ -439,10 +444,33 @@ export function poseOf(doing: Memory | null, tick: number): string {
     case 'groom':    return beat ? 'translateX(3px)' : 'none'
     case 'share':    return beat ? 'translateY(2px)' : 'none'
     /*
-     * TURNED AWAY, literally. A snub is the one deed that is about facing, and a
-     * horizontal flip says it in one frame with no motion at all.
+     * A SNUB IS THE CAT NOT DOING ANYTHING, and that is now what it looks like.
+     *
+     * JP: "I don't think you need to flip cats left or right for them to look at
+     * anything. I think I should just keep it static as is, like, for a fortress."
+     *
+     * This was `scaleX(-1)` — turned away, which needed the sprite to have a
+     * FRONT. These are hand-drawn portraits, not a side-on sprite sheet with a
+     * facing, and mirroring one mirrors the drawing rather than turning a
+     * creature round. A fortress does not turn its glyphs either.
+     *
+     * Nothing is lost that was carrying the meaning: the grey `·` on the tile and
+     * the log line both say it, and standing still while somebody else is trying
+     * is the snub.
      */
-    case 'snub':     return 'scaleX(-1)'
+    case 'snub':     return 'none'
+
+    /*
+     * A CAT ON ITS OWN, BUSY. Smaller than the deeds on purpose — a chore is an
+     * hour of quiet work, not an event, and it should not pull the eye across a
+     * yard where something is actually happening between two cats.
+     */
+    case 'wits':     return beat ? 'translateY(-2px)' : 'none'
+    case 'cook':     return beat ? 'translateX(2px)' : 'none'
+    // Up on the thing, and holding it. Practice looks like showing off, quieter.
+    case 'poise':    return 'translateY(-3px)'
+    // Scrubbing: the one that goes back and forth rather than up and down.
+    case 'tidy':     return beat ? 'translateX(-2px)' : 'translateX(2px)'
   }
 }
 
@@ -500,6 +528,15 @@ const THOUGHT_LINES: Record<Memory['kind'], Lines> = {
               botched: 'went to share with {other} and knocked the bowl over' },
   snub:     { did: 'has no time for {other}',            got: '{other} walked straight past it' },
   squabble: { did: 'fell out with {other}',              got: 'fell out with {other}' },
+  /*
+   * NOBODY ELSE WAS THERE, so `did` and `got` are the same line and neither says
+   * {other}. `thoughtOf` picks between them on whether this cat was `a`, and for a
+   * chore it is always both — so whichever it picks is the truth.
+   */
+  wits:     { did: 'worked something out on its own',   got: 'worked something out on its own' },
+  cook:     { did: 'has been getting good at cooking',  got: 'has been getting good at cooking' },
+  poise:    { did: 'has been practising, quietly',      got: 'has been practising, quietly' },
+  tidy:     { did: 'got the washing done',              got: 'got the washing done' },
 }
 
 /**
@@ -594,6 +631,19 @@ export const MOOD: Record<Memory['kind'], Mood> = {
   showoff:  { glyph: '☼', colour: '#e0a72c' },  // DF's own sun. look at me
   snub:     { glyph: '·', colour: '#6a6a80' },  // barely anything, and grey
   squabble: { glyph: '✖', colour: '#ef4444' },  // the only red on the map
+  /*
+   * BUSY ON ITS OWN. All four share one glyph and one colour deliberately: the
+   * map's job is to show at a glance who is WITH somebody and who is not, and
+   * four more colours competing with the deeds would work against that. Which
+   * chore it is belongs on the tile's label and in the log.
+   *
+   * `*` is DF's own mark for a worked thing, and the ink is the muted end of the
+   * page rather than a signal colour.
+   */
+  wits:     { glyph: '*', colour: '#9aa88f' },
+  cook:     { glyph: '*', colour: '#9aa88f' },
+  poise:    { glyph: '*', colour: '#9aa88f' },
+  tidy:     { glyph: '*', colour: '#9aa88f' },
 }
 
 /** Nothing anybody remembers. See above — this is a state worth showing. */
