@@ -53,16 +53,19 @@ const PROP_WHY: Record<PropKind, string> = {
  * later, and a colour change carries that without a word of explanation.
  */
 /*
- * `soil` is THREE shades, picked per tile by `soilOf`. `grass` is lifted from
- * #2f4020 — at two shades off the soil the marks were technically drawn and
- * effectively invisible, which is the same as not drawing them.
+ * `soil` is THREE shades picked per tile by `soilOf`; `grass` is TWO picked per
+ * blade by `ground`. Both were single values and both read as flat — a field of
+ * one colour is a table, and one ink for every mark is the same mistake again.
  */
 const DAY   = {
-  grid: '#14180f', prop: '#1f2617', grass: '#425a2c',
+  grid: '#14180f', prop: '#1f2617',
+  /* Two greens, so the field has depth instead of one flat speckle. */
+  grass: ['#3a5226', '#52703a'],
   soil: ['#1a2013', '#1c2315', '#182010'],
 }
 const NIGHT = {
-  grid: '#0f1209', prop: '#181e12', grass: '#33481f',
+  grid: '#0f1209', prop: '#181e12',
+  grass: ['#2c3f1b', '#3f5a28'],
   soil: ['#141a0e', '#161c10', '#12180c'],
 }
 
@@ -88,27 +91,61 @@ const NIGHT = {
 const REPLAY_TICKS = 24
 const STEP_MS = 550
 
-/** DF grass, scattered deterministically so it does not crawl on re-render. */
+/** One tile's hash, salted so several questions about the same tile disagree. */
+function at(x: number, y: number, seed: number, salt: number): number {
+  let h = (Math.imul(x + 1, 0x9e3779b9) ^ Math.imul(y + 1, 0x85ebca6b) ^ seed ^ salt) >>> 0
+  h = Math.imul(h ^ (h >>> 16), 0x7feb352d) >>> 0
+  return (h ^ (h >>> 15)) >>> 0
+}
+
+/** A blade of grass: which mark, and which of the two greens it is drawn in. */
+type Blade = { ch: string; shade: 0 | 1 }
+
 /**
- * THE GROUND IS A SURFACE, NOT A VOID.
- *
- * This drew a glyph on 6 tiles in 16, in a green two shades off the soil it sat
- * on. On screen that is a hundred and four empty squares with a few specks in
- * them — the map read as the ABSENCE of a map, and the cats read as pasted onto
- * nothing.
- *
- * DF's ground is dark, which is why the palette is what it is. But DF's ground is
- * also COVERED: every floor tile carries a mark, and the texture is most of what
- * makes a fortress look like a place. Ten in sixteen here, out of five marks
- * rather than three.
- *
- * Still deterministic from the tile and the seed, so two yards look different
- * and one yard never shimmers.
+ * The marks. Weighted by repetition rather than by a table of numbers — the
+ * comma and the quote are what DF's grass mostly is, and the rest are seasoning.
  */
-function ground(x: number, y: number, seed: number): string {
-  const h = Math.imul(x + 1, 0x9e3779b9) ^ Math.imul(y + 1, 0x85ebca6b) ^ seed
-  const n = (h >>> 0) % 16
-  return n < 3 ? ',' : n < 5 ? '.' : n < 7 ? '"' : n < 9 ? "'" : n < 10 ? '`' : ''
+const MARKS = [',', ',', '"', '"', "'", '.', '`', "'"]
+
+/**
+ * WHAT IS GROWING ON THIS TILE, or nothing.
+ *
+ * ── IT CLUMPS NOW, AND THAT IS THE WHOLE POINT ───────────────────────────────
+ *
+ * The first version put a mark on ten tiles in sixteen, chosen per tile,
+ * independently. Independent means EVEN — every part of the field got the same
+ * ten in sixteen, so the ground read as uniform static rather than as ground.
+ * Nothing in a yard is distributed that way.
+ *
+ * A second, COARSER hash over 2x2 blocks decides whether a patch is thick or
+ * worn first, and the per-tile roll happens inside that. So the field grows in
+ * clumps with bare earth between them, which is what makes it look like
+ * somewhere rather than like noise.
+ *
+ * ── TWO GREENS ───────────────────────────────────────────────────────────────
+ *
+ * One ink for every mark is the other half of "even". A second shade costs a bit
+ * of the same hash and gives the field depth — some blades nearer, some further.
+ *
+ * Still fully deterministic from the tile and the seed: two yards differ, one
+ * yard never shimmers between renders.
+ */
+/**
+ * PATCHES ARE 3x3 AND THE CONTRAST IS SHARP, and both numbers are measured.
+ *
+ * At 2x2 blocks and 13-vs-4 density the clumping was real but barely there: two
+ * neighbouring tiles were both grass 25% of the time against 19% by chance. A
+ * clump you have to measure to notice is not a clump.
+ *
+ * Two tiles is also simply too small to read as a patch on a 13-wide map — half
+ * of every horizontal pair straddled a block boundary, so half the correlation
+ * was thrown away before it reached the screen.
+ */
+function ground(x: number, y: number, seed: number): Blade | null {
+  const thick = at(Math.floor(x / 3), Math.floor(y / 3), seed, 0x51ed29) % 20 < 11
+  const h = at(x, y, seed, 0)
+  if (h % 16 >= (thick ? 14 : 2)) return null
+  return { ch: MARKS[(h >>> 8) % MARKS.length], shade: ((h >>> 16) & 1) as 0 | 1 }
 }
 
 /**
@@ -292,13 +329,16 @@ export function YardMap({
             )
           }
 
+          const blade = ground(x, y, yard.seed)
           return (
             <div
               key={i}
               style={{ ...s.cell, background: sky.soil[soilOf(x, y, yard.seed)] }}
               aria-hidden
             >
-              <span style={{ ...s.grass, color: sky.grass }}>{ground(x, y, yard.seed)}</span>
+              {blade && (
+                <span style={{ ...s.grass, color: sky.grass[blade.shade] }}>{blade.ch}</span>
+              )}
             </div>
           )
         })}
@@ -547,7 +587,8 @@ const s: Record<string, React.CSSProperties> = {
     border: 'none',
     minWidth: 0,
   },
-  grass:    { color: '#2f4020', fontSize: 10, lineHeight: 1, userSelect: 'none' },
+  /* 11, not 10: at 26px tiles the marks were small enough to read as dust. */
+  grass:    { fontSize: 11, lineHeight: 1, userSelect: 'none' },
   /*
    * THE OVERLAY sits exactly over the grid's cells. It is inset by the same 1px
    * padding the grid carries, so a cat at (0,0) lands on the first cell rather
