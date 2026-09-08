@@ -2,6 +2,7 @@
 
 import { bond, diary, reads, temperOf, type YardState } from '@/lib/yard'
 import { inkFor } from '@/lib/catink'
+import { describe } from '@/lib/describe'
 import { DOING, moodOf, thoughtOf } from '@/lib/yardmap'
 import type { YardCat } from '@/components/Yard'
 
@@ -70,6 +71,7 @@ export function CatSheet({
     .sort((a, b) => Math.abs(b.n) - Math.abs(a.n))
 
   const said = diary(yard, cat.uid, 12)
+  const about = describe(yard, cat, others)
   const byUid = new Map(others.map(o => [o.uid, o]))
 
   return (
@@ -90,6 +92,38 @@ export function CatSheet({
           <div style={s.doing}>{last ? DOING[last.kind] : 'keeping to itself'}</div>
         </div>
         <button onClick={onClose} style={s.close} aria-label="close">×</button>
+      </div>
+
+      {/*
+        THE DESCRIPTION, WHICH IS THE DWARF FORTRESS PAGE.
+
+        JP: "dwarves have a description kind of way of looking at things… if I
+        look into a cat's thoughts and likes I can go into that in depth."
+
+        It sits ABOVE the meters on purpose. The bars are the same three numbers
+        this paragraph is written from, so the prose is the answer and the bars
+        are the working — and the working belongs under the answer. Read the
+        first three lines and you know the cat; read the bars if you want to know
+        by how much.
+
+        NOTHING HERE IS INVENTED. See lib/describe.ts: the look is its own two
+        traits, the nature is its Face's numbers banded, and the likes are
+        counted out of the memories the yard still holds. A cat that stops
+        playing stops being described as the one that likes the toy.
+      */}
+      <div style={s.about}>
+        {about.looks && <p style={s.line}>{about.looks}</p>}
+        {about.nature.map((l, i) => <p key={i} style={s.line}>{l}</p>)}
+        {/*
+          The likes are set apart because they are the only part that is EARNED.
+          The look and the nature are true the moment a cat is minted; these are
+          what it has done since.
+        */}
+        {about.likes.length > 0 && (
+          <div style={s.likes}>
+            {about.likes.map((l, i) => <p key={i} style={s.line}>{l}</p>)}
+          </div>
+        )}
       </div>
 
       {/*
@@ -205,6 +239,27 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1, cursor: 'pointer', padding: '0 2px', font: 'inherit',
   },
 
+  about: {
+    margin: '2px 0 10px',
+    display: 'flex', flexDirection: 'column', gap: 2,
+  },
+  /*
+   * 1.5 line height and no indent. This is a paragraph broken into sentences,
+   * not a list — DF prints it as running text and the sentences are short enough
+   * that bullets would add a mark per line for nothing.
+   *
+   * INK ON PAPER. The first version used #c9c9d8, which is this app's colour for
+   * text on the DARK panels — on the sheet's cream it was a ghost. The sheet is
+   * #f2eee3 and everything on it is dark; `doing` above is #3a3a30 and this
+   * matches it, because it is the same weight of writing.
+   */
+  line: { margin: 0, fontSize: 13, lineHeight: 1.5, color: '#3a3a30' },
+  likes: {
+    marginTop: 7, paddingTop: 7,
+    /* The same rule the sections use, for the same reason: it is a printed sheet. */
+    borderTop: '1px solid rgba(0,0,0,0.10)',
+    display: 'flex', flexDirection: 'column', gap: 2,
+  },
   meters:     { display: 'flex', flexDirection: 'column', gap: 3, marginTop: 10 },
   meterRow:   { display: 'flex', alignItems: 'center', gap: 8, fontSize: 10, letterSpacing: 1 },
   meterLabel: { color: '#8a8a7a', width: 52 },

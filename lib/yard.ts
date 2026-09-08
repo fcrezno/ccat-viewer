@@ -231,6 +231,14 @@ export type Resident = {
    * a cat is downstream of the saved yard. See lib/catink.ts.
    */
   bg?: string | null
+  /**
+   * THE `Body Color` TRAIT — the cat's coat, in the words of its own metadata.
+   *
+   * Here for the creature sheet's description and nothing else. The values are
+   * names rather than colours ("dore", "King of the jungle"), so this is read as
+   * prose, never as a colour. `bg` is the one that becomes ink.
+   */
+  coat?: string | null
 }
 
 export type YardState = {
