@@ -20,6 +20,27 @@
   font-display: swap;
 }
 
+/*
+ * THE BATTLE LOG'S FONT, AS A REAL FONT.
+ *
+ * JP: "all the fonts should be uniform. make it the same as the battle log font."
+ *
+ * That font was never a font — it is public/game/font.png, a 256x144 sheet that
+ * BitmapText draws one glyph at a time as a CSS mask. It cannot be applied to a
+ * heading or a paragraph, because every glyph is its own box.
+ *
+ * scripts/make-webfont.mjs traces the sheet into this file, pixel for pixel,
+ * including the 1px baseline drift that is deliberately kept. Regenerate it with
+ * `node scripts/make-webfont.mjs` if the sheet ever changes.
+ */
+@font-face {
+  font-family: 'CradleFont';
+  src: url('/fonts/CradleFont.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -64,7 +85,15 @@
  * on the screen. A hand-lettered fallback keeps the metrics and the character.
  */
 :root {
-  --font-game: 'MyFont', 'Comic Sans MS', 'Segoe Print', cursive;
+  /*
+   * CradleFont FIRST — the battle log's own font, now a real one.
+   *
+   * MyFont stays behind it because the sheet is ASCII 32..127 and nothing else.
+   * Measured against the running app, the characters it cannot draw are
+   * · — ’ → ↑ ♪ ☼ and two emoji: nine, all punctuation or icons. They fall
+   * through to MyFont, which is what a font stack is for.
+   */
+  --font-game: 'CradleFont', 'MyFont', 'Comic Sans MS', 'Segoe Print', cursive;
 }
 
 body {

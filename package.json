@@ -24,6 +24,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "opentype.js": "^2.0.0",
     "solc": "^0.8.35",
     "tailwindcss": "^4",
     "typescript": "^5"
