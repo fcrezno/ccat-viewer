@@ -6,6 +6,7 @@ import { visit, furnish, DEMO_KEY, MAX_TICKS, type Visit } from '@/lib/yardstore
 import { YardMap } from '@/components/YardMap'
 import { CatSheet } from '@/components/CatSheet'
 import { thoughtOf } from '@/lib/yardmap'
+import { moodFor, settle, settled } from '@/lib/mood'
 import { inkFor } from '@/lib/catink'
 import { BitmapText, type Run } from '@/components/BitmapText'
 
@@ -215,10 +216,19 @@ const nameInk = (c: { uid: string; bg?: string | null; mine?: boolean }) =>
   c.mine ? MINE_INK : inkFor(c.uid, c.bg)
 
 export function Yard({
-  cats, busy, compact = false, full = false,
+  cats, busy, compact = false, full = false, onFight,
 }: {
   cats: YardCat[]
   busy?: boolean
+  /**
+   * TAKES A CAT OUT, which is the only way a strange mood gets answered.
+   *
+   * Optional because it depends on where the yard is mounted: the front page
+   * sits inside the game and can start a fight, the yard's own page cannot. The
+   * ask is shown either way — a cat wanting something is worth seeing even where
+   * you cannot act on it — and only the button depends on this.
+   */
+  onFight?: (uid: string) => void
   /**
    * The front-door version: a short log that opens, and the pair list left for
    * the yard's own page.
@@ -257,6 +267,9 @@ export function Yard({
    * the same LINE_MS the fight uses, so the two logs are paced alike.
    */
   const [rolled, setRolled] = useState(0)
+
+  /** Bumped when a mood is answered, so the ask re-derives and disappears. */
+  const [answers, setAnswers] = useState(0)
 
   /** The paper, so it can be scrolled as it fills. */
   const logRef = useRef<HTMLDivElement>(null)
@@ -349,6 +362,34 @@ export function Yard({
     clear.current = setTimeout(() => setPeek(null), 120)
   }, [])
 
+  /*
+   * TODAY'S STRANGE MOOD, if the yard has one and it has not been answered yet.
+   *
+   * ABOVE THE EARLY RETURNS, and that is not a style choice. This sat below them
+   * first and crashed the page outright — "rendered more hooks than during the
+   * previous render" — because `busy` and an empty cast both return before this
+   * line, so on those renders the hook simply did not run. Hooks are counted, not
+   * named. Anything using one belongs above the first `return`.
+   *
+   * `state` can still be null here, so the guard moved inside rather than being
+   * a reason to move the hook back down.
+   *
+   * `answers` is in the deps and nowhere in the body, deliberately: `settled`
+   * reads localStorage, and storage does not tell React it changed. Bumping the
+   * counter is what re-runs this so an answered ask disappears.
+   */
+  const raw = state ? moodFor(state.state, cats) : null
+  const mood = useMemo(
+    () => (state && raw && !settled(state.state, raw) ? raw : null),
+    [raw, state, answers],
+  )
+
+  const answer = (uid: string) => {
+    if (state && raw) settle(state.state, raw)
+    setAnswers(n => n + 1)
+    onFight?.(uid)
+  }
+
   if (busy) return <p style={fine}>reading the yard…</p>
   if (!cats.length) return null
 
@@ -404,6 +445,7 @@ export function Yard({
   const chat = talking ? pairs.find(q => q.a.uid + q.b.uid === talking) ?? null : null
   const said = chat ? between(state.state, chat.a.uid, chat.b.uid, 20) : []
 
+
   return (
     <div style={{ position: 'relative' }}>
       <p style={{ ...fine, marginBottom: 10 }}>
@@ -423,6 +465,8 @@ export function Yard({
       */}
       <div style={{ marginBottom: 14 }}>
         <YardMap
+          mood={mood}
+          onAnswer={onFight ? answer : undefined}
           yard={state.state}
           mine={cats.filter(c => c.mine).map(c => c.uid)}
           replay

@@ -1647,7 +1647,20 @@ export function Cradle() {
               <p style={{ ...s.fine0, marginBottom: 12 }}>
                 Your cats and the cats of people you follow.
               </p>
-              <Yard cats={yardCats} busy={yardBusy} compact />
+              {/*
+                THE YARD CAN START A FIGHT FROM HERE, and only from here.
+
+                A strange mood asks for one thing — to go out — and the only
+                place that can answer it is inside the game. The yard's own page
+                shows the ask and no button, which is honest: it is a window on
+                the yard, not the game.
+              */}
+              <Yard
+                cats={yardCats}
+                busy={yardBusy}
+                compact
+                onFight={uid => startFight({ uid })}
+              />
             </section>
           )}
 

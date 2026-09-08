@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { COLS, ROWS, DOING, layout, layoutAt, moodOf, poseOf, type Placed } from '@/lib/yardmap'
 import { bond, reads, temperOf, type PropKind, type YardState } from '@/lib/yard'
 import { ITEMS, skinOf } from '@/lib/items'
+import { ASKS, ANSWER, MOOD_GLYPH, MOOD_INK, type Mood } from '@/lib/mood'
 
 /**
  * THE YARD, DRAWN — a Dwarf Fortress overworld at cat scale.
@@ -84,7 +85,7 @@ function ground(x: number, y: number, seed: number): string {
 }
 
 export function YardMap({
-  yard, mine, onFurnish, picked, onPick, replay = false,
+  yard, mine, onFurnish, picked, onPick, replay = false, mood, onAnswer,
 }: {
   yard: YardState
   mine: string[]
@@ -103,6 +104,16 @@ export function YardMap({
   /** Toggles ONE prop. The store decides what is out there, which is what stops
    *  three quick taps from clobbering each other. */
   onFurnish?: (prop: PropKind) => void
+  /**
+   * THE CAT ASKING FOR SOMETHING TODAY, if there is one.
+   *
+   * Passed in rather than worked out here, because what can ANSWER a mood
+   * depends on where the yard is mounted — the front page can start a fight and
+   * the yard's own page cannot.
+   */
+  mood?: Mood | null
+  /** Answers it. Absent wherever there is nothing to answer it with. */
+  onAnswer?: (uid: string) => void
 }) {
   /* Uncontrolled on the front page, controlled on the yard's own. */
   const [ownPick, setOwnPick] = useState<string | null>(null)
@@ -189,6 +200,15 @@ export function YardMap({
    * has a stake in. With several of your own in the yard, the first is used —
    * a row of five bonds on one tap would be a table, not an answer.
    */
+  /*
+   * THE CAT ASKING, resolved against what is actually on the map. A mood names a
+   * uid; a cat can leave the yard between the mood being worked out and this
+   * being drawn, and a strip about a cat that is not here would be a ghost.
+   */
+  const asker = mood
+    ? (placed.find(q => q.what === 'cat' && q.cat.uid === mood.uid) as (Placed & { what: 'cat' }) | undefined)
+    : undefined
+
   const anchor = mine.find(u => u !== sel?.cat.uid) ?? null
   const b = sel && anchor ? bond(yard, sel.cat.uid, anchor) : null
 
@@ -242,7 +262,17 @@ export function YardMap({
             const here = p as Placed & { what: 'cat' }
             const isMine = mine.includes(here.cat.uid)
             const on = sel_uid === here.cat.uid
-            const mood = moodOf(here.doing)
+            /*
+             * A CAT IN A MOOD OVERRIDES ITS OWN MOOD GLYPH.
+             *
+             * The glyph says what a cat is doing, and a cat that is ASKING for
+             * something is not doing anything else — that is the whole point of
+             * DF's mood. It takes the marker over.
+             */
+            const asking = mood?.uid === here.cat.uid
+            const glyph = asking
+              ? { glyph: MOOD_GLYPH, colour: MOOD_INK }
+              : moodOf(here.doing)
             return (
               <button
                 /*
@@ -313,11 +343,18 @@ export function YardMap({
                   aria-hidden
                   style={{
                     ...s.mood,
-                    color: mood.colour,
-                    animation: here.doing ? 'cradle-blink 0.74s steps(1, end) infinite' : undefined,
+                    color: glyph.colour,
+                    /*
+                     * An asking cat ALWAYS blinks, even standing still. The idle
+                     * "?" holds steady because a quiet cat is not a signal; a cat
+                     * waiting on you is the most a signal ever gets in here.
+                     */
+                    animation: asking || here.doing
+                      ? 'cradle-blink 0.74s steps(1, end) infinite'
+                      : undefined,
                   }}
                 >
-                  {mood.glyph}
+                  {glyph.glyph}
                 </span>
               </button>
             )
@@ -358,6 +395,38 @@ export function YardMap({
           </span>
         )}
       </div>
+
+      {/*
+        THE ONE THING IN HERE THAT WANTS SOMETHING FROM YOU.
+
+        JP: "in Dwarf Fortress there are strange moods, which dwarves need to do
+        something before they do anything… some cats will seek to go outside, and
+        this is how they go into their quick fights. You click on the cat and it
+        says your cat wants to go outside, and then it'll have an option to go
+        with the quick fight."
+
+        ABOVE THE SHELF, NOT IN THE READOUT. The readout answers "what am I
+        looking at" and changes every time you tap; this is the yard asking for
+        something and it has to stay put until it is answered. It is also the
+        only row in here that is ever about something OUTSIDE the yard.
+
+        Shown whoever the cat belongs to — a strange mood is worth seeing in a
+        stranger's yard too — but only answerable when there is something to
+        answer it with, which is why onAnswer decides the button and not the copy.
+      */}
+      {mood && asker && (
+        <div style={s.ask}>
+          <button onClick={() => setPick(asker.cat.uid)} style={s.askWho}>
+            <span style={{ color: MOOD_INK }}>{MOOD_GLYPH}</span>
+            <span>{ASKS[mood.want].replace('{name}', asker.cat.name)}</span>
+          </button>
+          {onAnswer && mine.includes(asker.cat.uid) && (
+            <button onClick={() => onAnswer(asker.cat.uid)} style={s.askGo}>
+              {ANSWER[mood.want]}
+            </button>
+          )}
+        </div>
+      )}
 
       {/*
         PUTTING THINGS OUT.
@@ -483,6 +552,26 @@ const s: Record<string, React.CSSProperties> = {
   skyArt:   { width: 14, height: 14, objectFit: 'contain', display: 'block' },
   shelfArt: { width: 16, height: 16, objectFit: 'contain', display: 'block' },
   readout:  { marginTop: 8, fontSize: 12, minHeight: 18, lineHeight: 1.4 },
+  /*
+   * Gold, and the only gold thing under the map. It is the one row that is not a
+   * report — everything else here says what happened, this asks.
+   */
+  ask: {
+    display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
+    marginTop: 8, padding: '7px 10px', borderRadius: 8,
+    background: '#1c1a10', border: '1px solid #4a3d16',
+  },
+  askWho: {
+    display: 'flex', alignItems: 'baseline', gap: 6,
+    background: 'none', border: 0, padding: 0, cursor: 'pointer',
+    font: 'inherit', fontSize: 12, color: '#e0c88a', textAlign: 'left',
+  },
+  askGo: {
+    marginLeft: 'auto',
+    padding: '5px 12px', borderRadius: 999,
+    background: '#e0a72c', border: '1px solid #e0a72c', color: '#1a1a1a',
+    font: 'inherit', fontSize: 12, cursor: 'pointer',
+  },
   shelf:    { display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' },
   shelfBtn: {
     display: 'flex', alignItems: 'center', gap: 5,
