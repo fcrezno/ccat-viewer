@@ -1,0 +1,24 @@
+{
+  "name": "Clanker Cats V3 #757",
+  "description": "Clanker Cats V3 — free mint on Robinhood Chain.",
+  "image": "https://ccat-viewer.vercel.app/v3/images/757.png",
+  "edition": 757,
+  "attributes": [
+    {
+      "trait_type": "Background",
+      "value": "teal"
+    },
+    {
+      "trait_type": "Body Color",
+      "value": "Red"
+    },
+    {
+      "trait_type": "Face",
+      "value": "yarinaka"
+    },
+    {
+      "trait_type": "Type",
+      "value": "Standard"
+    }
+  ]
+}

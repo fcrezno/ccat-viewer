@@ -1,5 +1,6 @@
 import type { Chain } from 'viem'
-import { base, clientForChain } from './chains'
+import { base, robinhood, clientForChain } from './chains'
+import { V3, V3_DEPLOYED } from './mintv3'
 
 /**
  * Clanker Cats collections on Base.

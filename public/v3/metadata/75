@@ -1,0 +1,24 @@
+{
+  "name": "Clanker Cats V3 #75",
+  "description": "Clanker Cats V3 — free mint on Robinhood Chain.",
+  "image": "https://ccat-viewer.vercel.app/v3/images/75.png",
+  "edition": 75,
+  "attributes": [
+    {
+      "trait_type": "Background",
+      "value": "The moon"
+    },
+    {
+      "trait_type": "Body Color",
+      "value": "Black Cat"
+    },
+    {
+      "trait_type": "Face",
+      "value": "uwu"
+    },
+    {
+      "trait_type": "Type",
+      "value": "Standard"
+    }
+  ]
+}

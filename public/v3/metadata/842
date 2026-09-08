@@ -1,0 +1,24 @@
+{
+  "name": "Clanker Cats V3 #842",
+  "description": "Clanker Cats V3 — free mint on Robinhood Chain.",
+  "image": "https://ccat-viewer.vercel.app/v3/images/842.png",
+  "edition": 842,
+  "attributes": [
+    {
+      "trait_type": "Background",
+      "value": "The moon"
+    },
+    {
+      "trait_type": "Body Color",
+      "value": "King of the jungle"
+    },
+    {
+      "trait_type": "Face",
+      "value": "silly"
+    },
+    {
+      "trait_type": "Type",
+      "value": "Standard"
+    }
+  ]
+}
