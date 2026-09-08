@@ -42,31 +42,65 @@ const PROP_WHY: Record<PropKind, string> = {
 }
 
 /**
- * DAY AND NIGHT, because the sun and the moon are two of the twenty and neither
- * is an object. They are TIMES.
+ * A GARDEN, NOT A DUNGEON FLOOR.
  *
- * One tick is one hour and the map already knows which hour it is drawing, so
- * this is derived rather than stored — and it is what makes the replay read as a
- * day passing rather than as a loop of events.
+ * JP: "we just need a nice little yard for our cats to play in… update the grass
+ * so it doesn't look like poop green. I would be inspired by games like the Chao
+ * Garden, combining that with the dwarf fortress aesthetic of looking into the
+ * thoughts of our own cats."
  *
- * Six to six. The ground goes down with the light: it is the same yard, seen
- * later, and a colour change carries that without a word of explanation.
+ * That is the split, and it is the right one. DF supplies the READING — a tile
+ * map, a creature you can open up and find a history in. It does not have to
+ * supply the LOOK, and it was: a dark olive field is what a fortress floor looks
+ * like a mile underground, and this is a garden in daylight with pets in it.
+ *
+ * So the ground is grass now. Bright enough to read as somewhere pleasant, muted
+ * enough that the hand-drawn cats stay the brightest thing on it — a neon field
+ * would fight the art rather than hold it.
+ *
+ * ── DAY AND NIGHT ARE STILL HERE, BUT THEY STOPPED BEING A FEATURE ───────────
+ *
+ * JP: "day or night cycles don't really matter at this point in time."
+ *
+ * They were nearly invisible anyway — measured across a full cycle the field
+ * only moved between 5% and 13% luminance, so both ends read as black and the
+ * clock digits were the only thing telling you the hour.
+ *
+ * Not deleted, because the clock is free and it is one line either way. Night is
+ * a soft evening now rather than an attempt at darkness: the same garden later
+ * in the day, still legible, no longer pretending to be a mechanic.
  */
 /*
  * `soil` is THREE shades picked per tile by `soilOf`; `grass` is TWO picked per
  * blade by `ground`. Both were single values and both read as flat — a field of
  * one colour is a table, and one ink for every mark is the same mistake again.
  */
-const DAY   = {
-  grid: '#14180f', prop: '#1f2617',
-  /* Two greens, so the field has depth instead of one flat speckle. */
-  grass: ['#3a5226', '#52703a'],
-  soil: ['#1a2013', '#1c2315', '#182010'],
+/*
+ * THE SHADES ARE CLOSE TOGETHER, AND THEY HAVE TO BE NOW.
+ *
+ * Three soil values a few points apart were invisible on the old dark field and
+ * did a useful job there — they stopped it reading as one flat sheet. Repainted
+ * as daylight grass the SAME spread became a quilt: every tile a different
+ * green, the lattice between them dark, the whole thing a checkerboard.
+ *
+ * A lawn is not a patchwork. The variation is barely-there now — enough that the
+ * field is not one solid fill, not enough to see a tile unless you look for it —
+ * and the grid line sits just under the soil rather than under everything.
+ */
+const DAY = {
+  grid: '#5a9a4e',
+  /* A furnished tile is the same ground as the rest. Nothing repaints the field. */
+  prop: '#61a054',
+  /* Two greens for the tufts — one catching light, one in shade. */
+  grass: ['#86d16f', '#4c8742'],
+  soil: ['#61a054', '#64a457', '#5e9c51'],
 }
+
 const NIGHT = {
-  grid: '#0f1209', prop: '#181e12',
-  grass: ['#2c3f1b', '#3f5a28'],
-  soil: ['#141a0e', '#161c10', '#12180c'],
+  grid: '#44724a',
+  prop: '#4a7c4a',
+  grass: ['#66a765', '#3a6c42'],
+  soil: ['#4a7c4a', '#4d804d', '#477848'],
 }
 
 /**
