@@ -52,8 +52,19 @@ const PROP_WHY: Record<PropKind, string> = {
  * Six to six. The ground goes down with the light: it is the same yard, seen
  * later, and a colour change carries that without a word of explanation.
  */
-const DAY   = { grid: '#14180f', soil: '#1a2013', prop: '#1f2617', grass: '#2f4020' }
-const NIGHT = { grid: '#0f1209', soil: '#141a0e', prop: '#181e12', grass: '#26331a' }
+/*
+ * `soil` is THREE shades, picked per tile by `soilOf`. `grass` is lifted from
+ * #2f4020 — at two shades off the soil the marks were technically drawn and
+ * effectively invisible, which is the same as not drawing them.
+ */
+const DAY   = {
+  grid: '#14180f', prop: '#1f2617', grass: '#425a2c',
+  soil: ['#1a2013', '#1c2315', '#182010'],
+}
+const NIGHT = {
+  grid: '#0f1209', prop: '#181e12', grass: '#33481f',
+  soil: ['#141a0e', '#161c10', '#12180c'],
+}
 
 /**
  * HOW MUCH OF THE DAY IS REPLAYED, and how fast.
@@ -78,10 +89,41 @@ const REPLAY_TICKS = 24
 const STEP_MS = 550
 
 /** DF grass, scattered deterministically so it does not crawl on re-render. */
+/**
+ * THE GROUND IS A SURFACE, NOT A VOID.
+ *
+ * This drew a glyph on 6 tiles in 16, in a green two shades off the soil it sat
+ * on. On screen that is a hundred and four empty squares with a few specks in
+ * them — the map read as the ABSENCE of a map, and the cats read as pasted onto
+ * nothing.
+ *
+ * DF's ground is dark, which is why the palette is what it is. But DF's ground is
+ * also COVERED: every floor tile carries a mark, and the texture is most of what
+ * makes a fortress look like a place. Ten in sixteen here, out of five marks
+ * rather than three.
+ *
+ * Still deterministic from the tile and the seed, so two yards look different
+ * and one yard never shimmers.
+ */
 function ground(x: number, y: number, seed: number): string {
   const h = Math.imul(x + 1, 0x9e3779b9) ^ Math.imul(y + 1, 0x85ebca6b) ^ seed
   const n = (h >>> 0) % 16
-  return n < 2 ? '"' : n < 5 ? ',' : n < 6 ? '.' : ''
+  return n < 3 ? ',' : n < 5 ? '.' : n < 7 ? '"' : n < 9 ? "'" : n < 10 ? '`' : ''
+}
+
+/**
+ * WHICH OF THREE SHADES THIS TILE'S SOIL IS.
+ *
+ * A field of one colour is a table, not a ground. Three shades a few points
+ * apart break the flatness without becoming a pattern anybody can read — the
+ * eye stops seeing a spreadsheet and starts seeing dirt.
+ *
+ * A DIFFERENT HASH FROM `ground`. Sharing one would tie the mark to the shade
+ * and lay a visible grid over the whole map.
+ */
+function soilOf(x: number, y: number, seed: number): number {
+  const h = Math.imul(x + 3, 0x27d4eb2d) ^ Math.imul(y + 7, 0x165667b1) ^ seed
+  return (h >>> 0) % 3
 }
 
 export function YardMap({
@@ -251,7 +293,11 @@ export function YardMap({
           }
 
           return (
-            <div key={i} style={{ ...s.cell, background: sky.soil }} aria-hidden>
+            <div
+              key={i}
+              style={{ ...s.cell, background: sky.soil[soilOf(x, y, yard.seed)] }}
+              aria-hidden
+            >
               <span style={{ ...s.grass, color: sky.grass }}>{ground(x, y, yard.seed)}</span>
             </div>
           )
@@ -287,12 +333,13 @@ export function YardMap({
                 aria-label={`${here.cat.name}, ${here.doing ? DOING[here.doing.kind] : 'keeping to itself'}`}
                 style={{
                   ...s.catCell,
-                  background: sky.soil,
+                  background: sky.soil[soilOf(here.cell.x, here.cell.y, yard.seed)],
                   transform: `translate(${here.cell.x * 100}%, ${here.cell.y * 100}%)`,
-                  // Your own cats are ringed. In a yard of strangers' cats the
-                  // first question is always which ones are yours.
-                  outline: on ? '2px solid #e0a72c' : isMine ? '2px solid #7c3aed' : 'none',
-                  outlineOffset: -2,
+                  /*
+                   * THE RING IS ON THE CAT NOW, not on the tile — see `art`.
+                   * A tile-wide ring around an inset cat outlines the GROUND it
+                   * is standing on, which is not the thing being pointed at.
+                   */
                   zIndex: on ? 3 : 2,
                 }}
               >
@@ -310,7 +357,22 @@ export function YardMap({
                   held until the tick changes, and cut to when it does.
                 */}
                 {here.cat.art
-                  ? <img src={here.cat.art} alt="" style={{ ...s.art, transform: poseOf(here.doing, shownTick) }} />
+                  ? <img
+                      src={here.cat.art}
+                      alt=""
+                      style={{
+                        ...s.art,
+                        transform: poseOf(here.doing, shownTick),
+                        /*
+                         * Your own cats are ringed. In a yard of strangers' cats
+                         * the first question is always which ones are yours —
+                         * and the ring travels with the pose, so a cat that
+                         * shoves takes its outline with it.
+                         */
+                        outline: on ? '2px solid #e0a72c' : isMine ? '2px solid #7c3aed' : 'none',
+                        outlineOffset: 1,
+                      }}
+                    />
                   : <span style={{ ...s.fallback, transform: poseOf(here.doing, shownTick) }}>{here.cat.name.slice(0, 1).toUpperCase()}</span>}
                 {/*
                   THE MOOD SITS ON THE CAT, not beside it. There is no spare cell
@@ -519,7 +581,23 @@ const s: Record<string, React.CSSProperties> = {
      * rule about the whole surface, not just about walking.
      */
   },
-  art:      { width: '100%', height: '100%', objectFit: 'cover', imageRendering: 'pixelated', display: 'block' },
+  /*
+   * 84%, NOT 100% — A CAT STANDS ON A TILE, IT IS NOT THE TILE.
+   *
+   * Full bleed made every cat a hard-edged saturated rectangle butted against
+   * its neighbours, which is why the map read as a row of stickers on a dark
+   * sheet rather than as creatures on ground. Two pixels of soil showing on each
+   * side is the whole difference: the ground goes UNDER them, the grid line stays
+   * visible between two cats standing together, and the eye reads a map.
+   *
+   * It also fixes the pose. A shove of a quarter-tile on a full-bleed portrait
+   * clipped against the tile's overflow; there is somewhere to move to now.
+   */
+  art: {
+    width: '84%', height: '84%',
+    objectFit: 'cover', imageRendering: 'pixelated', display: 'block',
+    borderRadius: 2,
+  },
   fallback: { fontSize: 11, color: '#cfcfe0' },
   /*
    * SMALL, TOP RIGHT, AND OUTLINED. It sits on top of a full-colour portrait,
