@@ -84,6 +84,19 @@ and the yard, the roster and `/cats` all pick it up.
 
 **7 — Delete `DEPLOYER_KEY` from `.env.local`.**
 
+**7a — Fix V2's collection page while you are here**
+
+V2 is live on Base with `contractURI` pointing at `/v2/metadata/1` — token number
+one — so OpenSea reads the collection as "Clanker Cats V2 #1" wearing one cat's
+picture, with no royalty block. That is almost certainly why a collection page
+has looked wrong before.
+
+One transaction, no redeploy, nothing about the tokens changes:
+
+```
+setContractURI("https://ccat-viewer.vercel.app/v2/contract")
+```
+
 **7b — Point at a keyed RPC BEFORE you open the mint**
 
 ```

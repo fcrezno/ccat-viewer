@@ -8,7 +8,7 @@
  *   DEPLOYER_KEY=0x…            wallet that deploys and OWNS the contract
  *   MINT_SIGNER_ADDRESS=0x…     address of the backend voucher signer
  *   BASE_URI=https://…/         metadata base, tokenId is appended (trailing slash)
- *   CONTRACT_URI=https://…      optional, collection-level metadata
+ *   CONTRACT_URI=https://…      COLLECTION metadata — use /v3/contract
  *   ROYALTY_RECEIVER=0x…        optional, defaults to the deployer
  *   ROYALTY_BPS=800             optional, defaults to 800 (8%, same as V1 and V2)
  *   MAX_SUPPLY=1111             optional, defaults to 1111
@@ -88,6 +88,26 @@ function need(name, value) {
 need('MINT_SIGNER_ADDRESS', MINT_SIGNER_ADDRESS)
 need('BASE_URI', BASE_URI)
 if (SEND) need('DEPLOYER_KEY', DEPLOYER_KEY)
+
+/*
+ * CONTRACT_URI IS A COLLECTION, NOT A TOKEN — and V2 got this wrong.
+ *
+ * Read off Base today, V2's live contractURI is ".../v2/metadata/1": token
+ * number one. A marketplace reading that names the collection "Clanker Cats V2
+ * #1" and gives it one cat's picture, with no royalty block. tokenURI and
+ * contractURI are two different documents and only one of them is per token.
+ *
+ * The shape of the mistake is recognisable, so it is worth refusing rather than
+ * repeating: a URL ending in a number, or one pointing into the metadata
+ * directory, is a token.
+ */
+if (CONTRACT_URI && /\/metadata\/?$|\/\d+$/.test(CONTRACT_URI)) {
+  console.error('CONTRACT_URI looks like a TOKEN, not a collection:')
+  console.error('  ' + CONTRACT_URI)
+  console.error('Collection-level metadata is served at /v3/contract — use that.')
+  console.error('(V2 shipped with this exact mistake and it is still live.)')
+  process.exit(1)
+}
 
 if (!BASE_URI.endsWith('/')) {
   console.error('BASE_URI must end with a slash — tokenURI is BASE_URI + tokenId,')
