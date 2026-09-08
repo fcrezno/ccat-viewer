@@ -252,6 +252,17 @@ export type Resident = {
    * prose, never as a colour. `bg` is the one that becomes ink.
    */
   coat?: string | null
+  /**
+   * WHICH PROP THIS CAT IS CARRYING ITS OWN OF, if any.
+   *
+   * A held item, reduced to the only thing the simulation can act on. The sim
+   * has no idea what a "feather" is and should not — it deals in four mechanics,
+   * and lib/loot.ts does the translating.
+   *
+   * Filled in by the store at visit time from what the player has given the cat.
+   * Absent means it carries nothing, which is every cat until one wins something.
+   */
+  holds?: PropKind | null
 }
 
 export type YardState = {
@@ -331,6 +342,8 @@ function choose(
   b: number,
   aff: number,
   props: PropKind[],
+  /** What the acting cat is carrying of its own. See Resident.holds. */
+  holds: PropKind | null,
   r: () => number,
 ): Deed | null {
   /*
@@ -342,11 +355,22 @@ function choose(
    * no play; it does not make a cat quieter in general, it removes one thing it
    * could have done. That is what makes furnishing the yard a real choice rather
    * than a difficulty setting.
+   *
+   * A HELD ITEM IS THE CAT'S OWN FURNITURE, and that is the whole mechanic.
+   *
+   * JP: "a cats worth is by the loot they have." Furniture is what is out for
+   * EVERYONE and putting it there is the player's choice; an item this cat
+   * carries is its alone, so it can still play in a bare yard while nobody else
+   * can. One `||` is the entire difference.
+   *
+   * It only ever OPENS a deed, never closes one — a cat carrying a feather is
+   * not worse at anything, it is better at one thing. See lib/loot.ts for why
+   * this must never reach a fight.
    */
   const open = DEEDS.filter(d => {
     if (b < d.need) return false
     const wants = NEEDS[d.kind]
-    return !wants || props.includes(wants)
+    return !wants || props.includes(wants) || holds === wants
   })
   if (!open.length) return null
 
@@ -390,7 +414,7 @@ export function tick(y: YardState): { state: YardState; happened: Memory[] } {
 
     const target = others[Math.min(Math.floor(r() * others.length), others.length - 1)]
     const b = bond({ ...y, ticks, kept }, me.uid, target.uid)
-    const deed = choose(t, b, affinity(me, target), y.props, r)
+    const deed = choose(t, b, affinity(me, target), y.props, me.holds ?? null, r)
     if (!deed) continue
 
     let delta = deed.delta

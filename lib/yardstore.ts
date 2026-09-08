@@ -1,6 +1,7 @@
 import { open, catchUp, PROPS, type Memory, type PropKind, type Resident, type YardState } from '@/lib/yard'
 import { crossings, record, forgetHistory, history, lastWords, type Entry } from '@/lib/chronicle'
 import { witnesses } from '@/lib/yardmap'
+import { holdsProp } from '@/lib/loot'
 
 /**
  * THE YARD, BETWEEN VISITS.
@@ -123,7 +124,21 @@ export function visit(cats: Resident[], key = KEY): Visit {
   const now = Date.now()
 
   const seed = prev?.seed ?? ((Math.random() * 0xffffffff) >>> 0)
-  const base = reconcile(prev, cats, seed)
+
+  /*
+   * WHAT EACH CAT IS CARRYING, READ FRESH ON EVERY VISIT.
+   *
+   * A held item is not part of the yard's state — it belongs to the CAT, and the
+   * player can change it between visits without the yard knowing. Stamping it on
+   * at the door means the simulation never has to ask, and a cat given a feather
+   * this morning plays with it for the hours it catches up on.
+   *
+   * Reduced to a PropKind here rather than carried as an item name: see
+   * lib/loot.ts. The sim deals in four mechanics and knows nothing about
+   * feathers.
+   */
+  const carrying = cats.map(c => ({ ...c, holds: holdsProp(c.uid) }))
+  const base = reconcile(prev, carrying, seed)
 
   const elapsed = prev ? now - prev.at : 0
   const hours = Math.min(MAX_TICKS, Math.floor(elapsed / HOUR))

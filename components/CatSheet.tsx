@@ -3,6 +3,8 @@
 import { bond, diary, reads, temperOf, type YardState } from '@/lib/yard'
 import { inkFor } from '@/lib/catink'
 import { describe } from '@/lib/describe'
+import { lootOf, hold, itemByFile } from '@/lib/loot'
+import { useMemo, useState } from 'react'
 import { DOING, moodOf, thoughtOf } from '@/lib/yardmap'
 import type { YardCat } from '@/components/Yard'
 
@@ -72,6 +74,15 @@ export function CatSheet({
 
   const said = diary(yard, cat.uid, 12)
   const about = describe(yard, cat, others)
+
+  /*
+   * WHAT IT HAS WON, AND WHAT IT IS CARRYING.
+   *
+   * `swaps` exists only to re-read after a change: the bag is in localStorage
+   * and storage does not tell React it moved. Same shape the mood's answer uses.
+   */
+  const [swaps, setSwaps] = useState(0)
+  const loot = useMemo(() => lootOf(cat.uid), [cat.uid, swaps])
   const byUid = new Map(others.map(o => [o.uid, o]))
 
   return (
@@ -125,6 +136,54 @@ export function CatSheet({
           </div>
         )}
       </div>
+
+      {/*
+        WHAT IT CARRIES — the bag, and the one thing out of it that is in use.
+
+        JP: "give it like a item bag; but it can only hold one; think like badges
+        in pokemon. a cats worth is by the loot they have."
+
+        So the two are drawn together and mean different things. The BAG is the
+        record — every item this cat has ever won, never spent, and the reason one
+        cat is worth more than another. The HELD one is the only one doing
+        anything: it opens a deed in the yard the way a piece of furniture does,
+        which is why carrying is a decision and owning is not.
+
+        HIGH ON THE SHEET, above the numbers, because it is identity rather than
+        statistics. What a cat has won says more about it than how often it acts.
+
+        Nothing is drawn at all until it has won something. An empty case with a
+        heading over it announces a system rather than a cat.
+      */}
+      {loot.bag.length > 0 && (
+        <>
+          <div style={s.rule}>WHAT IT CARRIES</div>
+          <div style={s.bag}>
+            {loot.bag.map((file: string) => {
+              const it = itemByFile(file)
+              if (!it) return null
+              const on = loot.holds === file
+              return (
+                <button
+                  key={file}
+                  /* Tapping the held one puts it away; tapping another swaps. */
+                  onClick={() => { hold(cat.uid, on ? null : file); setSwaps(n => n + 1) }}
+                  title={`${it.label} — ${on ? 'carrying' : 'tap to carry'}`}
+                  aria-pressed={on}
+                  style={{ ...s.slot, ...(on ? s.slotOn : null) }}
+                >
+                  <img src={`/yard/items/${file}.png`} alt="" style={s.slotArt} />
+                </button>
+              )
+            })}
+          </div>
+          <p style={s.carrying}>
+            {loot.holds
+              ? `Carrying ${itemByFile(loot.holds)?.label ?? 'something'}.`
+              : 'Carrying nothing.'}
+          </p>
+        </>
+      )}
 
       {/*
         THE THREE NUMBERS THAT DECIDE EVERYTHING IT DOES. Ranges are the ones in
@@ -260,6 +319,30 @@ const s: Record<string, React.CSSProperties> = {
     borderTop: '1px solid rgba(0,0,0,0.10)',
     display: 'flex', flexDirection: 'column', gap: 2,
   },
+  /*
+   * The case. It wraps, because a full bag is eighteen things and a row that
+   * scrolls sideways on a phone hides most of a cat's worth behind a gesture.
+   */
+  bag: { display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  slot: {
+    width: 34, height: 34, padding: 3,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    background: 'rgba(0,0,0,0.05)',
+    border: '2px solid rgba(0,0,0,0.10)',
+    borderRadius: 8, cursor: 'pointer',
+  },
+  /*
+   * The carried one is ringed in the same gold "this one is yours" is drawn in
+   * everywhere else. The full border, not just its colour — mixing the shorthand
+   * with the longhand across a state change lets React drop one of them.
+   */
+  slotOn: {
+    background: 'rgba(224,167,44,0.16)',
+    border: '2px solid #a06a10',
+  },
+  slotArt: { width: '100%', height: '100%', objectFit: 'contain', display: 'block' },
+  carrying: { fontSize: 12, color: '#3a3a30', margin: '7px 0 0', lineHeight: 1.5 },
+
   meters:     { display: 'flex', flexDirection: 'column', gap: 3, marginTop: 10 },
   meterRow:   { display: 'flex', alignItems: 'center', gap: 8, fontSize: 10, letterSpacing: 1 },
   meterLabel: { color: '#8a8a7a', width: 52 },
