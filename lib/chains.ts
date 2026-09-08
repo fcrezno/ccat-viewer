@@ -52,6 +52,32 @@ export { base }
  * multicall batching window, which is what keeps a 200-token owner scan to a
  * handful of requests instead of 200.
  */
+/**
+ * A KEYED ENDPOINT IN FRONT OF A PUBLIC ONE.
+ *
+ * Robinhood's public RPC is rate-limited and their own docs say it is not for
+ * production. That was survivable while nothing depended on it; the V3 mint does
+ * — /api/v3-voucher reads the chain before it will sign anything and FAILS
+ * CLOSED, so a throttled read is a person who won three fights being told to try
+ * again.
+ *
+ * Comma-separated, tried in order, and the public endpoint is appended LAST
+ * rather than replaced. A keyed provider that lapses degrades to what shipped
+ * before instead of taking the mint down with it.
+ *
+ *   ROBINHOOD_RPC_URL=https://key.provider.example,https://second.example
+ *
+ * Base keeps its hand-ordered list, which was ordered by what actually stayed up
+ * under load rather than by reputation.
+ */
+function rpcsFor(envVar: string, fallbackUrl: string) {
+  const keyed = (process.env[envVar] ?? '')
+    .split(',')
+    .map(u => u.trim())
+    .filter(Boolean)
+  return [...keyed, fallbackUrl].map(u => http(u))
+}
+
 const clients = new Map<number, PublicClient>()
 
 export function clientForChain(chain: Chain): PublicClient {
@@ -71,6 +97,8 @@ export function clientForChain(chain: Chain): PublicClient {
           http('https://mainnet.base.org'),
           http('https://base.llamarpc.com'),
         ])
+      : chain.id === robinhood.id
+      ? fallback(rpcsFor('ROBINHOOD_RPC_URL', robinhood.rpcUrls.default.http[0]))
       : http(),
   }) as PublicClient
 

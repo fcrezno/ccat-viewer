@@ -84,6 +84,22 @@ and the yard, the roster and `/cats` all pick it up.
 
 **7 — Delete `DEPLOYER_KEY` from `.env.local`.**
 
+**7b — Point at a keyed RPC BEFORE you open the mint**
+
+```
+ROBINHOOD_RPC_URL=https://your-keyed-endpoint,https://a-second-one
+```
+
+Comma-separated, tried in order, and the public endpoint is appended last on its
+own — so a lapsed key degrades to what shipped rather than taking the mint down.
+
+This is the single most likely thing to spoil a launch. `/api/v3-voucher` reads
+the chain before it will sign, and refuses if it cannot: on a throttled endpoint
+that is somebody who just won three fights being told to try again. The route now
+retries three times and caches what cannot change, which takes fifty minters from
+200 requests to 102 — but that is headroom, not a substitute for an endpoint that
+answers.
+
 **8 — Open the mint when you are ready**
 
 `setMintOpen(true)`. Until then nothing can be minted, which is why steps 5 and 8

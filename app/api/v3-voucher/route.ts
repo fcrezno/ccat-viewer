@@ -48,6 +48,44 @@ import { readTags, catsFor, winsFor } from '@/lib/season'
  */
 
 /** Long enough to confirm in a wallet, short enough that a leaked voucher dies. */
+/**
+ * Three tries before giving up on a read.
+ *
+ * Robinhood's public RPC throttles rather than fails, so the difference between
+ * a rejection and a success is often just a few hundred milliseconds. The same
+ * shape the Neynar gate uses in the V2 voucher, and for the same reason.
+ */
+async function read<T>(go: () => Promise<T>): Promise<T> {
+  let last: unknown
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try { return await go() } catch (e) {
+      last = e
+      if (attempt < 2) await new Promise(r => setTimeout(r, 250 * (attempt + 1)))
+    }
+  }
+  throw last
+}
+
+/**
+ * A read that does not have to happen again for a while.
+ *
+ * Module scope, so it lives as long as the serverless instance does and is
+ * naturally per-region. That is the right granularity here: it is a cache of
+ * something the CHAIN says, not of anything about a person.
+ */
+const held = new Map<string, { at: number; value: unknown }>()
+
+async function cached<T>(key: string, ttlMs: number, go: () => Promise<T>): Promise<T> {
+  const had = held.get(key)
+  if (had && Date.now() - had.at < ttlMs) return had.value as T
+  const value = await read(go)
+  held.set(key, { at: Date.now(), value })
+  return value
+}
+
+/** How long `mintOpen` may be stale. Closing a mint takes this long to bite. */
+const OPEN_TTL = 5_000
+
 const TTL = 10 * 60
 
 export async function POST(req: NextRequest) {
@@ -100,18 +138,40 @@ export async function POST(req: NextRequest) {
   let openNow: boolean, already: boolean, supply: bigint, cap: bigint
 
   try {
+    /*
+     * FOUR READS PER ATTEMPT WAS TOO MANY FOR THIS ENDPOINT.
+     *
+     * Every one of these checks is ALSO enforced by the contract — mint() reverts
+     * on MintClosed, SoldOut and AlreadyMinted. They are here to save somebody a
+     * failed transaction, not to protect the supply. That is what makes caching
+     * the two that cannot go stale a free win rather than a loosened guard.
+     *
+     *   maxSupply   `immutable` in the contract. Read once, ever.
+     *   mintOpen    owner-only, and flipped roughly twice in a collection's life.
+     *   totalSupply moves with every mint — never cached, it is the sold-out edge.
+     *   minted[to]  per wallet and the whole point — never cached.
+     *
+     * Under a crowd that is four requests per person becoming two, against an
+     * endpoint Robinhood's own docs say is not for production.
+     */
     ;[openNow, already, supply, cap] = await Promise.all([
-      client.readContract({ address: V3, abi: V3_ABI, functionName: 'mintOpen' }),
-      client.readContract({ address: V3, abi: V3_ABI, functionName: 'minted', args: [to] }),
-      client.readContract({ address: V3, abi: V3_ABI, functionName: 'totalSupply' }),
-      client.readContract({ address: V3, abi: V3_ABI, functionName: 'maxSupply' }),
-    ]) as [boolean, boolean, bigint, bigint]
+      cached('mintOpen', OPEN_TTL, () =>
+        client.readContract({ address: V3, abi: V3_ABI, functionName: 'mintOpen' }) as Promise<boolean>),
+      read(() =>
+        client.readContract({ address: V3, abi: V3_ABI, functionName: 'minted', args: [to] }) as Promise<boolean>),
+      read(() =>
+        client.readContract({ address: V3, abi: V3_ABI, functionName: 'totalSupply' }) as Promise<bigint>),
+      cached('maxSupply', Infinity, () =>
+        client.readContract({ address: V3, abi: V3_ABI, functionName: 'maxSupply' }) as Promise<bigint>),
+    ])
   } catch {
     /*
-     * FAIL CLOSED. Robinhood's public RPC is rate-limited and its own docs say it
-     * is not for production, so a read WILL fail sometimes. Signing anyway would
-     * hand out vouchers during exactly the window where we cannot see whether a
-     * wallet already minted.
+     * STILL FAILS CLOSED, after three tries.
+     *
+     * The retry is the fix for a throttled endpoint; the refusal is the fix for
+     * a broken one. Signing without having read the chain would hand somebody a
+     * voucher that reverts and costs them gas — a worse answer than "try again",
+     * because it looks like the game took something from them.
      */
     return NextResponse.json({ error: 'chain_read_failed' }, { status: 502 })
   }
