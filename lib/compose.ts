@@ -30,7 +30,20 @@ export async function inventory(): Promise<Record<string, Choice[]>> {
 
   const out: Record<string, Choice[]> = {}
   for (const dir of ORDER) {
-    const files = (await readdir(join(LAYERS, dir))).filter(f => f.toLowerCase().endsWith('.png'))
+    /*
+     * SORTED, AND THAT IS NOT TIDINESS.
+     *
+     * `readdir` returns whatever order the filesystem gives, and it is NOT sorted
+     * on this machine — checked. NTFS and Vercel's Linux do not have to agree, so
+     * without this the weighted walk below starts from a different list on the
+     * dev box than in production and THE SAME SEED DRAWS A DIFFERENT CAT.
+     *
+     * Harmless while the only composed cats were throwaway opponents. Not
+     * harmless now that a composed cat is somebody's pet — see lib/mycats.ts.
+     */
+    const files = (await readdir(join(LAYERS, dir)))
+      .filter(f => f.toLowerCase().endsWith('.png'))
+      .sort()
     out[dir] = files.map(file => {
       // "Beach Classic#10.png" -> weight 10. No suffix means an even chance.
       const m = file.match(/#(\d+)\.png$/i)

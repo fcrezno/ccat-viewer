@@ -13,6 +13,7 @@ import { noteWin, noteLoss, type Beat } from '@/lib/streak'
 import { Yard, type YardCat } from '@/components/Yard'
 import { residents, DEMO_KEY } from '@/lib/yardstore'
 import { NO_CHAIN } from '@/lib/appmode'
+import { myRoster } from '@/lib/mycats'
 import { catsForWins } from '@/lib/season'
 import {
   addFriend, friends as loadFriends, ladder, noteFight, ratio,
@@ -1160,13 +1161,9 @@ export function Cradle() {
      * Every cat here is `mine`, because in this build there is nobody else.
      */
     if (NO_CHAIN) {
-      const seeds = firstCat()
-      fetch(`/api/stable?seeds=${seeds.join(',')}`)
-        .then(r => r.json())
-        .then(d => {
-          if (!live) return
-          setYardCats(((d?.residents ?? []) as YardCat[]).map(c => ({ ...c, mine: true })))
-        })
+      firstCat()
+      myRoster()
+        .then(got => { if (live) setYardCats(got.map(c => ({ ...c, mine: true }))) })
         .catch(() => { if (live) setYardCats([]) })
         .finally(() => { if (live) setYardBusy(false) })
       return () => { live = false }

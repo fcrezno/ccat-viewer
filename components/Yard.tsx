@@ -10,6 +10,7 @@ import { thoughtOf } from '@/lib/yardmap'
 import { moodFor, settle, settled, MOOD_INK } from '@/lib/mood'
 import { inkFor } from '@/lib/catink'
 import { type Run } from '@/components/BitmapText'
+import { NO_CHAIN } from '@/lib/appmode'
 
 /**
  * THE YARD — what your cats did with the cats of people you follow.
@@ -567,9 +568,22 @@ export function Yard({
   if (!cats.length) return null
 
   if (state && waiting(state.state)) {
+    /*
+     * A YARD NEEDS TWO CATS, AND THE TWO BUILDS FILL IT DIFFERENTLY.
+     *
+     * The web yard is populated by the follow graph, so "follow somebody" is the
+     * true answer there. The app has no follow graph and nobody to follow — that
+     * line sent a player looking for a feature the build does not have, which
+     * reads as broken rather than as empty.
+     *
+     * In the app a second cat comes from winning, and that is the whole loop, so
+     * saying it here is also the tutorial.
+     */
     return (
       <p style={fine}>
-        Only one cat here. Follow somebody who owns one and they will turn up.
+        {NO_CHAIN
+          ? 'Only one cat here. Win a run and another will join it.'
+          : 'Only one cat here. Follow somebody who owns one and they will turn up.'}
       </p>
     )
   }

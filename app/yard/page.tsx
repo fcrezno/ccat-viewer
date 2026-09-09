@@ -5,6 +5,7 @@ import sdk from '@farcaster/miniapp-sdk'
 import { Yard, type YardCat } from '@/components/Yard'
 import { residents, DEMO_KEY } from '@/lib/yardstore'
 import { NO_CHAIN } from '@/lib/appmode'
+import { myRoster } from '@/lib/mycats'
 import { firstCat } from '@/lib/stable'
 
 /**
@@ -50,10 +51,9 @@ export default function YardPage() {
      */
     if (NO_CHAIN) {
       let live = true
-      const seeds = firstCat()
-      fetch(`/api/stable?seeds=${seeds.join(',')}`)
-        .then(r => r.json())
-        .then(d => { if (live) setCats(((d?.residents ?? []) as YardCat[]).map(c => ({ ...c, mine: true }))) })
+      firstCat()
+      myRoster()
+        .then(got => { if (live) setCats(got.map(c => ({ ...c, mine: true }))) })
         .catch(() => { if (live) setCats([]) })
       return () => { live = false }
     }
