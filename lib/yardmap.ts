@@ -426,6 +426,35 @@ export const DOING: Record<Memory['kind'], string> = {
  */
 export function poseOf(doing: Memory | null, tick: number): string {
   if (!doing) return 'none'          // Standing still stands still.
+
+  /*
+   * A POSE BELONGS TO THE HOUR IT HAPPENED. THIS IS WHY THE CATS LOOKED OFF THE
+   * GRID.
+   *
+   * JP: "please center the cats in the grid."
+   *
+   * `doing` is the last thing anybody REMEMBERS this cat doing, and a memory
+   * lasts a day — so it can be twenty-three hours old. The poses were applied to
+   * it whatever its age, and two of them are HELD rather than alternating:
+   * `showoff` is translateY(-5px) and `poise` is translateY(-3px), with nothing
+   * to bring them back down.
+   *
+   * So a cat that showed off once floated a sixth of a cell above its tile until
+   * it did something else — measured on the live map at dy -5.20, -4.95 and
+   * -4.69 against dx under 0.35 everywhere. Three of eight cats were levitating.
+   * Squabble and tidy do the same sideways, frozen on whichever half of their
+   * two-frame shove `tick % 2` landed on.
+   *
+   * Nothing was wrong with the grid. The cats were standing on it correctly and
+   * then being moved off it by a gesture that had no end.
+   *
+   * A pose is what a cat is doing NOW, so it lasts one hour. The mood glyph is
+   * the part that persists, and it should: that is the difference between what a
+   * cat is doing and what it last did. It is also the Dwarf Fortress reading —
+   * nothing carries between turns.
+   */
+  if (doing.tick !== tick) return 'none'
+
   const beat = tick % 2 === 0
 
   switch (doing.kind) {

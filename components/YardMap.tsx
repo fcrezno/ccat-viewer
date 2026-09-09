@@ -442,7 +442,13 @@ export function YardMap({
                 style={{
                   ...s.catCell,
                   background: sky.soil[soilOf(here.cell.x, here.cell.y, yard.seed)],
-                  transform: `translate(${here.cell.x * 100}%, ${here.cell.y * 100}%)`,
+                  /*
+                   * ONE STEP IS A TRACK PLUS A GAP. A percentage in `translate`
+                   * resolves against the ELEMENT's own width, which is now the
+                   * track — so the 1px gap has to be added per step or the tiles
+                   * creep left across the map.
+                   */
+                  transform: `translate(calc(${here.cell.x} * (100% + 1px)), calc(${here.cell.y} * (100% + 1px)))`,
                   /*
                    * THE RING IS ON THE CAT NOW, not on the tile — see `art`.
                    * A tile-wide ring around an inset cat outlines the GROUND it
@@ -671,7 +677,23 @@ const s: Record<string, React.CSSProperties> = {
   },
   catCell: {
     position: 'absolute', left: 0, top: 0,
-    width: `calc(100% / ${COLS})`, height: `calc(100% / ${ROWS})`,
+    /*
+     * THE TRACK'S OWN WIDTH, GAPS SUBTRACTED FIRST.
+     *
+     * This was `100% / COLS`, which is the content box divided by the column
+     * count — and the grid's tracks are the content box MINUS THE TWELVE GAPS,
+     * divided by the column count. So every tile here was 0.92px wider than the
+     * cell it was drawn over, and the pitch was short by 0.076px a column, which
+     * accumulates across the map.
+     *
+     * Measured at 450px wide: grid cell 33.38, this cell 34.30.
+     *
+     * Under a pixel, and invisible next to the pose bug that was moving cats a
+     * sixth of a cell — but "centred" should be true because the arithmetic says
+     * so, not because the error is too small to see.
+     */
+    width: `calc((100% - ${COLS - 1}px) / ${COLS})`,
+    height: `calc((100% - ${ROWS - 1}px) / ${ROWS})`,
     // The gap the grid draws between cells, so an overlaid cat matches a prop.
     padding: 0, border: 'none',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
