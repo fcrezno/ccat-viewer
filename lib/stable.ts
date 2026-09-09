@@ -96,6 +96,96 @@ export function guestId(): number {
   }
 }
 
+/* -- CATS YOU WON, IN THE BUILD THAT HAS NO CHAIN -------------------------- */
+
+/**
+ * THE STABLE. Every cat this device has earned, oldest first.
+ *
+ * In the web build a run's payoff is a MINT VOUCHER — `catsFor(run)` says how
+ * many cats you may claim and /api/v3-voucher signs for them. The App Store
+ * build cannot do that (see lib/appmode.ts), so the payoff has to be the cat
+ * itself, kept here.
+ *
+ * A LOCAL CAT IS A REAL CAT. It is a number, exactly as a token id is a number,
+ * and `ownedCat` rolls its stats from that number the same way — so it is a
+ * settled fighter that is identical every visit, it earns a record, it can be
+ * named, it carries loot and it learns skills. Nothing downstream knows the
+ * difference, because there is nothing to know.
+ *
+ * `local:` RATHER THAN `guest:`, and that distinction is load-bearing:
+ *
+ *   guest:   the free cat you arrive with. One per device, never adopted, and
+ *            `adopted()` keeps it out of the yard — a bond with a cat nobody
+ *            holds is a bond with nobody.
+ *   local:   a cat you WON. There can be many, and they are yours.
+ *
+ * The yard needed no change at all for this. `adopted()` rejects `guest:` and
+ * nothing else, so a `local:` cat walks straight in.
+ *
+ * Losing it (new phone, cleared storage) loses the cat — the same honest trade
+ * `guestId` already makes for needing no sign-up. On the web that is what the
+ * NFT solves; in the app it is simply the deal.
+ */
+const STABLE = 'cradle.stable.v1'
+
+/**
+ * A BAND OF ITS OWN, above the guest band and clear of every token id.
+ *
+ * `guestId` uses 100000..999999 and says it is "kept well clear of real token
+ * ids so a guest can never be mistaken for one". Same reasoning one floor up:
+ * a local cat must not be mistakable for a guest OR for a token.
+ */
+const LOCAL_FROM = 1_000_000
+const LOCAL_SPAN = 9_000_000
+
+export const localUid = (n: number) => `local:${n}`
+
+/** Every cat this device has earned, oldest first. */
+export const myCats = (): number[] => {
+  const got = read<number[]>(STABLE, [])
+  return Array.isArray(got) ? got.filter(n => Number.isInteger(n) && n >= LOCAL_FROM) : []
+}
+
+/**
+ * Win a cat. Returns its number.
+ *
+ * DUPLICATES ARE RE-ROLLED rather than accepted. Two cats with the same seed
+ * would be the same fighter with the same stats and the same name, which reads
+ * as a bug however it happened. Ten tries is far more than a 9,000,000 wide band
+ * ever needs, and giving up returns the collision rather than looping forever.
+ */
+export function winCat(): number {
+  const had = myCats()
+  let n = 0
+  for (let i = 0; i < 10; i++) {
+    n = LOCAL_FROM + Math.floor(Math.random() * LOCAL_SPAN)
+    if (!had.includes(n)) break
+  }
+  write(STABLE, [...had, n])
+  return n
+}
+
+/**
+ * THE CAT YOU ARRIVE WITH, promoted.
+ *
+ * A brand new player has nothing, and the yard needs TWO cats before anything
+ * can happen in it — so a first run that awards one cat would still leave the
+ * yard empty, and the yard is half the game.
+ *
+ * So the guest cat counts as the first one. It already exists, it already has
+ * settled stats, and it is already the cat the player just fought with; making
+ * it theirs is the obvious reading of winning. One 3-win run then opens the yard.
+ *
+ * Idempotent: it seeds only when the stable is empty.
+ */
+export function firstCat(): number[] {
+  const had = myCats()
+  if (had.length) return had
+  const seeded = [LOCAL_FROM + (guestId() % LOCAL_SPAN)]
+  write(STABLE, seeded)
+  return seeded
+}
+
 export const names = (): { [uid: string]: string } => read(NAMES, {})
 
 /** The name the player gave this cat, or null to fall back to the token's own. */

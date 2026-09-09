@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import sdk from '@farcaster/miniapp-sdk'
 import { Yard, type YardCat } from '@/components/Yard'
 import { residents, DEMO_KEY } from '@/lib/yardstore'
+import { NO_CHAIN } from '@/lib/appmode'
+import { firstCat } from '@/lib/stable'
 
 /**
  * THE YARD, IN FULL.
@@ -39,6 +41,22 @@ export default function YardPage() {
 
     const saved = residents() as YardCat[]
     if (saved.length) { setCats(saved); return }
+
+    /*
+     * THE BUILD WITH NO CHAIN NEVER FALLS THROUGH TO THE DEMO OR THE FOLLOW
+     * GRAPH — both need the chain, and neither exists in the app. Its yard is
+     * the cats the player has won, and `firstCat()` makes sure that is never
+     * zero. See lib/appmode.ts.
+     */
+    if (NO_CHAIN) {
+      let live = true
+      const seeds = firstCat()
+      fetch(`/api/stable?seeds=${seeds.join(',')}`)
+        .then(r => r.json())
+        .then(d => { if (live) setCats(((d?.residents ?? []) as YardCat[]).map(c => ({ ...c, mine: true }))) })
+        .catch(() => { if (live) setCats([]) })
+      return () => { live = false }
+    }
 
     /*
      * THE DEMO YARD COUNTS AS A YARD.

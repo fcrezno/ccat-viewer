@@ -231,10 +231,25 @@ export function tagFor(
  * capped at one however far it got. Decided here rather than at the claim so the
  * rule lives with the tag that proves it.
  */
-export function catsFor(run: Run): number {
-  const wins = winsFor(run)
-  if (wins >= 5 && !run.runner?.continued) return 2
+/**
+ * THE RULE ITSELF, off the Run.
+ *
+ * `catsFor` needs a signed tag, which only the server can verify — and the build
+ * with no chain has no voucher route to ask, so it has to work this out on the
+ * device as the run finishes. That is fine: nothing is at stake there, because
+ * the prize is a cat in localStorage rather than a mint.
+ *
+ * What is NOT fine is two copies of the rule. Extracted so both callers read the
+ * same three lines, and a change to what a run is worth cannot land in one build
+ * and not the other.
+ */
+export function catsForWins(wins: number, continued: boolean): number {
+  if (wins >= 5 && !continued) return 2
   return wins >= 3 ? 1 : 0
+}
+
+export function catsFor(run: Run): number {
+  return catsForWins(winsFor(run), !!run.runner?.continued)
 }
 
 export function winsFor(run: Run): number {

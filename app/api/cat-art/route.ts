@@ -1,8 +1,7 @@
 import { NextRequest } from 'next/server'
-import { readdir, readFile } from 'fs/promises'
-import { join } from 'path'
+import { readFile } from 'fs/promises'
 import sharp from 'sharp'
-import { seeded } from '@/lib/arena'
+import { pickLayers } from '@/lib/compose'
 
 /**
  * GET /api/cat-art?seed=123  →  a PNG of a cat that does not exist.
@@ -23,40 +22,14 @@ import { seeded } from '@/lib/arena'
  * same bag as a real one.
  */
 
-const LAYERS = join(process.cwd(), 'layers')
-const ORDER = ['Background', 'Body', 'Face'] as const
-
-type Choice = { file: string; weight: number }
-
-/** Cached per process: reading three directories on every fight is wasteful. */
-let cache: Record<string, Choice[]> | null = null
-
-async function inventory(): Promise<Record<string, Choice[]>> {
-  if (cache) return cache
-
-  const out: Record<string, Choice[]> = {}
-  for (const dir of ORDER) {
-    const files = (await readdir(join(LAYERS, dir))).filter(f => f.toLowerCase().endsWith('.png'))
-    out[dir] = files.map(file => {
-      // "Beach Classic#10.png" -> weight 10. No suffix means an even chance.
-      const m = file.match(/#(\d+)\.png$/i)
-      return { file, weight: m ? Number(m[1]) : 1 }
-    })
-  }
-  cache = out
-  return out
-}
-
-/** Weighted pick, so the rare traits stay rare. */
-function weighted(r: () => number, xs: Choice[]): Choice {
-  const total = xs.reduce((n, x) => n + x.weight, 0)
-  let t = r() * total
-  for (const x of xs) {
-    t -= x.weight
-    if (t <= 0) return x
-  }
-  return xs[xs.length - 1]
-}
+/*
+ * THE PICKING MOVED TO lib/compose.ts, because it is needed twice now.
+ *
+ * This route draws the cat; /api/stable describes it. If each kept its own copy
+ * of the weighted pick, a cat could be drawn with one face and described as
+ * having another — and the drift would be invisible until somebody noticed a
+ * "smug" cat behaving sweetly in the yard.
+ */
 
 export async function GET(req: NextRequest) {
   const raw = req.nextUrl.searchParams.get('seed') ?? '0'
@@ -66,11 +39,8 @@ export async function GET(req: NextRequest) {
     return new Response('bad seed', { status: 400 })
 
   try {
-    const inv = await inventory()
-    const r = seeded(seed >>> 0)
-
-    const picks = ORDER.map(dir => join(LAYERS, dir, weighted(r, inv[dir]).file))
-    const [base, ...rest] = await Promise.all(picks.map(p => readFile(p)))
+    const { files } = await pickLayers(seed)
+    const [base, ...rest] = await Promise.all(files.map(f => readFile(f)))
 
     const png = await sharp(base)
       .composite(rest.map(input => ({ input })))

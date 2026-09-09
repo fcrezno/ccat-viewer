@@ -12,10 +12,14 @@ import { BitmapText } from '@/components/BitmapText'
 import { noteWin, noteLoss, type Beat } from '@/lib/streak'
 import { Yard, type YardCat } from '@/components/Yard'
 import { residents, DEMO_KEY } from '@/lib/yardstore'
+import { NO_CHAIN } from '@/lib/appmode'
+import { catsForWins } from '@/lib/season'
 import {
   addFriend, friends as loadFriends, ladder, noteFight, ratio,
   recordFor, recordLine, removeFriend, setRetired, nameFor, setName, NAME_LIMIT,
   guestId,
+  firstCat,
+  winCat,
   perfectRuns,
   notePerfect,
   type Friend, type Ranked,
@@ -1108,6 +1112,9 @@ export function Cradle() {
    * so outside Farcaster the yard is just your own shelf, and below two cats it
    * says so rather than showing an empty pen.
    */
+  /** Rounds won in the run in progress. Only the no-chain build counts them. */
+  const runWins = useRef(0)
+
   const [yardCats, setYardCats] = useState<YardCat[]>([])
   const [yardBusy, setYardBusy] = useState(false)
 
@@ -1138,6 +1145,32 @@ export function Cradle() {
 
     let live = true
     setYardBusy(true)
+
+    /*
+     * THE BUILD WITH NO CHAIN HAS ONE SOURCE: THE CATS YOU WON.
+     *
+     * Everything below this needs the chain — your own cats come from a wallet,
+     * the neighbours come from a follow graph, and the demo yard reads token
+     * metadata. None of that exists in the app build, so none of it runs.
+     *
+     * `firstCat()` is why a new player is not looking at an empty pen: the cat
+     * they arrived with counts as the first one, so one 3-win run gives them a
+     * second and opens the yard. See lib/stable.ts.
+     *
+     * Every cat here is `mine`, because in this build there is nobody else.
+     */
+    if (NO_CHAIN) {
+      const seeds = firstCat()
+      fetch(`/api/stable?seeds=${seeds.join(',')}`)
+        .then(r => r.json())
+        .then(d => {
+          if (!live) return
+          setYardCats(((d?.residents ?? []) as YardCat[]).map(c => ({ ...c, mine: true })))
+        })
+        .catch(() => { if (live) setYardCats([]) })
+        .finally(() => { if (live) setYardBusy(false) })
+      return () => { live = false }
+    }
 
     /*
      * THE DEMO YARD, when there is nobody to show.
@@ -1378,6 +1411,34 @@ export function Cradle() {
   }) {
     setRecorded(data.recorded)
     setTag(data.tag ?? null)
+
+    /*
+     * THE RUN'S PAYOFF, IN THE BUILD THAT CANNOT MINT ONE.
+     *
+     * On the web a finished run hands over a signed tag and /api/v3-voucher turns
+     * it into a mint. There is no voucher here, so the prize is the cat itself —
+     * kept on the device, named, fought with, and admitted to the yard.
+     *
+     * COUNTED HERE BECAUSE THE SERVER IS NOT ASKED. `catsFor` needs a verified
+     * tag; `catsForWins` is the same three lines off a plain count, extracted so
+     * the two builds cannot disagree about what a run is worth. Nothing is at
+     * stake in getting it locally: the prize is a row in localStorage, not a
+     * token, so there is nobody to cheat but yourself.
+     *
+     * Round 1 is the only place the count resets. A CONTINUED run keeps climbing
+     * — 6, 7, 8 — and must not start again, or continuing would be a way to farm
+     * the three-win rule over and over inside one run.
+     */
+    if (NO_CHAIN) {
+      if (data.round.round <= 1) runWins.current = 0
+      if (data.round.won) runWins.current++
+
+      if (data.over) {
+        const won = catsForWins(runWins.current, !!data.continued)
+        for (let i = 0; i < won; i++) winCat()
+        if (won > 0) setNote(won === 1 ? 'A new cat joins your yard.' : `${won} new cats join your yard.`)
+      }
+    }
     setRun({
       recorded: data.recorded,
       foes:     data.foes,
@@ -2347,7 +2408,19 @@ export function Cradle() {
       <nav style={s.nav}>
         <a href="/game" style={s.navLink}>IDLE GAME</a>
         <a href="/cats" style={s.navLink}>YOUR CATS</a>
-        <a href="/mint" style={s.navLink}>MINT</a>
+        {/*
+          NO WAY TO BUY ANYTHING IN THE APP BUILD.
+
+          App Review Guideline 3.1.1 forbids "buttons, external links, or other
+          calls to action that direct customers to purchasing mechanisms other
+          than in-app purchase" — and while that half now carves out the US
+          storefront, a link to a mint is the single clearest thing a reviewer
+          would find. It is also pointless here: cats are won, not bought.
+
+          `NO_CHAIN` is inlined at build time, so this link is not merely hidden
+          in the app binary. It is not in it.
+        */}
+        {!NO_CHAIN && <a href="/mint" style={s.navLink}>MINT</a>}
       </nav>
 
       <footer style={s.footer}>Clanker Cats — the full game is being built in s&amp;box</footer>
