@@ -186,19 +186,54 @@ function Bit({ runs }: { runs: Run[] }) {
      * span they are just text, and they wrap like text.
      */
     <span>
-      {runs.filter(r => r.text).map((r, i) => (
-        <span
-          key={i}
-          className={r.beat ? 'yard-say' : undefined}
-          style={{
-            color: r.color ?? INK,
-            ...(r.beat ? {
-              ['--say-a' as string]: r.color ?? INK,
-              ['--say-b' as string]: r.beat,
-            } : null),
-          }}
-        >{r.text}</span>
-      ))}
+      {runs.filter(r => r.text).map((r, i) => {
+        if (!r.beat) {
+          return <span key={i} style={{ color: r.color ?? INK }}>{r.text}</span>
+        }
+
+        /*
+         * THE SPACES COME OUT OF THE ANIMATED SPAN, and this is a real bug fix
+         * rather than tidying.
+         *
+         * `.yard-say` has to be `display: inline-block`, because `transform` does
+         * not apply to an inline box and the beat is a transform. An inline-block
+         * is its own block container, so CSS TRIMS ITS LEADING AND TRAILING
+         * WHITESPACE — and every one of these runs is a connective phrase written
+         * with the spaces inside it, like ' and '.
+         *
+         * So a line only broke when it BEAT, which is why it looked random:
+         * `MarmaladeandCobwebfell out over nothing.` — a squabble is delta -4 and
+         * beats at 4, while a play is 3 and printed correctly right above it.
+         *
+         * Fixed here rather than in the CSS on purpose. `white-space: pre-wrap`
+         * would also restore them, but it would leave the trap armed for the next
+         * phrase somebody writes. Holding the spaces outside the box means the
+         * wording in SAYS, WATCHED and ALONE can be written any way at all — and
+         * it is all placeholder prose that JP is going to rewrite.
+         *
+         * It also gives the line its break opportunities back: a space outside an
+         * inline-block is somewhere the sentence can wrap, and a space inside one
+         * is not.
+         */
+        const lead = r.text.match(/^\s+/)?.[0] ?? ''
+        const tail = r.text.match(/\s+$/)?.[0] ?? ''
+        const core = r.text.slice(lead.length, r.text.length - tail.length)
+
+        return (
+          <span key={i} style={{ color: r.color ?? INK }}>
+            {lead}
+            <span
+              className="yard-say"
+              style={{
+                color: r.color ?? INK,
+                ['--say-a' as string]: r.color ?? INK,
+                ['--say-b' as string]: r.beat,
+              }}
+            >{core}</span>
+            {tail}
+          </span>
+        )
+      })}
     </span>
   )
 }
@@ -349,6 +384,9 @@ export function Yard({
   /** The paper, so it can be scrolled as it fills. */
   const logRef = useRef<HTMLDivElement>(null)
 
+  /** Whether the log is still following the newest line. The reader owns this. */
+  const follow = useRef(true)
+
   /** The conversation window's close control, which takes the focus when it opens. */
   const shutRef = useRef<HTMLButtonElement>(null)
   const clear = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -384,7 +422,14 @@ export function Yard({
    * Somebody who asked for less motion gets the whole thing at once — a reveal
    * is motion, and it is the kind that cannot be skipped by scrolling past.
    */
-  useEffect(() => { setRolled(0) }, [state])
+  /*
+   * A NEW VISIT STARTS THE ROLL AGAIN, AND STARTS FOLLOWING AGAIN.
+   *
+   * Following is the reader's mode, but it belongs to the day they were reading.
+   * Coming back tomorrow to a box that refuses to follow — because of a scroll
+   * made yesterday — would look broken rather than considerate.
+   */
+  useEffect(() => { setRolled(0); follow.current = true }, [state])
 
   useEffect(() => {
     if (!state) return
@@ -400,13 +445,44 @@ export function Yard({
   }, [state, rolled])
 
   /*
-   * FOLLOW THE LAST LINE DOWN, the same one line the fight log uses.
+   * FOLLOW THE LAST LINE DOWN — BUT NOT OVER THE READER.
    *
-   * Smooth, because the box scrolling is the one thing here that IS a
-   * continuous motion — it is the reader being carried, not the world moving,
-   * and it is what makes a fixed box read as filling rather than as truncated.
+   * JP: "it keeps auto scrolling down when i was trying to read it."
+   *
+   * It followed on every line unconditionally, so scrolling up to read an
+   * earlier line was pointless: the next line landed a moment later and dragged
+   * the box back to the bottom. The log was arguing with the person reading it.
+   *
+   * So following is a MODE, and the reader owns it. Scroll up and it stops;
+   * scroll back to the bottom and it starts again. Nothing is lost either way —
+   * the lines are all still there, and the caret already says more are coming.
+   *
+   * Smooth is kept. The box scrolling is the one thing here that IS a continuous
+   * motion — it is the reader being carried, not the world moving.
    */
+  /*
+   * WHY THIS IS NOT A `scroll` HANDLER.
+   *
+   * `scroll` fires for the smooth scroll below as well as for the reader, and
+   * every intermediate frame of that animation reports a position part-way up
+   * the box. Turning following off from there would switch it off on the first
+   * line it scrolled for — the animation would cancel itself.
+   *
+   * `wheel`, `touchmove` and `keydown` only ever come from a person. The
+   * position is read on the next frame because the browser has not applied the
+   * scroll yet when the event fires.
+   */
+  const readerMoved = useCallback(() => {
+    requestAnimationFrame(() => {
+      const el = logRef.current
+      if (!el) return
+      // 8px of slack: "at the bottom" has to survive sub-pixel rounding.
+      follow.current = el.scrollHeight - el.scrollTop - el.clientHeight <= 8
+    })
+  }, [])
+
   useEffect(() => {
+    if (!follow.current) return
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: 'smooth' })
   }, [rolled])
 
@@ -616,7 +692,13 @@ export function Yard({
         sheet of paper rendered under the map.
       */}
       {(shown.length > 0 || pairs.length > 0) && (
-        <div ref={logRef} style={{ ...paper, maxHeight: compact ? 190 : 340 }}>
+        <div
+          ref={logRef}
+          onWheel={readerMoved}
+          onTouchMove={readerMoved}
+          onKeyDown={readerMoved}
+          style={{ ...paper, maxHeight: compact ? 190 : 340 }}
+        >
           {shown.slice(0, rolled).map((m, i) => {
             const a = name(m.a), b = name(m.b)
             if (!a || !b) return null
