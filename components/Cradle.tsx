@@ -1122,13 +1122,44 @@ export function Cradle() {
   const faceOf = (c: Cat) =>
     c.meta?.attributes?.find(a => /face/i.test(a.trait_type ?? ''))?.value ?? null
 
-  const mine: YardCat[] = useMemo(() => (cats ?? []).map(c => ({
+  /*
+   * THE CATS YOU WON, WHETHER OR NOT YOU HOLD A TOKEN.
+   *
+   * JP, 2026-09-10: "if you have the NFT, it probably just gives you, like, a
+   * ticket to go play the game. That's it. I don't think it needs to cost
+   * anything. I just want it to be more open."
+   *
+   * So this is no longer only the app build's business. EVERY visitor gets a
+   * stable — the cat they arrived with, plus whatever they have won — and a
+   * token is an extra on top rather than the price of admission.
+   *
+   * It is the same `firstCat()` and the same `myRoster()` the App Store build
+   * uses, which is the point: one game, and the wallet stops being the door.
+   */
+  const [roster, setRoster] = useState<YardCat[]>([])
+  useEffect(() => {
+    firstCat()
+    let live = true
+    myRoster()
+      .then(got => { if (live) setRoster(got.map(c => ({ ...c, mine: true }))) })
+      .catch(() => {})
+    return () => { live = false }
+  }, [])
+
+  const held: YardCat[] = useMemo(() => (cats ?? []).map(c => ({
     uid: c.uid,
     name: nameFor(c.uid) ?? c.meta?.name ?? `#${c.id}`,
     face: faceOf(c),
     art: c.meta?.image ?? '',
     mine: true,
   })), [cats])
+
+  /*
+   * TOKENS FIRST, so a holder's own cats lead the list and a yard that has to be
+   * trimmed keeps them. Both halves are `mine`; the yard cannot tell them apart
+   * and should not — a cat is a cat.
+   */
+  const mine: YardCat[] = useMemo(() => [...held, ...roster], [held, roster])
 
   useEffect(() => {
     /*
@@ -1160,12 +1191,15 @@ export function Cradle() {
      *
      * Every cat here is `mine`, because in this build there is nobody else.
      */
+    /*
+     * THE APP BUILD STOPS HERE, because everything below needs the chain: the
+     * neighbours come from a follow graph and the demo yard reads token
+     * metadata. `mine` already holds this player's own cats, won rather than
+     * held, so there is nothing left to fetch.
+     */
     if (NO_CHAIN) {
-      firstCat()
-      myRoster()
-        .then(got => { if (live) setYardCats(got.map(c => ({ ...c, mine: true }))) })
-        .catch(() => { if (live) setYardCats([]) })
-        .finally(() => { if (live) setYardBusy(false) })
+      setYardCats(mine)
+      setYardBusy(false)
       return () => { live = false }
     }
 
