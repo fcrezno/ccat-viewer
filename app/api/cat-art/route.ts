@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { readFile } from 'fs/promises'
 import sharp from 'sharp'
-import { pickLayers } from '@/lib/compose'
+import { namedLayers, pickLayers } from '@/lib/compose'
 
 /**
  * GET /api/cat-art?seed=123  →  a PNG of a cat that does not exist.
@@ -32,14 +32,30 @@ import { pickLayers } from '@/lib/compose'
  */
 
 export async function GET(req: NextRequest) {
-  const raw = req.nextUrl.searchParams.get('seed') ?? '0'
+  const q = req.nextUrl.searchParams
+
+  /*
+   * TWO WAYS TO ASK FOR A CAT, because there are two kinds of cat.
+   *
+   *   ?seed=N                     a cat that was DRAWN. The seed is what drew it.
+   *   ?bg=&body=&face=            a cat that was INHERITED. Its three layers came
+   *                               from two parents one at a time, so there is no
+   *                               seed that would produce them — see lib/breed.ts.
+   *
+   * A kitten must be asked for by name or it cannot be drawn at all.
+   */
+  const named = q.has('bg') || q.has('body') || q.has('face')
+
+  const raw = q.get('seed') ?? '0'
   const seed = Number(raw)
 
-  if (!Number.isFinite(seed))
+  if (!named && !Number.isFinite(seed))
     return new Response('bad seed', { status: 400 })
 
   try {
-    const { files } = await pickLayers(seed)
+    const { files } = named
+      ? await namedLayers({ Background: q.get('bg'), Body: q.get('body'), Face: q.get('face') }, seed)
+      : await pickLayers(seed)
     const [base, ...rest] = await Promise.all(files.map(f => readFile(f)))
 
     const png = await sharp(base)

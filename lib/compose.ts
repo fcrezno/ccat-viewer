@@ -76,6 +76,45 @@ function weighted(r: () => number, xs: Choice[]): Choice {
 export const traitName = (file: string) => file.replace(/#\d+(?=\.png$)/i, '').replace(/\.png$/i, '')
 
 /**
+ * THE THREE LAYERS ASKED FOR BY NAME, for a cat that was inherited rather than
+ * drawn. See lib/breed.ts.
+ *
+ * ANYTHING MISSING FALLS BACK TO THE SEED'S OWN PICK rather than to a default.
+ * A trait can genuinely be absent — an older cat stored before a layer existed,
+ * or a parent whose metadata never carried one — and substituting a fixed layer
+ * would give every such cat the same face. Falling back to the draw keeps the
+ * kitten looking like a cat somebody could have won.
+ *
+ * A NAME THAT MATCHES NOTHING IS ALSO A MISS, deliberately. Renaming a layer
+ * file must not 500 the picture of a cat that already wears it; it degrades to a
+ * drawn trait and the cat still appears.
+ */
+export async function namedLayers(
+  want: Partial<Record<Layer, string | null>>,
+  seed = 0,
+): Promise<{ files: string[]; traits: Record<Layer, string> }> {
+  const inv = await inventory()
+  const fallback = await pickLayers(seed)
+
+  const files: string[] = []
+  const traits = {} as Record<Layer, string>
+
+  ORDER.forEach((dir, i) => {
+    const asked = want[dir]
+    const hit = asked ? inv[dir].find(c => traitName(c.file) === asked) : undefined
+    if (hit) {
+      files.push(join(LAYERS, dir, hit.file))
+      traits[dir] = traitName(hit.file)
+    } else {
+      files.push(fallback.files[i])
+      traits[dir] = fallback.traits[dir]
+    }
+  })
+
+  return { files, traits }
+}
+
+/**
  * The three layers this seed draws, in painting order.
  *
  * The draw order matters and is fixed by ORDER: background, then body, then
