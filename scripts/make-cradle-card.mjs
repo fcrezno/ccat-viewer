@@ -76,16 +76,28 @@ async function text(str, scale, colour) {
   }
 }
 
-/** A cat that belongs to nobody, composed from the drop's layers. */
-async function cat(seed) {
-  const pick = (dir, n) => {
-    const files = readdirSync(join('layers', dir)).filter(f => f.endsWith('.png'))
-    return join('layers', dir, files[n % files.length])
+/** A cat that belongs to nobody, composed from the drop's layers by trait name. */
+async function cat([bg, body, face]) {
+  const pick = (dir, name) => {
+    const file = readdirSync(join('layers', dir)).find(f => f.replace(/#\d+\.png$/, '') === name)
+    if (!file) throw new Error(`no ${dir} layer named "${name}"`)
+    return join('layers', dir, file)
   }
-  const base = readFileSync(pick('Background', seed * 7))
-  const rest = [pick('Body', seed * 13), pick('Face', seed * 29)].map(p => ({ input: readFileSync(p) }))
+  const base = readFileSync(pick('Background', bg))
+  const rest = [pick('Body', body), pick('Face', face)].map(p => ({ input: readFileSync(p) }))
   return sharp(base).composite(rest).png().toBuffer()
 }
+
+/*
+ * THE THREE CATS, picked by name rather than by seed. All three stand on a drawn
+ * scene, not a flat colour. A flat-backed cat read as unfinished next to the moon.
+ * The gate is Farcaster's own, which suits the card that Farcaster shows.
+ */
+const CATS = [
+  ['The moon', 'White cat', 'uwu'],
+  ['Beach Classic', 'dore', 'hehe'],
+  ['Farcaster gate', 'Black Cat', 'Frekcles'],
+]
 
 const run = async () => {
   const layers = []
@@ -93,18 +105,19 @@ const run = async () => {
   // Three cats across the lower half, framed the way the app frames them.
   const CW = 300, CH = 239
   for (let i = 0; i < 3; i++) {
-    const art = await sharp(await cat(i + 3)).resize(CW, CH, { kernel: 'nearest' }).toBuffer()
+    const art = await sharp(await cat(CATS[i])).resize(CW, CH, { kernel: 'nearest' }).toBuffer()
     const framed = await sharp({
       create: { width: CW + 8, height: CH + 8, channels: 4, background: i === 1 ? '#ffd166' : '#21212f' },
     }).composite([{ input: art, left: 4, top: 4 }]).png().toBuffer()
-    layers.push({ input: framed, left: 60 + i * 370, top: 470 })
+    layers.push({ input: framed, left: 76 + i * 370, top: 470 })
   }
 
-  const title = await text("CAT'S CRADLE", 7, '#f0f0f5')
-  layers.push({ input: title.buf, left: Math.round((W - title.width) / 2), top: 120 })
-
-  const sub = await text('A PREVIEW OF CLANKER CATS', 3, '#8b5cf6')
-  layers.push({ input: sub.buf, left: Math.round((W - sub.width) / 2), top: 300 })
+  /*
+   * The name of the thing, and nothing between it and the slogan. Scale 8 is
+   * 1088px wide. Scale 9 is 1224px and does not fit the card.
+   */
+  const title = await text('CLANKER CATS', 8, '#f0f0f5')
+  layers.push({ input: title.buf, left: Math.round((W - title.width) / 2), top: 51 })
 
   /*
    * THE SLOGAN, in his own words and his own casing.
@@ -113,7 +126,7 @@ const run = async () => {
    * line reads as an aside rather than a shout, which is the point of it.
    */
   const tag = await text('playing with bots has never been this fun.', 2, '#7a7a95')
-  layers.push({ input: tag.buf, left: Math.round((W - tag.width) / 2), top: 380 })
+  layers.push({ input: tag.buf, left: Math.round((W - tag.width) / 2), top: 309 })
 
   await sharp({ create: { width: W, height: H, channels: 4, background: BG } })
     .composite(layers)
