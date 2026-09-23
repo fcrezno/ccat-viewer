@@ -109,6 +109,22 @@ if (CONTRACT_URI && /\/metadata\/?$|\/\d+$/.test(CONTRACT_URI)) {
   process.exit(1)
 }
 
+/*
+ * BOTH URLS MUST BE V3's. .env.local is shared with the V2 deploy and still
+ * carries V2's BASE_URI (".../v2/placeholder/"), which has a trailing slash and
+ * passes every other check here — so V3 would have gone out serving V2's
+ * placeholder for all 1,111 tokens. Pass the V3 values on the command line.
+ */
+for (const [name, url] of [['BASE_URI', BASE_URI], ['CONTRACT_URI', CONTRACT_URI]]) {
+  if (url && !/\/v3\//.test(url)) {
+    console.error(`${name} does not point at V3:`)
+    console.error('  ' + url)
+    console.error('Use  BASE_URI=https://ccat-viewer.vercel.app/v3/cat/')
+    console.error('     CONTRACT_URI=https://ccat-viewer.vercel.app/v3/contract')
+    process.exit(1)
+  }
+}
+
 if (!BASE_URI.endsWith('/')) {
   console.error('BASE_URI must end with a slash — tokenURI is BASE_URI + tokenId,')
   console.error(`so "${BASE_URI}" would produce "${BASE_URI}1" rather than "${BASE_URI}/1".`)

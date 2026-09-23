@@ -43,6 +43,7 @@ import {
 
 const LINE_MS = 850
 import { APP_URL } from '@/lib/miniapp'
+import { V3_DEPLOYED } from '@/lib/mintv3'
 
 /*
  * THE COUNTDOWN'S BEATS, taken from the game rather than guessed at.
@@ -1113,8 +1114,23 @@ export function Cradle() {
    * so outside Farcaster the yard is just your own shelf, and below two cats it
    * says so rather than showing an empty pen.
    */
-  /** Rounds won in the run in progress. Only the no-chain build counts them. */
+  /**
+   * Rounds won in the run in progress. Both builds count them: the no-chain build
+   * to hand out its prize, the web build only to know whether to OFFER the claim.
+   * The claim itself is decided by the server off the signed tag, never off this.
+   */
   const runWins = useRef(0)
+
+  /*
+   * WHERE A WON RUN GOES. Three wins earns a free V3 cat, and /mint/v3 already
+   * takes the run as ?r=<tag> — but nothing sent anybody there, so a winner had
+   * no way to claim. Hidden until the contract address is set, so this can ship
+   * before the deploy and switches on with it.
+   */
+  const claimHref = !NO_CHAIN && V3_DEPLOYED && run?.over && tag
+    && catsForWins(runWins.current, run.continued) > 0
+    ? `/mint/v3?r=${encodeURIComponent(tag)}`
+    : null
 
   const [yardCats, setYardCats] = useState<YardCat[]>([])
   const [yardBusy, setYardBusy] = useState(false)
@@ -1460,10 +1476,10 @@ export function Cradle() {
      * — 6, 7, 8 — and must not start again, or continuing would be a way to farm
      * the three-win rule over and over inside one run.
      */
-    if (NO_CHAIN) {
-      if (data.round.round <= 1) runWins.current = 0
-      if (data.round.won) runWins.current++
+    if (data.round.round <= 1) runWins.current = 0
+    if (data.round.won) runWins.current++
 
+    if (NO_CHAIN) {
       if (data.over) {
         const won = catsForWins(runWins.current, !!data.continued)
         for (let i = 0; i < won; i++) winCat()
@@ -2273,7 +2289,15 @@ export function Cradle() {
                       <p style={s.fine0}>
                         {run.roundNo - 1} of {run.foes.length} beaten. The pot is gone.
                       </p>
-                      <button style={{ ...s.gauntlet, marginTop: 14 }} disabled={busy}
+                      {claimHref && (
+                        <>
+                          <a href={claimHref} style={{ ...s.gauntlet, marginTop: 14, display: 'block', boxSizing: 'border-box', textAlign: 'center', textDecoration: 'none' }}>
+                            CLAIM YOUR CAT
+                          </a>
+                          <p style={s.modeFine}>three wins earns one · free, on Robinhood Chain · one per wallet</p>
+                        </>
+                      )}
+                      <button style={claimHref ? s.ghost : { ...s.gauntlet, marginTop: 14 }} disabled={busy}
                         onClick={() => startGauntlet(!run.recorded)}>
                         RUN IT AGAIN
                       </button>
@@ -2305,6 +2329,14 @@ export function Cradle() {
                         </p>
                       )}
 
+                      {claimHref && (
+                        <>
+                          <a href={claimHref} style={{ ...s.gauntlet, marginTop: 14, display: 'block', boxSizing: 'border-box', textAlign: 'center', textDecoration: 'none' }}>
+                            CLAIM YOUR CAT
+                          </a>
+                          <p style={s.modeFine}>free, on Robinhood Chain · one per wallet</p>
+                        </>
+                      )}
                       <button style={{ ...s.primary, marginTop: 14 }} onClick={share}>
                         SHARE ON FARCASTER
                       </button>
