@@ -21,7 +21,7 @@ export const metadata: Metadata = {
    */
   description: "A fighting game in your browser. No wallet, no install, no sign-up.",
   openGraph: {
-    title: "Cat's Cradle — Clanker Cats",
+    title: 'Clanker Cats',
     description: "One click and you're in a fight. No wallet, no install, nothing to sign. If it's not fun, why bother?",
     images: [`${APP_URL}/cradle.png`],
   },
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
    * scripts/make-cradle-card.mjs in the game's own bitmap font.
    */
   other: embedTags({
-    button: "Play Cat's Cradle",
+    button: 'Play Clanker Cats',
     url: APP_URL,
     image: `${APP_URL}/cradle.png`,
   }),

@@ -1545,7 +1545,7 @@ export function Cradle() {
 
     try {
       await sdk.actions.composeCast({
-        text: `${line}${tail}\n\nCat's Cradle — a preview of Clanker Cats. ${SEASON_TAG}`,
+        text: `${line}${tail}\n\nClanker Cats. ${SEASON_TAG}`,
         embeds: [tag ? `${APP_URL}/cradle?r=${encodeURIComponent(tag)}` : `${APP_URL}/cradle`],
       })
     } catch {
@@ -1652,8 +1652,8 @@ export function Cradle() {
   return (
     <main style={s.page}>
       <header style={s.header}>
-        <h1 style={s.title}>CAT&apos;S CRADLE</h1>
-        <p style={s.sub}>a preview of Clanker Cats</p>
+        {/* The name of the game, and no "preview" — the same change as the link card. */}
+        <h1 style={s.title}>CLANKER CATS</h1>
       </header>
 
       {/*
