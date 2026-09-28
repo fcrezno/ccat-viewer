@@ -37,9 +37,10 @@ export async function GET() {
   return NextResponse.json(
     {
       name:        'Clanker Cats V3',
-      description: 'Clanker Cats V3 — free on Robinhood Chain. Play the game, win three, keep the cat.',
+      description: 'Clanker Cats V3 on Robinhood Chain. Free for BUN holders, one per wallet. Burn 111 BUN through your cat and it becomes a BunBurner for good. Play the game free at clankercats.com.',
       image:       `${APP_URL}/icon.png`,
-      banner_image_url: `${APP_URL}/hero.png`,
+      // hero.png is the V2 card ("1111 CATS, free on Base"); cradle.png says CLANKER CATS.
+      banner_image_url: `${APP_URL}/cradle.png`,
       external_link: APP_URL,
       ...(RECEIVER ? { seller_fee_basis_points: BPS, fee_recipient: RECEIVER } : {}),
     },
