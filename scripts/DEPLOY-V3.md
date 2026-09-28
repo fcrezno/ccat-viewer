@@ -68,9 +68,28 @@ node scripts/deploy-v3.mjs
 
 Compiles and prints exactly what would be sent. Sends nothing.
 
+**4a — Deploy the CatToll FIRST (added 2026-09-28)**
+
+V3's BunBurner burn sends BUN to the CatToll, and V3 stores that address
+**immutably**. Deploy the toll first, or V3 would point at nothing forever:
+
+```bash
+node scripts/deploy-cattoll.mjs          # dry run
+node scripts/deploy-cattoll.mjs --send
+```
+
+Needs TOLL_AGENT_1/2/3 (in the BUN memory notes) and TOLL_CREATOR (JP's new
+wallet). Put the address it prints in `BUN_TOLL_ADDRESS`.
+
+Then run the local test once more: `anvil --port 8546` and
+`node scripts/test-v3-bunburner.mjs` should end ALL PASSED.
+
 **5 — Deploy**
 
-Needs in `.env.local`: `DEPLOYER_KEY`, `MINT_SIGNER_ADDRESS`, `BASE_URI`.
+Needs in `.env.local`: `DEPLOYER_KEY`, `MINT_SIGNER_ADDRESS`, `BUN_TOKEN_ADDRESS`,
+`BUN_TOLL_ADDRESS`, `BUN_BURN_AMOUNT` (111), and — on the command line, because
+`.env.local` still holds V2's — `BASE_URI` and `CONTRACT_URI` under `/v3/`.
+The script checks BUN has 18 decimals and the toll has code before it sends.
 
 ```bash
 node scripts/deploy-v3.mjs --send
