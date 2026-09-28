@@ -14,6 +14,19 @@ export const V3 = (process.env.NEXT_PUBLIC_V3_ADDRESS
 
 export const V3_DEPLOYED = V3 !== '0x0000000000000000000000000000000000000000'
 
+/*
+ * WHETHER A WON RUN EARNS A V3 CAT. OFF FOR NOW.
+ *
+ * JP, 2026-09-28: "make the fights free for now; make it so minting a cat burns
+ * some BUN" — and BUN holders are who V3 is for. So the fights stay free to play
+ * and earn nothing on chain, and burning BUN is the only way to mint.
+ *
+ * The run door is switched off, not deleted: the signed-tag check, the claim link
+ * after a run and the copy all still exist and all read this. Set it to true and
+ * three wins earns a cat again.
+ */
+export const RUN_DOOR = false
+
 export const V3_ABI = [
   { name: 'mintOpen',    type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'bool'    }] },
   { name: 'signer',      type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
@@ -55,6 +68,7 @@ export const V3_MINT_ERRORS: Record<string, string> = {
   sold_out:       'All cats have been claimed.',
   already_minted: 'This wallet has already claimed its cat.',
   no_run:         'Finish a gauntlet run first — three wins or better earns a cat.',
+  burn_required:  'Minting a cat takes BUN. Pay first, then claim.',
   bad_run:        'That run couldn’t be verified. Play it through and try again.',
   bad_wallet:     'That doesn’t look like a wallet address.',
 }

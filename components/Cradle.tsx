@@ -43,7 +43,7 @@ import {
 
 const LINE_MS = 850
 import { APP_URL } from '@/lib/miniapp'
-import { V3_DEPLOYED } from '@/lib/mintv3'
+import { V3_DEPLOYED, RUN_DOOR } from '@/lib/mintv3'
 
 /*
  * THE COUNTDOWN'S BEATS, taken from the game rather than guessed at.
@@ -1127,7 +1127,7 @@ export function Cradle() {
    * no way to claim. Hidden until the contract address is set, so this can ship
    * before the deploy and switches on with it.
    */
-  const claimHref = !NO_CHAIN && V3_DEPLOYED && run?.over && tag
+  const claimHref = !NO_CHAIN && V3_DEPLOYED && RUN_DOOR && run?.over && tag
     && catsForWins(runWins.current, run.continued) > 0
     ? `/mint/v3?r=${encodeURIComponent(tag)}`
     : null

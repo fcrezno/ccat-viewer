@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { privateKeyToAccount } from 'viem/accounts'
 import { isAddress, getAddress } from 'viem'
 import { clientForChain, robinhood } from '@/lib/chains'
-import { V3, V3_ABI, V3_DEPLOYED } from '@/lib/mintv3'
+import { V3, V3_ABI, V3_DEPLOYED, RUN_DOOR } from '@/lib/mintv3'
 import { readTags, catsFor, winsFor } from '@/lib/season'
+import { verifyBurn } from '@/lib/bunburn'
 
 /**
  * POST /api/v3-voucher  { tag, wallet }  →  { deadline, signature }
@@ -99,7 +100,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'signer_unavailable' }, { status: 503 })
   }
 
-  let body: { tag?: unknown; wallet?: unknown }
+  let body: { tag?: unknown; wallet?: unknown; burnTx?: unknown }
   try {
     body = await req.json()
   } catch {
@@ -111,26 +112,66 @@ export async function POST(req: NextRequest) {
   if (!isAddress(raw)) return NextResponse.json({ error: 'bad_wallet' }, { status: 400 })
   const to = getAddress(raw)   // checksummed, so the signature covers the canonical form
 
-  // ── the run ────────────────────────────────────────────────────────────────
-  const tag = typeof body.tag === 'string' ? body.tag : ''
-  if (!tag || tag.length > 8192)
-    return NextResponse.json({ error: 'bad_run' }, { status: 400 })
-
+  // ── the way in: a finished run, or a burn ─────────────────────────
   /*
-   * readTags VERIFIES. It drops anything unsigned or altered, and it also checks
-   * that the season in the readable part agrees with the signed one — so a tag
-   * cannot display one thing while its signature says another.
+   * TWO DOORS, AND THE CONTRACT STILL ONLY OPENS ONCE.
+   *
+   * Play-to-mint is the one thing that makes V3 different from V2, so the run
+   * gate is not removed. Burning BUN is a SECOND door to the SAME single cat,
+   * for somebody who would rather pay than play. minted[wallet] is permanent, so
+   * a player who uses both doors still ends up with exactly one cat.
+   *
+   * To make the burn the ONLY way in, delete the else branch and require burnTx.
+   * To make it required ON TOP of a run, drop the branch and check both.
    */
-  const runs = readTags(tag)
-  if (!runs.length) return NextResponse.json({ error: 'bad_run' }, { status: 400 })
+  const burnTx = typeof body.burnTx === 'string' ? body.burnTx.trim() : ''
+  let earned: number
+  let burned: bigint | null = null
 
-  const run = runs[0]
-  const earned = catsFor(run)
-  if (earned < 1) {
-    return NextResponse.json(
-      { error: 'no_run', wins: winsFor(run), needed: 3 },
-      { status: 403 },
-    )
+  if (burnTx) {
+    const check = await verifyBurn(burnTx, to)
+    if (!check.ok) {
+      /*
+       * The reason goes back to the player on purpose. "Too small" and "that is
+       * not the BUN we accept" are different problems with different fixes, and
+       * somebody who has already burnt a token deserves to know which one it is.
+       */
+      return NextResponse.json(
+        {
+          error: 'bad_burn',
+          reason: check.reason,
+          ...(check.burned !== undefined ? { burned: check.burned.toString() } : {}),
+          ...(check.needed !== undefined ? { needed: check.needed.toString() } : {}),
+        },
+        { status: check.reason === 'off' ? 503 : 403 },
+      )
+    }
+    burned = check.burned
+    earned = 1
+  } else if (!RUN_DOOR) {
+    // The run door is off (lib/mintv3.ts): a finished run earns nothing on chain.
+    return NextResponse.json({ error: 'burn_required' }, { status: 403 })
+  } else {
+    const tag = typeof body.tag === 'string' ? body.tag : ''
+    if (!tag || tag.length > 8192)
+      return NextResponse.json({ error: 'bad_run' }, { status: 400 })
+
+    /*
+     * readTags VERIFIES. It drops anything unsigned or altered, and it also checks
+     * that the season in the readable part agrees with the signed one — so a tag
+     * cannot display one thing while its signature says another.
+     */
+    const runs = readTags(tag)
+    if (!runs.length) return NextResponse.json({ error: 'bad_run' }, { status: 400 })
+
+    const run = runs[0]
+    earned = catsFor(run)
+    if (earned < 1) {
+      return NextResponse.json(
+        { error: 'no_run', wins: winsFor(run), needed: 3 },
+        { status: 403 },
+      )
+    }
   }
 
   // ── the chain ──────────────────────────────────────────────────────────────
@@ -202,7 +243,12 @@ export async function POST(req: NextRequest) {
   })
 
   return NextResponse.json(
-    { deadline: deadline.toString(), signature, earned },
+    {
+      deadline: deadline.toString(),
+      signature,
+      earned,
+      ...(burned !== null ? { burned: burned.toString() } : {}),
+    },
     { headers: { 'Cache-Control': 'no-store' } },
   )
 }

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useAccount, useConnect, useSwitchChain, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
-import { V3, V3_ABI, V3_DEPLOYED, V3_MINT_ERRORS } from '@/lib/mintv3'
+import { V3, V3_ABI, V3_DEPLOYED, V3_MINT_ERRORS, RUN_DOOR } from '@/lib/mintv3'
 import { robinhood } from '@/lib/chains'
 
 /**
@@ -32,7 +32,59 @@ import { robinhood } from '@/lib/chains'
  * and the failure is named.
  */
 
-type Phase = 'idle' | 'switching' | 'authorising' | 'minting' | 'confirming' | 'done' | 'error'
+type Phase = 'idle' | 'switching' | 'paying' | 'settling' | 'authorising' | 'minting' | 'confirming' | 'done' | 'error'
+
+/** What /api/bun-terms answers. `live: false` means show no BUN option at all. */
+type Terms =
+  | { live: false }
+  | { live: true; token: `0x${string}`; toll: `0x${string}`; amount: string; amountWei: string; chainId: number }
+
+/**
+ * Just transfer(). A player pays the toll with an ordinary token send.
+ *
+ * BUN has no permit(), so a pull-payment would cost two transactions and the
+ * first would do nothing a player can see. One transfer is the whole payment,
+ * and the server reads its Transfer log as the receipt.
+ */
+const ERC20_TRANSFER = [{
+  name: 'transfer', type: 'function', stateMutability: 'nonpayable',
+  inputs: [{ name: 'to', type: 'address' }, { name: 'amount', type: 'uint256' }],
+  outputs: [{ type: 'bool' }],
+}] as const
+
+/**
+ * BUN's own burn(), for when the whole payment is burned rather than split
+ * (BUN_BURN_ALL, lib/bunburn.ts). It emits Transfer to the zero address, which is
+ * what the server counts. Checked on chain 2026-09-21: burn(uint256) works.
+ */
+const ERC20_BURN = [{
+  name: 'burn', type: 'function', stateMutability: 'nonpayable',
+  inputs: [{ name: 'value', type: 'uint256' }],
+  outputs: [],
+}] as const
+
+const ZERO = '0x0000000000000000000000000000000000000000'
+
+/** How many V3 cats exist, and so how many pictures the hero can pick from. */
+const V3_COUNT = 1111
+
+/**
+ * One line for each way a payment can be refused.
+ *
+ * These matter more than the run refusals do. A rejected run costs a player
+ * nothing and they can go and play again; by the time any of these can happen
+ * the BUN has already left their wallet, so "something went wrong" is not an
+ * acceptable answer. Each one names the single thing that was wrong with it.
+ */
+const BURN_REFUSALS: Record<string, string> = {
+  off:        'BUN payment is not switched on yet.',
+  bad_hash:   'That does not look like a transaction.',
+  unknown_tx: 'That payment has not appeared on chain yet. Wait a moment, then try again.',
+  reverted:   'That payment failed on chain, so no BUN left your wallet.',
+  too_old:    'That payment is from before this offer opened.',
+  not_paid:   'No BUN was paid in that transaction.',
+  too_small:  'That payment was under the price of a cat.',
+}
 
 export default function MintV3Page() {
   const { address, isConnected, chainId } = useAccount()
@@ -45,6 +97,31 @@ export default function MintV3Page() {
   const [error,    setError]    = useState<string | null>(null)
   const [txHash,   setTxHash]   = useState<`0x${string}` | undefined>()
   const [mintedId, setMintedId] = useState<string | null>(null)
+  const [terms,    setTerms]    = useState<Terms>({ live: false })
+  const [payHash,  setPayHash]  = useState<`0x${string}` | undefined>()
+
+  /*
+   * Which door is being used right now.
+   *
+   * Needed because 'switching' happens on both paths, so the phase alone cannot
+   * say which button should be showing the progress. Without this the claim
+   * button announces "Switching chain…" while somebody is paying in BUN.
+   */
+  const [door, setDoor] = useState<'run' | 'bun' | null>(null)
+
+  /*
+   * The page cannot know the price or the toll on its own — both are server
+   * settings, so that nothing in a browser can point a payment somewhere else.
+   * Until this answers, the BUN option simply is not rendered.
+   */
+  useEffect(() => {
+    let alive = true
+    fetch('/api/bun-terms')
+      .then(r => r.json())
+      .then(t => { if (alive) setTerms(t) })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [])
 
   /*
    * Read on the client only. The server has no idea which run this is, so
@@ -52,11 +129,40 @@ export default function MintV3Page() {
    * in an effect over in Cradle.
    */
   useEffect(() => {
+    // With the run door off a tag earns nothing, so it is not even read — every
+    // piece of run UI below keys off `tag` and stays hidden with it.
+    if (!RUN_DOOR) return
     const r = new URLSearchParams(window.location.search).get('r')
     setTag(r && r.length < 8192 ? r : null)
   }, [])
 
+  /*
+   * A RANDOM V3 CAT where the emoji was (JP, 2026-09-28). Picked on the client:
+   * picking during render would differ between server and browser and React
+   * would throw the page away. The box is sized up front so nothing jumps.
+   */
+  const [heroId, setHeroId] = useState<number | null>(null)
+  useEffect(() => { setHeroId(1 + Math.floor(Math.random() * V3_COUNT)) }, [])
+
   const { data: receipt, isSuccess } = useWaitForTransactionReceipt({ hash: txHash })
+  const { data: payReceipt, isSuccess: paid } = useWaitForTransactionReceipt({ hash: payHash })
+
+  /*
+   * The payment landed, so now the server can see it.
+   *
+   * Guarded on phase === 'settling' because authoriseAndMint moves the phase on
+   * immediately, and without that guard this effect would fire a second voucher
+   * request every time the receipt object changed identity.
+   */
+  useEffect(() => {
+    if (!paid || !payReceipt || phase !== 'settling') return
+    authoriseAndMint({ burnTx: payReceipt.transactionHash }).catch((e: unknown) => {
+      const msg = e instanceof Error ? e.message : ''
+      setError(/user rejected|denied/i.test(msg) ? 'Cancelled.' : 'Claim failed. Your payment went through — try the claim again.')
+      setPhase('error')
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paid, payReceipt, phase])
 
   useEffect(() => {
     if (!isSuccess || !receipt) return
@@ -74,65 +180,129 @@ export default function MintV3Page() {
     if (log?.topics[3]) setMintedId(BigInt(log.topics[3]).toString())
   }, [isSuccess, receipt])
 
+  /*
+   * THE HALF BOTH DOORS SHARE.
+   *
+   * A finished run and a paid toll prove different things, but everything after
+   * the proof is identical: ask the server for a voucher, then mint with it.
+   * Keeping that in one function is what stops two ways in becoming two subtly
+   * different mints.
+   */
+  const authoriseAndMint = useCallback(async (proof: { tag: string } | { burnTx: string }) => {
+    setPhase('authorising')
+    const res = await fetch('/api/v3-voucher', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ ...proof, wallet: address }),
+    })
+    const data = await res.json()
+
+    if (!res.ok) {
+      /*
+       * Be specific about the run refusal. "Could not authorise" reads as a bug
+       * and people retry it forever; naming the wins tells them what to do about
+       * it, which is play again.
+       */
+      const msg =
+        data?.error === 'no_run' && typeof data.wins === 'number'
+          ? `That run won ${data.wins} of 5. Three wins earns a cat.`
+        : data?.error === 'bad_burn'
+          ? BURN_REFUSALS[data?.reason as string] ?? 'That payment could not be verified.'
+        : V3_MINT_ERRORS[data?.error] ?? 'Could not authorise the claim. Try again.'
+      setError(msg)
+      setPhase('error')
+      return
+    }
+
+    setPhase('minting')
+    const hash = await writeContractAsync({
+      address: V3,
+      abi: V3_ABI,
+      functionName: 'mint',
+      args: [BigInt(data.deadline), data.signature as `0x${string}`],
+      chainId: robinhood.id,
+    })
+
+    setTxHash(hash)
+    setPhase('confirming')
+  }, [address, writeContractAsync])
+
+  /** Turn a thrown wallet error into something a person can act on. */
+  const explain = (e: unknown) => {
+    const msg = e instanceof Error ? e.message : ''
+    return /user rejected|denied/i.test(msg) ? 'Cancelled.'
+      : /chain|network|switch/i.test(msg)    ? 'Could not switch to Robinhood Chain. Add it in your wallet and try again.'
+      : /insufficient|exceeds balance/i.test(msg) ? 'Not enough BUN in that wallet.'
+      : 'Claim failed. Try again.'
+  }
+
+  const toRobinhood = useCallback(async () => {
+    if (chainId !== robinhood.id) {
+      setPhase('switching')
+      await switchChainAsync({ chainId: robinhood.id })
+    }
+  }, [chainId, switchChainAsync])
+
   const claim = useCallback(async () => {
     if (!address || !tag) return
     setError(null)
-
+    setDoor('run')
     try {
-      if (chainId !== robinhood.id) {
-        setPhase('switching')
-        await switchChainAsync({ chainId: robinhood.id })
-      }
-
+      await toRobinhood()
       // The run is verified server-side. Nothing here is trusted to be true.
-      setPhase('authorising')
-      const res = await fetch('/api/v3-voucher', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ tag, wallet: address }),
-      })
-      const data = await res.json()
-
-      if (!res.ok) {
-        /*
-         * Be specific about the run refusal. "Could not authorise" reads as a
-         * bug and people retry it forever; naming the wins tells them what to do
-         * about it, which is play again.
-         */
-        const msg = data?.error === 'no_run' && typeof data.wins === 'number'
-          ? `That run won ${data.wins} of 5. Three wins earns a cat.`
-          : V3_MINT_ERRORS[data?.error] ?? 'Could not authorise the claim. Try again.'
-        setError(msg)
-        setPhase('error')
-        return
-      }
-
-      setPhase('minting')
-      const hash = await writeContractAsync({
-        address: V3,
-        abi: V3_ABI,
-        functionName: 'mint',
-        args: [BigInt(data.deadline), data.signature as `0x${string}`],
-        chainId: robinhood.id,
-      })
-
-      setTxHash(hash)
-      setPhase('confirming')
+      await authoriseAndMint({ tag })
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : ''
-      setError(
-        /user rejected|denied/i.test(msg) ? 'Cancelled.'
-        : /chain|network|switch/i.test(msg) ? 'Could not switch to Robinhood Chain. Add it in your wallet and try again.'
-        : 'Claim failed. Try again.',
-      )
+      setError(explain(e))
       setPhase('error')
     }
-  }, [address, tag, chainId, switchChainAsync, writeContractAsync])
+  }, [address, tag, toRobinhood, authoriseAndMint])
 
-  const busy = phase === 'switching' || phase === 'authorising' || phase === 'minting' || phase === 'confirming'
+  /*
+   * THE OTHER DOOR — one transfer, then wait.
+   *
+   * The voucher is deliberately NOT requested here. A payment has to be mined
+   * before the server can see it at all, so asking now would be refused as an
+   * unknown transaction while the BUN had already gone. The effect below fires
+   * the request once the receipt lands.
+   */
+  const payWithBun = useCallback(async () => {
+    if (!address || !terms.live) return
+    setError(null)
+    setDoor('bun')
+    try {
+      await toRobinhood()
+      setPhase('paying')
+      // A toll means pay it (the contract splits); none means burn the lot.
+      const hash = terms.toll.toLowerCase() === ZERO
+        ? await writeContractAsync({
+            address: terms.token,
+            abi: ERC20_BURN,
+            functionName: 'burn',
+            args: [BigInt(terms.amountWei)],
+            chainId: robinhood.id,
+          })
+        : await writeContractAsync({
+            address: terms.token,
+            abi: ERC20_TRANSFER,
+            functionName: 'transfer',
+            args: [terms.toll, BigInt(terms.amountWei)],
+            chainId: robinhood.id,
+          })
+      setPayHash(hash)
+      setPhase('settling')
+    } catch (e: unknown) {
+      setError(explain(e))
+      setPhase('error')
+    }
+  }, [address, terms, toRobinhood, writeContractAsync])
+
+  const busy = phase === 'switching' || phase === 'paying' || phase === 'settling'
+    || phase === 'authorising' || phase === 'minting' || phase === 'confirming'
   const label =
     phase === 'switching'   ? 'Switching chain…'
-    : phase === 'authorising' ? 'Checking your run…'
+    : phase === 'paying'      ? 'Confirm the payment…'
+    : phase === 'settling'    ? 'Waiting for the payment…'
+    : phase === 'authorising' ? (door === 'bun' ? 'Checking your payment…' : 'Checking your run…')
     : phase === 'minting'     ? 'Confirm in your wallet…'
     : phase === 'confirming'  ? 'Minting…'
     : 'Claim your cat'
@@ -144,23 +314,26 @@ export default function MintV3Page() {
         <a href="/" style={s.navLink}>← the game</a>
       </div>
 
-      <div style={s.hero}>🐱</div>
-      <div style={s.title}>Play the game, mint the cat</div>
-      <div style={s.subtitle}>Robinhood Chain · free</div>
+      <div style={s.heroBox}>
+        {heroId && <img src={`/v3/images/${heroId}.png`} alt={`Clanker Cats V3 #${heroId}`} style={s.heroImg} />}
+      </div>
+      <div style={s.title}>{RUN_DOOR ? 'Play the game, mint the cat' : 'Clanker Cats V3'}</div>
+      <div style={s.subtitle}>{RUN_DOOR ? 'Robinhood Chain · free' : 'Robinhood Chain · for BUN holders'}</div>
 
       {!V3_DEPLOYED ? (
         <>
           <div style={s.notice}>Not live yet. The cats are made, the contract isn’t deployed.</div>
-          <a href="/" style={s.secondaryBtn}>Play in the meantime</a>
+          <a href="/" style={s.secondaryBtn}>{RUN_DOOR ? 'Play in the meantime' : 'Play the game — it’s free'}</a>
         </>
-      ) : !tag ? (
+      ) : !tag && !terms.live ? (
         <>
-          {/* No run in the URL. Say what earns one rather than just refusing. */}
+          {/* No run in the URL and no BUN door open. Say what earns one rather than just refusing. */}
           <div style={s.notice}>
-            Finish a gauntlet run first. Three wins out of five earns a cat —
-            all five, without continuing, earns two.
+            {RUN_DOOR
+              ? 'Finish a gauntlet run first. Three wins out of five earns a cat — all five, without continuing, earns two.'
+              : 'Minting opens soon. It takes BUN.'}
           </div>
-          <a href="/" style={s.primaryBtn as React.CSSProperties}>Play the gauntlet</a>
+          <a href="/" style={s.primaryBtn as React.CSSProperties}>{RUN_DOOR ? 'Play the gauntlet' : 'Play the game — it’s free'}</a>
         </>
       ) : phase === 'done' ? (
         <div style={s.successBox}>
@@ -169,26 +342,58 @@ export default function MintV3Page() {
         </div>
       ) : !isConnected ? (
         <>
-          <div style={s.gateBadge}>RUN VERIFIED</div>
-          <div style={s.notice}>Connect a wallet to claim it. Nothing else needs one.</div>
+          {tag && <div style={s.gateBadge}>RUN VERIFIED</div>}
+          <div style={s.notice}>
+            {tag
+              ? 'Connect a wallet to claim it. Nothing else needs one.'
+              : `Connect a wallet to mint a cat for ${terms.live ? terms.amount : ''} BUN.${RUN_DOOR ? ' Playing earns one for nothing.' : ''}`}
+          </div>
           {connectors.map(c => (
             <button key={c.uid} style={s.secondaryBtn} onClick={() => connect({ connector: c })}>
               {c.name.toUpperCase()}
             </button>
           ))}
+          {!tag && RUN_DOOR && <a href="/" style={s.secondaryBtn}>Play the gauntlet instead</a>}
         </>
       ) : (
         <>
-          <div style={s.gateBadge}>RUN VERIFIED</div>
-          <button style={{ ...s.primaryBtn, opacity: busy ? 0.6 : 1 }} onClick={claim} disabled={busy}>
-            {label}
-          </button>
+          {tag && <div style={s.gateBadge}>RUN VERIFIED</div>}
+
+          {tag && (
+            <button style={{ ...s.primaryBtn, opacity: busy ? 0.6 : 1 }} onClick={claim} disabled={busy}>
+              {door === 'run' && busy ? label : 'Claim your cat'}
+            </button>
+          )}
+
+          {/*
+            * The BUN door. Secondary when a run already earned the cat, because
+            * paying for something you have already won is the wrong default.
+            */}
+          {terms.live && (
+            <>
+              <button
+                style={{ ...(tag ? s.secondaryBtn : s.primaryBtn), opacity: busy ? 0.6 : 1 }}
+                onClick={payWithBun}
+                disabled={busy}
+              >
+                {door === 'bun' && busy
+                  ? label
+                  : terms.toll.toLowerCase() === ZERO ? `Burn ${terms.amount} BUN` : `Pay ${terms.amount} BUN`}
+              </button>
+              {/* Where the money goes, said before it is spent rather than after. */}
+              <div style={s.splitNote}>
+                {terms.toll.toLowerCase() === ZERO ? 'All of it is burned.' : '30% agents · 30% creator · 40% burned'}
+              </div>
+            </>
+          )}
+
+          {!tag && RUN_DOOR && <a href="/" style={s.secondaryBtn}>Play the gauntlet instead</a>}
         </>
       )}
 
       {error && <div style={s.error}>{error}</div>}
 
-      <div style={s.footnote}>One per wallet. The run is checked on the server.</div>
+      <div style={s.footnote}>{RUN_DOOR ? 'One per wallet. The run is checked on the server.' : 'One per wallet.'}</div>
     </div>
   )
 }
@@ -198,7 +403,9 @@ const s: Record<string, React.CSSProperties> = {
   header:       { width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   logo:         { fontSize: 16, fontWeight: 'bold', letterSpacing: 1 },
   navLink:      { fontSize: 12, color: '#7c3aed', textDecoration: 'none' },
-  hero:         { fontSize: 64, marginTop: 20 },
+  // 1000x796 art, so 200x159 keeps its shape; nearest-neighbour keeps the pixels.
+  heroBox:      { width: 200, height: 159, marginTop: 20, borderRadius: 8, overflow: 'hidden', border: '4px solid #21212f', background: '#12121c' },
+  heroImg:      { width: '100%', height: '100%', display: 'block', imageRendering: 'pixelated' },
   title:        { fontSize: 24, fontWeight: 'bold' },
   subtitle:     { fontSize: 13, color: '#666', marginBottom: 8 },
   primaryBtn:   { width: '100%', maxWidth: 320, padding: '14px 24px', borderRadius: 12, background: '#7c3aed', color: 'white', border: 'none', cursor: 'pointer', fontSize: 15, fontWeight: 'bold', textAlign: 'center', textDecoration: 'none' },
@@ -207,5 +414,6 @@ const s: Record<string, React.CSSProperties> = {
   notice:       { fontSize: 13, color: '#666', textAlign: 'center', padding: '12px 0', maxWidth: 320 },
   gateBadge:    { fontSize: 11, color: '#7c3aed', border: '1px solid #2a2a4e', background: '#12122a', padding: '5px 12px', borderRadius: 20, letterSpacing: 0.4 },
   error:        { fontSize: 12, color: '#ef4444', textAlign: 'center', maxWidth: 320 },
+  splitNote:    { fontSize: 11, color: '#555', textAlign: 'center', letterSpacing: 0.3 },
   footnote:     { fontSize: 11, color: '#333', marginTop: 'auto', paddingTop: 24 },
 }
