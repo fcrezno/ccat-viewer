@@ -32,13 +32,26 @@ import { APP_URL } from '@/lib/miniapp'
  * live and correct before anything is deployed.
  */
 
+/*
+ * A revealed cat can still CHANGE once: burning BUN through it adds the
+ * BunBurner trait (ClankerCatsV3.burnBun). So only a BunBurner — whose mark is
+ * permanent — is cached forever; any other cat is cached briefly so the trait
+ * shows up within minutes of the burn. The contract also emits ERC-4906
+ * MetadataUpdate, which is what makes a marketplace re-fetch.
+ */
 const REVEAL_CACHE = 'public, max-age=31536000, immutable'
+const CAN_CHANGE_CACHE = 'public, max-age=300'
 // Never cache a miss: a cached "?" would freeze a minted cat as a blank card.
 const UNREVEALED_CACHE = 'no-store, max-age=0, must-revalidate'
 
 const OWNER_OF = [{
   name: 'ownerOf', type: 'function', stateMutability: 'view',
   inputs: [{ name: 'tokenId', type: 'uint256' }], outputs: [{ type: 'address' }],
+}] as const
+
+const BUN_BURNER = [{
+  name: 'bunBurner', type: 'function', stateMutability: 'view',
+  inputs: [{ name: 'tokenId', type: 'uint256' }], outputs: [{ type: 'bool' }],
 }] as const
 
 export async function GET(
@@ -69,18 +82,34 @@ export async function GET(
 
   if (!exists) return unrevealed(tokenId)
 
+  let meta: { attributes?: { trait_type: string; value: string }[] } & Record<string, unknown>
   try {
-    const file = await readFile(join(process.cwd(), 'public', 'v3', 'metadata', String(tokenId)), 'utf8')
-    return new NextResponse(file, {
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        'Cache-Control': REVEAL_CACHE,
-        'Access-Control-Allow-Origin': '*',
-      },
-    })
+    meta = JSON.parse(await readFile(join(process.cwd(), 'public', 'v3', 'metadata', String(tokenId)), 'utf8'))
   } catch {
     return unrevealed(tokenId)
   }
+
+  // Unknown (the read failed) is not "no": serve it uncached so the next look retries.
+  let burner: boolean | null = null
+  for (let attempt = 0; attempt < 3 && burner === null; attempt++) {
+    try {
+      burner = await clientForChain(robinhood).readContract({
+        address: V3, abi: BUN_BURNER, functionName: 'bunBurner', args: [BigInt(tokenId)],
+      }) as boolean
+    } catch {
+      if (attempt < 2) await new Promise(r => setTimeout(r, 350 * (attempt + 1)))
+    }
+  }
+
+  if (burner) meta.attributes = [...(meta.attributes ?? []), { trait_type: 'BunBurner', value: 'Yes' }]
+
+  return new NextResponse(JSON.stringify(meta, null, 2), {
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': burner ? REVEAL_CACHE : burner === false ? CAN_CHANGE_CACHE : UNREVEALED_CACHE,
+      'Access-Control-Allow-Origin': '*',
+    },
+  })
 }
 
 function unrevealed(tokenId: number) {

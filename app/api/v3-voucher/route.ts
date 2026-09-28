@@ -4,7 +4,19 @@ import { isAddress, getAddress } from 'viem'
 import { clientForChain, robinhood } from '@/lib/chains'
 import { V3, V3_ABI, V3_DEPLOYED, RUN_DOOR } from '@/lib/mintv3'
 import { readTags, catsFor, winsFor } from '@/lib/season'
-import { verifyBurn } from '@/lib/bunburn'
+
+/*
+ * WHO MAY CLAIM THE FREE MINT (2026-09-28): V3 is "for BUN holders".
+ * V3_MIN_BUN is whole BUN the wallet must hold at claim time; unset or 0 lets
+ * anyone claim. A live balance, not a snapshot — it only decides the voucher.
+ */
+const MIN_BUN = (process.env.V3_MIN_BUN?.trim() || '0').replace(/[^\d]/g, '') || '0'
+
+const ERC20_READS = [
+  { name: 'decimals',  type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint8' }] },
+  { name: 'balanceOf', type: 'function', stateMutability: 'view',
+    inputs: [{ name: 'owner', type: 'address' }], outputs: [{ type: 'uint256' }] },
+] as const
 
 /**
  * POST /api/v3-voucher  { tag, wallet }  →  { deadline, signature }
@@ -100,7 +112,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'signer_unavailable' }, { status: 503 })
   }
 
-  let body: { tag?: unknown; wallet?: unknown; burnTx?: unknown }
+  let body: { tag?: unknown; wallet?: unknown }
   try {
     body = await req.json()
   } catch {
@@ -112,45 +124,32 @@ export async function POST(req: NextRequest) {
   if (!isAddress(raw)) return NextResponse.json({ error: 'bad_wallet' }, { status: 400 })
   const to = getAddress(raw)   // checksummed, so the signature covers the canonical form
 
-  // ── the way in: a finished run, or a burn ─────────────────────────
+  // ── the way in ─────────────────────────────────────────────────────────────
   /*
-   * TWO DOORS, AND THE CONTRACT STILL ONLY OPENS ONCE.
-   *
-   * Play-to-mint is the one thing that makes V3 different from V2, so the run
-   * gate is not removed. Burning BUN is a SECOND door to the SAME single cat,
-   * for somebody who would rather pay than play. minted[wallet] is permanent, so
-   * a player who uses both doors still ends up with exactly one cat.
-   *
-   * To make the burn the ONLY way in, delete the else branch and require burnTx.
-   * To make it required ON TOP of a run, drop the branch and check both.
+   * FREE, since 2026-09-28. The mint costs nothing; burning BUN is optional and
+   * happens afterwards through the cat (ClankerCatsV3.burnBun), so it never
+   * passes through here. With RUN_DOOR on, a finished run is required instead.
    */
-  const burnTx = typeof body.burnTx === 'string' ? body.burnTx.trim() : ''
-  let earned: number
-  let burned: bigint | null = null
+  let earned = 1
 
-  if (burnTx) {
-    const check = await verifyBurn(burnTx, to)
-    if (!check.ok) {
-      /*
-       * The reason goes back to the player on purpose. "Too small" and "that is
-       * not the BUN we accept" are different problems with different fixes, and
-       * somebody who has already burnt a token deserves to know which one it is.
-       */
-      return NextResponse.json(
-        {
-          error: 'bad_burn',
-          reason: check.reason,
-          ...(check.burned !== undefined ? { burned: check.burned.toString() } : {}),
-          ...(check.needed !== undefined ? { needed: check.needed.toString() } : {}),
-        },
-        { status: check.reason === 'off' ? 503 : 403 },
-      )
+  if (!RUN_DOOR) {
+    if (MIN_BUN !== '0') {
+      try {
+        const rh  = clientForChain(robinhood)
+        const bun = await cached('bun', Infinity, () =>
+          rh.readContract({ address: V3, abi: V3_ABI, functionName: 'bun' }) as Promise<`0x${string}`>)
+        const [decimals, balance] = await Promise.all([
+          cached('bunDecimals', Infinity, () =>
+            rh.readContract({ address: bun, abi: ERC20_READS, functionName: 'decimals' }) as Promise<number>),
+          read(() =>
+            rh.readContract({ address: bun, abi: ERC20_READS, functionName: 'balanceOf', args: [to] }) as Promise<bigint>),
+        ])
+        if (balance < BigInt(MIN_BUN) * BigInt(10) ** BigInt(decimals))
+          return NextResponse.json({ error: 'need_bun', min: MIN_BUN }, { status: 403 })
+      } catch {
+        return NextResponse.json({ error: 'chain_read_failed' }, { status: 502 })
+      }
     }
-    burned = check.burned
-    earned = 1
-  } else if (!RUN_DOOR) {
-    // The run door is off (lib/mintv3.ts): a finished run earns nothing on chain.
-    return NextResponse.json({ error: 'burn_required' }, { status: 403 })
   } else {
     const tag = typeof body.tag === 'string' ? body.tag : ''
     if (!tag || tag.length > 8192)
@@ -247,7 +246,6 @@ export async function POST(req: NextRequest) {
       deadline: deadline.toString(),
       signature,
       earned,
-      ...(burned !== null ? { burned: burned.toString() } : {}),
     },
     { headers: { 'Cache-Control': 'no-store' } },
   )

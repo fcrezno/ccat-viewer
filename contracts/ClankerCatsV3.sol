@@ -2,7 +2,12 @@
 pragma solidity ^0.8.20;
 
 /**
- * ClankerCatsV3 — the Robinhood Chain drop. Play the game, mint the cat.
+ * ClankerCatsV3 — the Robinhood Chain drop. Free to mint, one per wallet; burn
+ * BUN through a cat and it becomes a BunBurner (see burnBun).
+ *
+ * The "WHAT REPLACES IT" note below describes the original play-to-mint gate.
+ * Since 2026-09-28 the backend signs the voucher without a run (RUN_DOOR in
+ * lib/mintv3.ts); the contract does not care why a voucher was signed.
  *
  * Same shape as ClankerCatsV2, which is deployed and working on Base. The ONLY
  * real change is what a voucher is issued for, so the diff is small on purpose:
@@ -70,6 +75,27 @@ contract ClankerCatsV3 {
     /// Wallet → has already minted. Also the spent-ticket store; see the header.
     mapping(address => bool) public minted;
 
+    // ── BunBurner ──────────────────────────────────────────────────────────────
+    //
+    // JP, 2026-09-28: the mint is free; burning BUN is optional, "but if they do
+    // they get something special" — the BunBurner trait — and BunBurners will
+    // probably get the whitelist for the BUN Cat collection that comes next.
+    //
+    // So the mark lives HERE, on chain, where a later contract or a snapshot can
+    // read it without trusting any server. `bunBurner` travels with the cat; the
+    // BunBurner event also names the wallet that paid, so a whitelist can be
+    // built either way later.
+    //
+    // Token, destination and price are immutable: nobody can reprice the burn or
+    // redirect it after deploy. The destination is the CatToll, which splits
+    // 30% agents / 30% creator / 40% burned by code nobody can change.
+    address public immutable bun;
+    address public immutable bunToll;
+    uint256 public immutable bunBurnPrice;
+
+    /// Token → has burned BUN through this cat. Permanent; once per cat.
+    mapping(uint256 => bool) public bunBurner;
+
     // ── EIP-712 ────────────────────────────────────────────────────────────────
     bytes32 private constant MINT_TYPEHASH =
         keccak256("Mint(address to,uint256 deadline)");
@@ -83,6 +109,9 @@ contract ClankerCatsV3 {
     event MintOpenSet(bool open);
     event SignerSet(address signer);
     event BaseURISet(string baseURI);
+    event BunBurner(uint256 indexed tokenId, address indexed burner, uint256 amount);
+    /// ERC-4906. Tells marketplaces a cat's metadata changed (it gained BunBurner).
+    event MetadataUpdate(uint256 _tokenId);
 
     // ── errors ─────────────────────────────────────────────────────────────────
     error NotOwner();
@@ -97,6 +126,8 @@ contract ClankerCatsV3 {
     error TransferFromIncorrectOwner();
     error TransferToNonERC721Receiver();
     error BadRoyalty();
+    error AlreadyBunBurner();
+    error BunBurnFailed();
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert NotOwner();
@@ -109,9 +140,17 @@ contract ClankerCatsV3 {
         string memory _baseURI,
         string memory _contractURI,
         address _royaltyReceiver,
-        uint96  _royaltyBps
+        uint96  _royaltyBps,
+        address _bun,
+        address _bunToll,
+        uint256 _bunBurnPrice
     ) {
         if (_royaltyBps > 10_000) revert BadRoyalty();
+        if (_bun == address(0) || _bunToll == address(0)) revert ZeroAddress();
+
+        bun          = _bun;
+        bunToll      = _bunToll;
+        bunBurnPrice = _bunBurnPrice;
 
         owner           = msg.sender;
         maxSupply       = _maxSupply;
@@ -134,9 +173,8 @@ contract ClankerCatsV3 {
 
     /**
     /**
-     * @notice Mint one cat. Requires a voucher signed by `signer` for the caller,
-     *         which the backend issues only after verifying a finished gauntlet
-     *         run. One per wallet, forever.
+     * @notice Mint one cat. Requires a voucher signed by `signer` for the caller.
+     *         One per wallet, forever.
      */
     function mint(uint256 deadline, bytes calldata signature) external returns (uint256 tokenId) {
         if (!mintOpen)                 revert MintClosed();
@@ -159,6 +197,33 @@ contract ClankerCatsV3 {
 
         emit Transfer(address(0), msg.sender, tokenId);
         emit Minted(tokenId, msg.sender);
+    }
+
+    /**
+     * @notice Burn BUN through your cat and it becomes a BunBurner, for good.
+     *         Optional — the mint is free without it. Only the cat's owner can,
+     *         once per cat. Approve this contract for `bunBurnPrice` BUN first:
+     *         BUN has no permit(), so that is a separate transaction.
+     *
+     *         The BUN goes straight from the owner to the CatToll, which pays the
+     *         30/30/40 split when anyone calls its settle().
+     */
+    function burnBun(uint256 tokenId) external {
+        if (ownerOf(tokenId) != msg.sender) revert NotOwnerOrApproved();
+        if (bunBurner[tokenId])             revert AlreadyBunBurner();
+
+        // Effects before the external call, so a re-entrant BUN cannot mark twice.
+        bunBurner[tokenId] = true;
+
+        // transferFrom(owner, toll, price). Checked by hand rather than through an
+        // interface so a token that returns nothing on success is still accepted.
+        (bool ok, bytes memory ret) = bun.call(
+            abi.encodeWithSelector(0x23b872dd, msg.sender, bunToll, bunBurnPrice)
+        );
+        if (!ok || (ret.length > 0 && !abi.decode(ret, (bool)))) revert BunBurnFailed();
+
+        emit BunBurner(tokenId, msg.sender, bunBurnPrice);
+        emit MetadataUpdate(tokenId);
     }
 
     function _recover(bytes32 digest, bytes calldata sig) private pure returns (address) {
@@ -227,6 +292,7 @@ contract ClankerCatsV3 {
         return interfaceId == 0x80ac58cd  // ERC721
             || interfaceId == 0x5b5e139f  // ERC721Metadata
             || interfaceId == 0x2a55205a  // ERC2981
+            || interfaceId == 0x49064906  // ERC4906 (MetadataUpdate)
             || interfaceId == 0x01ffc9a7; // ERC165
     }
 

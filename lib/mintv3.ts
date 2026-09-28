@@ -17,9 +17,10 @@ export const V3_DEPLOYED = V3 !== '0x0000000000000000000000000000000000000000'
 /*
  * WHETHER A WON RUN EARNS A V3 CAT. OFF FOR NOW.
  *
- * JP, 2026-09-28: "make the fights free for now; make it so minting a cat burns
- * some BUN" — and BUN holders are who V3 is for. So the fights stay free to play
- * and earn nothing on chain, and burning BUN is the only way to mint.
+ * JP, 2026-09-28: "make the fights free for now", and V3 is for BUN holders. The
+ * fights stay free to play and earn nothing on chain. The MINT is free too (one
+ * per wallet); burning BUN is optional and happens AFTER, through the cat, which
+ * marks it a BunBurner (ClankerCatsV3.burnBun).
  *
  * The run door is switched off, not deleted: the signed-tag check, the claim link
  * after a run and the copy all still exist and all read this. Set it to true and
@@ -59,6 +60,25 @@ export const V3_ABI = [
     ],
     outputs: [{ type: 'uint256' }],
   },
+  // ── BunBurner (ClankerCatsV3.burnBun) ──
+  { name: 'bun',          type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
+  { name: 'bunToll',      type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
+  { name: 'bunBurnPrice', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  {
+    name: 'bunBurner', type: 'function', stateMutability: 'view',
+    inputs: [{ name: 'tokenId', type: 'uint256' }], outputs: [{ type: 'bool' }],
+  },
+  {
+    name: 'burnBun', type: 'function', stateMutability: 'nonpayable',
+    inputs: [{ name: 'tokenId', type: 'uint256' }], outputs: [],
+  },
+  {
+    name: 'Minted', type: 'event',
+    inputs: [
+      { name: 'tokenId', type: 'uint256', indexed: true },
+      { name: 'to',      type: 'address', indexed: true },
+    ],
+  },
 ] as const
 
 /** Human-readable reasons the V3 endpoint can refuse, for UI copy. */
@@ -68,7 +88,7 @@ export const V3_MINT_ERRORS: Record<string, string> = {
   sold_out:       'All cats have been claimed.',
   already_minted: 'This wallet has already claimed its cat.',
   no_run:         'Finish a gauntlet run first — three wins or better earns a cat.',
-  burn_required:  'Minting a cat takes BUN. Pay first, then claim.',
+  need_bun:       'This drop is for BUN holders. Hold some BUN in this wallet, then claim.',
   bad_run:        'That run couldn’t be verified. Play it through and try again.',
   bad_wallet:     'That doesn’t look like a wallet address.',
 }

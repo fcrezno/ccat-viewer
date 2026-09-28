@@ -6,15 +6,16 @@ import { embedTags, APP_URL } from '@/lib/miniapp'
  * same arrangement as app/mint/layout.tsx.
  *
  * It said "win three of five and the cat is yours". Since 2026-09-28 a run earns
- * nothing on chain (RUN_DOOR in lib/mintv3.ts): V3 is for BUN holders, minting
- * takes BUN, and the fights are free. The copy says only that.
+ * nothing on chain (RUN_DOOR in lib/mintv3.ts): V3 is for BUN holders, the mint
+ * is free, burning BUN through a cat is optional and makes it a BunBurner, and
+ * the fights are free. The copy says only that.
  */
 export const metadata: Metadata = {
   title: 'Claim your cat — Clanker Cats',
-  description: 'Clanker Cats V3 on Robinhood Chain, for BUN holders. Minting a cat burns BUN. The game is free.',
+  description: 'Clanker Cats V3 on Robinhood Chain, for BUN holders. Free to mint, one per wallet. Burn BUN through your cat and it becomes a BunBurner.',
   openGraph: {
     title: 'Clanker Cats V3',
-    description: 'Clanker Cats V3 on Robinhood Chain, for BUN holders. Minting a cat burns BUN. The game is free.',
+    description: 'Clanker Cats V3 on Robinhood Chain, for BUN holders. Free to mint, one per wallet. Burn BUN through your cat and it becomes a BunBurner.',
     images: [`${APP_URL}/cradle.png`],
   },
   other: embedTags({

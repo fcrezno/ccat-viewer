@@ -80,6 +80,17 @@ const ROYALTY_RECEIVER    = cfg('ROYALTY_RECEIVER')
 const ROYALTY_BPS         = cfg('ROYALTY_BPS') ?? '800'
 const MAX_SUPPLY          = cfg('MAX_SUPPLY')  ?? '1111'
 
+/*
+ * THE BUNBURNER SETTINGS ARE BAKED INTO THE CONTRACT — immutable, by design, so
+ * nobody can reprice or redirect the burn later. That makes ORDER matter:
+ * deploy the CatToll FIRST (scripts/deploy-cattoll.mjs) and put its address in
+ * BUN_TOLL_ADDRESS, or V3 would point at nothing forever.
+ */
+const BUN_TOKEN_ADDRESS = cfg('BUN_TOKEN_ADDRESS')
+const BUN_TOLL_ADDRESS  = cfg('BUN_TOLL_ADDRESS')
+const BUN_BURN_AMOUNT   = cfg('BUN_BURN_AMOUNT')       // whole BUN, e.g. 111
+const BUN_DECIMALS      = 18                           // read off the live token 2026-09-21; re-checked before --send
+
 function need(name, value) {
   if (!value) { console.error(`Set ${name}`); process.exit(1) }
   return value
@@ -87,7 +98,16 @@ function need(name, value) {
 
 need('MINT_SIGNER_ADDRESS', MINT_SIGNER_ADDRESS)
 need('BASE_URI', BASE_URI)
+need('BUN_TOKEN_ADDRESS', BUN_TOKEN_ADDRESS)
+need('BUN_TOLL_ADDRESS (deploy the CatToll first)', BUN_TOLL_ADDRESS)
+need('BUN_BURN_AMOUNT', BUN_BURN_AMOUNT)
 if (SEND) need('DEPLOYER_KEY', DEPLOYER_KEY)
+
+if (!/^\d+$/.test(BUN_BURN_AMOUNT) || BigInt(BUN_BURN_AMOUNT) === 0n) {
+  console.error(`BUN_BURN_AMOUNT must be a whole number above 0, got "${BUN_BURN_AMOUNT}"`)
+  process.exit(1)
+}
+const BUN_BURN_WEI = BigInt(BUN_BURN_AMOUNT) * 10n ** BigInt(BUN_DECIMALS)
 
 /*
  * CONTRACT_URI IS A COLLECTION, NOT A TOKEN — and V2 got this wrong.
@@ -159,6 +179,9 @@ const args = [
   CONTRACT_URI ?? '',
   receiver,
   Number(ROYALTY_BPS),
+  BUN_TOKEN_ADDRESS,
+  BUN_TOLL_ADDRESS,
+  BUN_BURN_WEI,
 ]
 
 console.log('\n  chain     Robinhood Chain (4663)')
@@ -167,6 +190,9 @@ console.log('  signer   ', MINT_SIGNER_ADDRESS)
 console.log('  supply   ', MAX_SUPPLY)
 console.log('  baseURI  ', BASE_URI)
 console.log('  royalty  ', `${receiver} @ ${Number(ROYALTY_BPS) / 100}%`)
+console.log('  BUN      ', BUN_TOKEN_ADDRESS)
+console.log('  toll     ', BUN_TOLL_ADDRESS, '(30/30/40 CatToll)')
+console.log('  burn     ', `${BUN_BURN_AMOUNT} BUN = ${BUN_BURN_WEI} wei, per BunBurner`)
 
 if (!SEND) {
   console.log(`
@@ -180,6 +206,23 @@ if (!SEND) {
 
 const wallet = createWalletClient({ account, chain: RH, transport: http(RH.rpcUrls.default.http[0]) })
 const pub    = createPublicClient({ chain: RH, transport: http(RH.rpcUrls.default.http[0]) })
+
+// The price is immutable, so check the two facts it rests on before spending gas:
+// the token really has 18 decimals, and the toll really is a deployed contract.
+const liveDecimals = await pub.readContract({
+  address: BUN_TOKEN_ADDRESS,
+  abi: [{ name: 'decimals', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint8' }] }],
+  functionName: 'decimals',
+})
+if (Number(liveDecimals) !== BUN_DECIMALS) {
+  console.error(`BUN reports ${liveDecimals} decimals, not ${BUN_DECIMALS}. Refusing to bake in a wrong price.`)
+  process.exit(1)
+}
+const tollCode = await pub.getCode({ address: BUN_TOLL_ADDRESS })
+if (!tollCode || tollCode === '0x') {
+  console.error(`No contract at BUN_TOLL_ADDRESS ${BUN_TOLL_ADDRESS}. Deploy the CatToll first.`)
+  process.exit(1)
+}
 
 console.log('\nDeploying to Robinhood Chain…')
 const hash = await wallet.deployContract({ abi: contract.abi, bytecode, args })
