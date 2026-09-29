@@ -50,7 +50,11 @@ const HOUR = 60 * 60 * 1000
 /** A day away is as much as the yard will play out. See above. */
 export const MAX_TICKS = 24
 
-type Stored = YardState & { at: number }
+/**
+ * `furnished` marks a yard that has been through the one-time furnishing below,
+ * so from then on an empty yard means the player took everything away.
+ */
+type Stored = YardState & { at: number; furnished?: boolean }
 
 function load(key = KEY): Stored | null {
   if (typeof window === 'undefined') return null
@@ -81,7 +85,24 @@ function save(s: Stored, key = KEY) {
  * page having lost something rather than as somebody having left.
  */
 function reconcile(prev: Stored | null, cats: Resident[], seed: number): YardState {
-  if (!prev) return open(seed, cats)
+  /*
+   * A YARD OPENS FURNISHED.
+   *
+   * JP, 2026-09-29: "these cats are too negative; we need more cats to be having
+   * fun and happy." An empty yard only allows greet, snub and squabble, and it
+   * measured 84 squabbles in 200 ticks against 8 with everything out — so almost
+   * every yard anybody saw was a bare one, and a hostile one. The RULES are
+   * untouched; this is only what is standing in the yard on day one.
+   */
+  if (!prev) return open(seed, cats, [...PROPS])
+
+  /*
+   * AND A YARD THAT WAS NEVER FURNISHED IS FURNISHED ONCE. Nobody had found the
+   * shelf, so an empty yard from before this meant "never touched", not "chose
+   * nothing". The flag is saved with the visit, so from then on an empty yard is
+   * the player's own choice and stays empty.
+   */
+  const never = !Array.isArray(prev.props) || (prev.props.length === 0 && !prev.furnished)
 
   const here = new Set(cats.map(c => c.uid))
   return {
@@ -97,7 +118,7 @@ function reconcile(prev: Stored | null, cats: Resident[], seed: number): YardSta
      * Read defensively: a yard stored before props existed has none of this, and
      * an older value must open an empty yard rather than crash a new one.
      */
-    props: Array.isArray(prev.props) ? prev.props : [],
+    props: never ? [...PROPS] : prev.props,
     kept: prev.kept.filter(m => here.has(m.a) && here.has(m.b)),
   }
 }
@@ -203,7 +224,7 @@ export function visit(cats: Resident[], key = KEY): Visit {
   train(put)
 
   record(key, noted)
-  save({ ...state, at: now }, key)
+  save({ ...state, at: now, furnished: true }, key)
   return { state, happened, hours, fresh: !prev }
 }
 

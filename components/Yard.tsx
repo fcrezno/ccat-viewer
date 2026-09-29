@@ -77,20 +77,81 @@ import { NO_CHAIN } from '@/lib/appmode'
  * it accuses an onlooker of a row it stood next to. Only the three loud deeds
  * can be witnessed at all; see `witnesses` in lib/yardmap.ts.
  */
-const WATCHED: Partial<Record<Memory['kind'], [string, string, string]>> = {
-  squabble: ['', ' saw ', ' fall out with somebody.'],
-  groom:    ['', ' saw ', ' cleaning somebody up.'],
-  showoff:  ['', ' saw ', ' showing off.'],
+type Line3 = readonly [string, string, string]
+
+/*
+ * SEVERAL WAYS TO SAY EACH THING, and one memory always says it the same way.
+ *
+ * JP, 2026-09-29, looking at a page of the log: "we need more variety". Every
+ * deed had exactly one sentence, so a yard's log was the same five lines over
+ * and over. Each kind now has a handful, and `pick` chooses from the memory
+ * itself (its hour, its two cats, its kind) — so the log varies, but a line
+ * never rewrites itself when the page draws again.
+ *
+ * Still PLACEHOLDER PROSE, JP's to replace (yard-prose.xlsx). One line is his
+ * already: "trotted over to bother", from that sheet's example row.
+ */
+const WATCHED: Partial<Record<Memory['kind'], Line3[]>> = {
+  squabble: [
+    ['', ' saw ', ' fall out with somebody.'],
+    ['', ' heard ', ' hissing at somebody.'],
+  ],
+  groom: [
+    ['', ' saw ', ' cleaning somebody up.'],
+    ['', ' caught ', ' grooming somebody.'],
+  ],
+  showoff: [
+    ['', ' saw ', ' showing off.'],
+    ['', ' watched ', ' show off.'],
+  ],
 }
 
-const SAYS: Record<DeedKind, [string, string, string]> = {
-  greet:    ['', ' went over to say hello to ', '.'],
-  play:     ['', ' and ', ' chased each other around.'],
-  groom:    ['', ' cleaned ', "'s ears."],
-  showoff:  ['', ' showed off in front of ', '.'],
-  share:    ['', ' let ', ' eat first.'],
-  snub:     ['', ' walked past ', ' without looking.'],
-  squabble: ['', ' and ', ' fell out over nothing.'],
+const SAYS: Record<DeedKind, Line3[]> = {
+  greet: [
+    ['', ' went over to say hello to ', '.'],
+    ['', ' trotted over to bother ', '.'],
+    ['', ' bumped heads with ', '.'],
+    ['', ' gave ', ' a slow blink.'],
+    ['', ' rubbed up against ', '.'],
+  ],
+  play: [
+    ['', ' and ', ' chased each other around.'],
+    ['', ' batted the toy over to ', '.'],
+    ['', ' and ', ' wrestled until nobody was winning.'],
+    ['', ' pounced on ', ' and ran off.'],
+    ['', ' and ', ' played keep-away.'],
+  ],
+  groom: [
+    ['', ' cleaned ', "'s ears."],
+    ['', ' groomed ', ' very thoroughly.'],
+    ['', ' washed ', "'s face, whether it liked it or not."],
+    ['', ' licked a knot out of ', "'s fur."],
+  ],
+  showoff: [
+    ['', ' showed off in front of ', '.'],
+    ['', ' struck a pose for ', '.'],
+    ['', ' did a trick for ', '.'],
+    ['', ' made very sure ', ' was watching.'],
+  ],
+  // The yard's shared thing is catnip now (lib/items.ts, JP 2026-09-29).
+  share: [
+    ['', ' shared some catnip with ', '.'],
+    ['', ' passed the catnip to ', '.'],
+    ['', ' and ', ' split the catnip.'],
+    ['', ' let ', ' have the good bit.'],
+    ['', ' and ', ' got very relaxed together.'],
+  ],
+  snub: [
+    ['', ' walked past ', ' without looking.'],
+    ['', ' turned its back on ', '.'],
+    ['', ' pretended not to see ', '.'],
+  ],
+  squabble: [
+    ['', ' and ', ' fell out over nothing.'],
+    ['', ' hissed at ', '.'],
+    ['', ' and ', ' had words.'],
+    ['', ' swatted ', ' on the nose.'],
+  ],
 }
 
 /**
@@ -102,11 +163,60 @@ const SAYS: Record<DeedKind, [string, string, string]> = {
  *
  * PLACEHOLDER PROSE, as everywhere else. See lib/skills.ts for what these are.
  */
-const ALONE: Record<ChoreKind, string> = {
-  wits:  ' spent the hour teaching itself something.',
-  cook:  ' spent the hour learning to cook.',
-  poise: ' practised until it looked easy.',
-  tidy:  ' did the washing, properly this time.',
+const ALONE: Record<ChoreKind, string[]> = {
+  wits:  [' spent the hour teaching itself something.', ' stared at the toy until it made sense.', ' worked something out, and looked very pleased.'],
+  cook:  [' spent the hour learning to cook.', ' guarded the snacks like a chef.', ' tried a new recipe.'],
+  poise: [' practised until it looked easy.', ' walked along the top and did not fall.', ' held a pose for a whole hour.'],
+  tidy:  [' did the washing, properly this time.', ' gave itself a proper bath.', ' made its fur shine.'],
+}
+
+/** How a line ends after the names of the cats who watched it. */
+const SAW_IT = [' saw it.', ' watched the whole thing.', ' looked on.', ' saw everything.']
+
+/** This memory's own choice from a list: stable, so a line never rewrites itself. */
+function pick<T>(list: readonly T[], m: Memory, salt = 0): T {
+  const s = `${m.tick}|${m.a}|${m.b}|${m.kind}|${salt}`
+  let h = 2166136261
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619)
+  return list[(h >>> 0) % list.length]
+}
+
+/** A line of the log: one memory, and whoever watched it happen. */
+type Told = { m: Memory; watchers: string[] }
+
+/**
+ * FOLD THE ONLOOKERS INTO WHAT THEY WATCHED.
+ *
+ * A witness is its own memory (see `witnesses` in lib/yardmap.ts): same hour,
+ * same kind, its `b` the cat who did it. Printed one each, a squabble in a busy
+ * yard came with a line per bystander — "Hazel saw Otto fall out with somebody.
+ * Mittens saw Otto fall out with somebody." — and they buried everything else.
+ * Now they ride on the event: "Otto and Comet had words. Hazel and Mittens saw
+ * it." Only the PRINTING changes; every memory is still kept, and still counts.
+ *
+ * A witness whose event is not in the list (it aged out first) is grouped with
+ * the others who saw the same thing, and keeps its own sentence.
+ */
+function fold(list: Memory[]): Told[] {
+  const key = (tick: number, kind: string, who: string) => `${tick}|${kind}|${who}`
+  const events = new Map<string, Told>()
+  for (const m of list) if (!m.seen && !m.alone) events.set(key(m.tick, m.kind, m.a), { m, watchers: [] })
+
+  const out: Told[] = []
+  const orphans = new Map<string, Told>()
+  for (const m of list) {
+    if (!m.seen) {
+      out.push(m.alone ? { m, watchers: [] } : events.get(key(m.tick, m.kind, m.a))!)
+      continue
+    }
+    const k = key(m.tick, m.kind, m.b)
+    const into = events.get(k) ?? orphans.get(k)
+    if (into) { if (!into.watchers.includes(m.a)) into.watchers.push(m.a); continue }
+    const told = { m, watchers: [m.a] }
+    orphans.set(k, told)
+    out.push(told)
+  }
+  return out
 }
 
 /* `art` now lives on Resident itself, because the map draws every cat. */
@@ -440,7 +550,7 @@ export function Yard({
      * and printed a caret under an empty page on a second look.
      */
     const news = state.happened.length > 0
-    const total = Math.min(14, (news ? state.happened : state.state.kept).length)
+    const total = Math.min(14, fold(news ? state.happened : state.state.kept).length)
     if (rolled >= total) return
 
     /*
@@ -611,7 +721,7 @@ export function Yard({
    * filler: the status line above says which of the two it is.
    */
   const fresh = state.happened.length > 0
-  const recent = (fresh ? state.happened : state.state.kept).slice(-14).reverse()
+  const recent = fold(fresh ? state.happened : state.state.kept).slice(-14).reverse()
 
   /*
    * ONE LIST, ROLLED IN. There was a short version and a long one with a control
@@ -736,9 +846,16 @@ export function Yard({
           onKeyDown={readerMoved}
           style={{ ...paper, maxHeight: compact ? 190 : 440 }}
         >
-          {shown.slice(0, rolled).map((m, i) => {
+          {shown.slice(0, rolled).map(({ m, watchers }, i) => {
             const a = name(m.a), b = name(m.b)
             if (!a || !b) return null
+
+            /* "Hazel", "Hazel and Mittens", "Hazel, Mittens and Tuna", each in its own ink. */
+            const who = watchers.map(name).filter((c): c is YardCat => !!c)
+            const names = (ink: string): Run[] => who.flatMap((c, k) => [
+              ...(k === 0 ? [] : [{ text: k === who.length - 1 ? ' and ' : ', ', color: ink }]),
+              { text: c.name, color: nameInk(c) },
+            ])
 
             /*
              * A CAT ON ITS OWN GETS ITS OWN SHAPE. `b` is `a` for a chore, so the
@@ -751,7 +868,7 @@ export function Yard({
                   key={i}
                   runs={[
                     { text: a.name, color: nameInk(a) },
-                    { text: ALONE[m.kind], color: ink },
+                    { text: pick(ALONE[m.kind], m), color: ink },
                   ]}
                 />
               )
@@ -763,10 +880,29 @@ export function Yard({
              * dropped instead — witnesses only ever carry the three kinds that
              * WATCHED covers, so this cannot silently swallow anything real.
              */
-            const line = m.seen ? WATCHED[m.kind] : SAYS[m.kind]
-            if (!line) return null
-            const [before, mid, after] = line
+            const lines = m.seen ? WATCHED[m.kind] : SAYS[m.kind]
+            if (!lines) return null
+            const [before, mid, after] = pick(lines, m)
             const ink = DEED_INK[m.kind]
+
+            /*
+             * WATCHED AND NOTHING ELSE: every cat who saw it, then what they saw.
+             * `a` here is only the first watcher; `who` is all of them.
+             */
+            if (m.seen) {
+              return (
+                <Bit
+                  key={i}
+                  runs={[
+                    { text: before, color: ink },
+                    ...names(ink),
+                    { text: mid, color: ink },
+                    { text: b.name, color: nameInk(b) },
+                    { text: after, color: ink },
+                  ]}
+                />
+              )
+            }
             /*
              * THE VERB BEATS, THE NAMES DO NOT. The deed is what just happened;
              * the two cats were already there. Moving them as well would turn a
@@ -783,6 +919,12 @@ export function Yard({
                   { text: mid, color: ink, beat },
                   { text: b.name, color: nameInk(b) },
                   { text: after, color: ink, beat },
+                  // And whoever watched, on the same line rather than one line each.
+                  ...(who.length ? [
+                    { text: ' ', color: INK_FAINT },
+                    ...names(INK_FAINT),
+                    { text: pick(SAW_IT, m, 7), color: INK_FAINT },
+                  ] : []),
                 ]}
               />
             )

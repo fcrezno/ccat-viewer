@@ -35,7 +35,6 @@ export type Item = { file: string; label: string }
 export const ITEMS: Record<PropKind, Item[]> = {
   /* Something to bat about, knock off a table, or carry around. */
   toy: [
-    { file: 'feather', label: 'a feather' },
     { file: 'gameboy', label: 'a handheld' },
     { file: 'walnut',  label: 'a walnut' },
     { file: 'gum',     label: 'a stick of gum' },
@@ -45,6 +44,15 @@ export const ITEMS: Record<PropKind, Item[]> = {
   ],
   /* Something worth eating, which is the only thing worth sharing. */
   bowl: [
+    /*
+     * CATNIP, and it is always the yard's shared thing — see skinOf.
+     *
+     * JP, 2026-09-29: "use the joint image so the cats can share some catnip".
+     * The drawing was imported as `feather` and filed under the toy; it is a
+     * joint. The FILE ID stays `feather` because a cat's bag is saved by it (see
+     * lib/loot.ts) — renaming it would take it out of every bag that holds it.
+     */
+    { file: 'feather',   label: 'some catnip' },
     { file: 'chips',     label: 'a bag of chips' },
     { file: 'pizza',     label: 'a slice of pizza' },
     { file: 'banana',    label: 'a banana' },
@@ -72,6 +80,14 @@ export const ITEMS: Record<PropKind, Item[]> = {
  */
 export function skinOf(kind: PropKind, seed: number): Item {
   const list = ITEMS[kind]
+  /*
+   * TWO PROPS ARE THE SAME IN EVERY YARD (JP, 2026-09-29): the thing they share is
+   * catnip — "use the joint image so the cats can share some catnip" — and the
+   * thing they play with is the handheld — "change the to play with into the
+   * gameboy". Both are first in their lists. The others stay, as things a cat can
+   * carry (lib/loot.ts), and the perch still varies by yard.
+   */
+  if (kind === 'bowl' || kind === 'toy') return list[0]
   const salt = Math.imul(PROPS.indexOf(kind) + 1, 0x9e3779b1)
   return list[((seed ^ salt) >>> 0) % list.length]
 }
