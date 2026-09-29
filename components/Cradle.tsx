@@ -9,7 +9,7 @@ import { useSound } from '@/lib/useSound'
 import { trackForRound } from '@/lib/music'
 import { BitmapText } from '@/components/BitmapText'
 import { FxLabel } from '@/components/FxButton'
-import { FightStage } from '@/components/FightStage'
+import { FightStage, KIND_INK } from '@/components/FightStage'
 import { noteWin, noteLoss, type Beat } from '@/lib/streak'
 import { NO_CHAIN } from '@/lib/appmode'
 import { catsForWins } from '@/lib/season'
@@ -105,6 +105,16 @@ function unlockedSpeeds(cat: Cat | null): readonly number[] {
 }
 
 const PAPER = '#f2eee3'
+
+/*
+ * ONE WIDTH FOR EVERYTHING ON SCREEN DURING A FIGHT (JP, 2026-09-29: "too much
+ * empty space; make it fit better", then the same for the results and the row
+ * of controls). The battle screen is as wide as the window allows, never more
+ * than 2x the game (960) and never taller than the window below the header;
+ * the controls above it and the results under it take the same width, so the
+ * three line up instead of the screen overhanging a narrow column.
+ */
+const WIDE = 'min(960px, calc(100vw - 32px), calc((100dvh - 160px) * 1.5))'
 
 const INK = '#1a1a1a'
 
@@ -802,6 +812,23 @@ export function Cradle() {
   const [speed, setSpeed] = useState(BASE_SPEED)
   const sound = useSound()
   const cardRef = useRef<HTMLElement>(null)
+  const logRef = useRef<HTMLDivElement>(null)
+
+  /*
+   * A PHONE KEEPS THE OLD LOG. JP, 2026-09-29: "for mobile keep the old text
+   * scroll down we had before; for the desktop web page keep it the same". At
+   * phone width the battle screen shows its top only (FightStage `crop`) and the
+   * fight is told on the scrolling paper under it; wider, the log stays in the
+   * screen's own text box. After mount, because the server has no screen width.
+   */
+  const [narrow, setNarrow] = useState(false)
+  useEffect(() => {
+    const q = window.matchMedia('(max-width: 640px)')
+    const on = () => setNarrow(q.matches)
+    on()
+    q.addEventListener('change', on)
+    return () => q.removeEventListener('change', on)
+  }, [])
   const counted = useRef<string | null>(null)
   const [, bump] = useState(0)
 
@@ -871,6 +898,11 @@ export function Cradle() {
     const t = setTimeout(() => setShown(n => n + 1), LINE_MS / speed)
     return () => clearTimeout(t)
   }, [result, shown, count, speed])
+
+  // The phone's paper log follows the newest line down (see `narrow`).
+  useEffect(() => {
+    logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: 'smooth' })
+  }, [shown])
 
 
   /*
@@ -957,6 +989,8 @@ export function Cradle() {
   }, [shown, result, rowsShown])
 
   const done = !!result && shown >= result.log.length
+  /** A fight is on screen, so the page takes the fight's width (see WIDE). */
+  const wide = view === 'fight' && !!result
   const at = result && shown > 0 ? result.log[shown - 1] : null
   const prev = result && shown > 1 ? result.log[shown - 2] : null
   /*
@@ -1459,7 +1493,7 @@ export function Cradle() {
         noise with no visible way to stop it gets closed, not muted — and both
         settings are remembered, so it does not come back loud next time.
       */}
-      <div style={s.soundRow}>
+      <div style={{ ...s.soundRow, ...(wide ? { width: WIDE, alignSelf: 'center' } : null) }}>
         {/*
           SPEED sits with the sound because both are settings about HOW the fight
           is delivered rather than what happens in it, and because this row is the
@@ -1843,7 +1877,23 @@ export function Cradle() {
                 cards and a turf line. The whole screen shakes on a crit or a KO,
                 as the game's does.
               */}
+              {/*
+                AS BIG AS THE WINDOW ALLOWS (JP, 2026-09-29: "too much empty space;
+                make it fit better"). Inside the page's 520 column the screen was
+                480 wide and sat at the top of an empty page. It breaks out of the
+                column now: the full width less a margin, never more than 2x the
+                game (960), and never taller than the window below the header.
+                alignSelf centres it however far it overflows the column.
+
+                AND IN THE MIDDLE UNTIL THE RESULTS ARRIVE. The auto margins share
+                the free space with the footer's; once the results card is there,
+                there is none left to share and the screen sits at the top again.
+              */}
               <div style={{
+                // A phone: edge to edge — the column plus the page's 18px padding either side.
+                width: narrow ? 'calc(100% + 36px)' : WIDE,
+                alignSelf: 'center',
+                ...(done ? null : { marginTop: 'auto', marginBottom: 'auto' }),
                 animation: at?.kind === 'crit' || at?.kind === 'ko'
                   ? `cradle-shake${shown % 2 === 1 ? '-b' : ''} ${0.3 / speed}s ease-out`
                   : undefined,
@@ -1859,6 +1909,7 @@ export function Cradle() {
                   beat={shown}
                   speed={speed}
                   lines={result.log.slice(0, shown)}
+                  crop={narrow}
                 >
                   {/*
                   3, 2, 1, FIGHT! over the stage, in the game's font because
@@ -1879,7 +1930,27 @@ export function Cradle() {
                 </FightStage>
               </div>
 
-              {/* The log is in the battle screen's text box now, as it is in the game. */}
+              {/*
+                THE OLD PAPER LOG, ON A PHONE ONLY. On a wider screen the log is in
+                the battle screen's text box, as it is in the game.
+              */}
+              {narrow && (
+                <div ref={logRef} style={s.log}>
+                  {result.log.slice(0, shown).map((l, i) => (
+                    <div key={i} style={{
+                      margin: '0 0 6px',
+                      animation: l.kind === 'crit' ? `cradle-crit ${0.45 / speed}s ease-out` : undefined,
+                    }}>
+                      <BitmapText
+                        text={l.text}
+                        scale={l.style === 'announce' ? 2 : 1}
+                        color={KIND_INK[l.kind] ?? INK}
+                      />
+                    </div>
+                  ))}
+                  {!done && <span style={s.caret}>▌</span>}
+                </div>
+              )}
 
               {/*
                 THE RESULTS CARD.
@@ -1889,8 +1960,17 @@ export function Cradle() {
                 looks: MyFont has no digits at all, so every number in it would
                 fall back to another face. The bitmap sheet carries the full set.
               */}
+              {/*
+                THE RESULTS, AT THE SCREEN'S WIDTH, IN TWO COLUMNS (JP: "make the
+                results fit better as well"). They were a single file in the 520
+                column under a 960 screen. Now the card is on one side and the
+                streak and the buttons on the other; on a narrow screen the
+                columns stack, which is what they did before.
+              */}
+              {done && (
+              <div style={{ ...s.after, width: WIDE }}>
               {done && result.rows.length > 0 && (
-                <section ref={cardRef} style={s.resultCard}>
+                <section ref={cardRef} style={{ ...s.resultCard, animation: 'results-in 0.45s ease-out both' }}>
                   {/*
                     CONFETTI ONLY WHEN YOU WON — deliberate, and checked.
 
@@ -1963,6 +2043,7 @@ export function Cradle() {
                 </section>
               )}
 
+              <div style={{ ...s.afterSide, animation: 'results-in 0.45s ease-out 0.15s both' }}>
               {done && beat && <StreakLine beat={beat} />}
 
               {/*
@@ -2215,6 +2296,9 @@ export function Cradle() {
                   </button>
                 </section>
               )}
+              </div>
+              </div>
+              )}
             </>
           )}
 
@@ -2231,8 +2315,8 @@ export function Cradle() {
         reach three links is a menu too many.
       */}
       <nav style={s.nav}>
-        <a href="/game" style={s.navLink}>IDLE GAME</a>
-        <a href="/cats" style={s.navLink}>YOUR CATS</a>
+        <a href="/game" className="fx-host" style={s.navLink}><FxLabel text="IDLE GAME" tone="grey" /></a>
+        <a href="/cats" className="fx-host" style={s.navLink}><FxLabel text="YOUR CATS" tone="grey" /></a>
         {/*
           NO WAY TO BUY ANYTHING IN THE APP BUILD.
 
@@ -2245,7 +2329,7 @@ export function Cradle() {
           `NO_CHAIN` is inlined at build time, so this link is not merely hidden
           in the app binary. It is not in it.
         */}
-        {!NO_CHAIN && <a href="/mint" style={s.navLink}>MINT</a>}
+        {!NO_CHAIN && <a href="/mint" className="fx-host" style={s.navLink}><FxLabel text="MINT" tone="grey" /></a>}
       </nav>
 
       <footer style={s.footer}>Clanker Cats — the full game is being built in s&amp;box</footer>
@@ -2302,6 +2386,18 @@ const s: Record<string, React.CSSProperties> = {
   cardLabel: { fontSize: 9, padding: '5px 4px 0', color: '#f0f0f5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   cardRec: { fontSize: 9, padding: '0 4px 5px', color: '#7a7a95' },
   placeholder: { width: '100%', aspectRatio: '1', display: 'grid', placeItems: 'center', fontSize: 22, background: '#0b0b13' },
+
+  // The phone's scrolling log (see `narrow`), as it was before the battle screen.
+  log: {
+    background: PAPER, color: INK, borderRadius: 14, padding: '18px 18px 14px',
+    height: 320, overflowY: 'auto',
+    boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.08)',
+  },
+  caret: { color: '#8a8a7a', fontSize: 14 },
+
+  // After a fight: the results card beside the streak and the buttons, at WIDE.
+  after:     { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 16, alignItems: 'start', alignSelf: 'center' },
+  afterSide: { display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 },
 
   // The countdown, over the battle screen (components/FightStage) in its game pixels.
   countWrap: {
@@ -2447,7 +2543,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   navLink: {
     color: '#7a7a95', fontSize: 11, letterSpacing: 1, textDecoration: 'none',
-    border: '1px solid #21212f', borderRadius: 999, padding: '7px 14px',
+    border: '1px solid #21212f', borderRadius: 999, padding: '3px 14px',
   },
   footer:  { marginTop: 12, textAlign: 'center', color: '#3f3f55', fontSize: 10, letterSpacing: 1 },
 }

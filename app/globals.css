@@ -879,3 +879,39 @@ button, input, select, textarea, optgroup {
     animation: fx-glow 1.15s ease-in-out var(--d) infinite;
   }
 }
+
+/*
+ * THE RESULTS ARRIVE (JP, 2026-09-29: "if it animates that could work i think;
+ * but make sure it also can work for mobile"). The card rises in with a small
+ * overshoot — the pop the game's counts and awards use, gentler for a whole
+ * card — and the buttons' column follows a beat behind (Cradle.tsx). Transform
+ * and opacity only, so it is the same on a phone; the award rows inside keep
+ * their own tally (cradle-row-in).
+ */
+@keyframes results-in {
+  0%   { opacity: 0; transform: translateY(28px) scale(0.97); }
+  60%  { opacity: 1; transform: translateY(-4px) scale(1.01); }
+  100% { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [style*="results-in"] { animation: none !important; }
+}
+
+/*
+ * AND THE WHOLE BUTTON LIGHTS UP.
+ *
+ * JP, 2026-09-29: "add mouse over animations for the buttons so the text
+ * animates and lights up when its mouse overed". The label already waves and
+ * glows in the button's own colours (above); now the button itself brightens
+ * and gains a soft halo while the pointer is on it. Only where there IS a
+ * pointer — on a touch screen a hover state sticks after a tap, and the labels
+ * there wave all the time anyway.
+ */
+.fx-host { transition: filter 0.15s ease-out, box-shadow 0.15s ease-out; }
+@media (hover: hover) {
+  .fx-host:hover:not(:disabled) {
+    filter: brightness(1.22);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.16), 0 0 18px rgba(255, 255, 255, 0.14);
+  }
+}
+.fx-host:focus-visible { outline: 2px solid #f0d060; outline-offset: 2px; }

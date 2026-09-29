@@ -38,6 +38,14 @@ import { Haloed } from '@/components/Haloed'
 
 const W = 480
 const H = 320
+/**
+ * How much of the screen a phone shows: see `crop`. Down to y 200, and x 24..456:
+ * the outer 24 each side is only backdrop (the HP numbers start at x 30), and
+ * leaving it off makes everything else a sixth bigger on a narrow screen.
+ */
+const CROP_H = 200
+const CROP_X = 24
+const CROP_W = W - 2 * CROP_X
 const ZONES = ['caves', 'forest', 'mountain', 'temple', 'town']
 
 /** The log's inks on paper. Moved here from Cradle.tsx, which imports them. */
@@ -58,7 +66,7 @@ const ALARM = '#e02020'
 const MINE_INK = '#b07a10'
 
 export function FightStage({
-  you, foe, hp, ghost, turf, swinging, struck, beat, speed, lines, children,
+  you, foe, hp, ghost, turf, swinging, struck, beat, speed, lines, crop = false, children,
 }: {
   you: ArenaCat
   foe: ArenaCat
@@ -75,6 +83,14 @@ export function FightStage({
   speed: number
   /** Every line said so far. The text box shows the end of it. */
   lines: LogLine[]
+  /**
+   * A PHONE SHOWS THE TOP OF THE SCREEN ONLY — bars, KO box, portraits, names —
+   * and its log is the old scrolling paper under it instead (JP, 2026-09-29: "for
+   * mobile keep the old text scroll down we had before"). At phone width the
+   * text box's three rows were too small to read. The names end at y 192 and the
+   * box's drawn edge starts at 207, so 200 cuts between them.
+   */
+  crop?: boolean
   /** Drawn over the stage, like the countdown. */
   children?: ReactNode
 }) {
@@ -83,12 +99,12 @@ export function FightStage({
   useEffect(() => {
     const el = box.current
     if (!el) return
-    const fit = () => setK(el.clientWidth / W)
+    const fit = () => setK(el.clientWidth / (crop ? CROP_W : W))
     fit()
     const ro = new ResizeObserver(fit)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [])
+  }, [crop])
 
   // The newest row stays in view: once three are full, the oldest leaves the top.
   const log = useRef<HTMLDivElement>(null)
@@ -145,8 +161,8 @@ export function FightStage({
         </>
       )}
 
-      <div ref={box} style={st.frame}>
-        <div style={{ ...st.stage, transform: `scale(${k})` }}>
+      <div ref={box} style={{ ...st.frame, ...(crop ? st.frameCrop : null), aspectRatio: `${crop ? CROP_W : W} / ${crop ? CROP_H : H}` }}>
+        <div style={{ ...st.stage, transform: `${crop ? `translateX(${-CROP_X * k}px) ` : ''}scale(${k})` }}>
           {hasZone && (
             <video
               key={zone}
@@ -189,7 +205,7 @@ export function FightStage({
           <div style={{ ...st.name, left: 75 }}><Haloed text={you.label} color={you.mine ? MINE_INK : '#1a1a1a'} /></div>
           <div style={{ ...st.name, left: 299 }}><Haloed text={foe.label} color={foe.mine ? MINE_INK : '#1a1a1a'} /></div>
 
-          <div ref={log} style={st.log} aria-live="polite">
+          {!crop && <div ref={log} style={st.log} aria-live="polite">
             {lines.map((l, i) => (
               <div key={i} style={{
                 ...st.row,
@@ -199,7 +215,7 @@ export function FightStage({
                 <BitmapText text={l.text} scale={1} color={KIND_INK[l.kind] ?? '#1a1a1a'} />
               </div>
             ))}
-          </div>
+          </div>}
 
           {children}
         </div>
@@ -212,6 +228,8 @@ const st: Record<string, React.CSSProperties> = {
   pageBg:    { position: 'fixed', inset: -60, zIndex: -2, backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(28px) saturate(1.15) brightness(0.55)', transform: 'scale(1.1)' },
   pageShade: { position: 'fixed', inset: 0, zIndex: -1, background: 'radial-gradient(ellipse at 50% 30%, rgba(10,10,20,0.15) 0%, rgba(10,10,20,0.55) 55%, rgba(10,10,20,0.9) 100%)' },
   frame:     { position: 'relative', width: '100%', aspectRatio: `${W} / ${H}`, overflow: 'hidden', borderRadius: 10, background: '#0e0e18', boxShadow: '0 18px 60px rgba(0,0,0,0.55)', border: '2px solid rgba(255,255,255,0.12)' },
+  // A phone: edge to edge (the Cradle gives it the full width), so no rounded ends or side rails.
+  frameCrop: { borderRadius: 0, borderLeft: 'none', borderRight: 'none' },
   stage:     { position: 'absolute', left: 0, top: 0, width: W, height: H, transformOrigin: '0 0', imageRendering: 'pixelated' },
   // 480x320 at 1:1; maxWidth none, or the global `video { max-width: 100% }` squeezes it.
   backdrop:  { position: 'absolute', left: 0, top: 0, width: W, height: H, maxWidth: 'none' },
