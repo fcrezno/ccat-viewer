@@ -1085,7 +1085,7 @@ const BOND_INK: Record<string, string> = {
   enemies:     '#a01b1b',
 }
 
-const fine: React.CSSProperties = { color: '#63637d', fontSize: 11, margin: 0, lineHeight: 1.6 }
+const fine: React.CSSProperties = { color: '#9a9ab5', fontSize: 12.5, margin: 0, lineHeight: 1.6 }
 const say: React.CSSProperties = { color: '#a9a9c0', fontSize: 13, margin: 0, lineHeight: 1.6 }
 const label: React.CSSProperties = { fontSize: 10, letterSpacing: 2, color: '#7a7a95', margin: '4px 0 8px' }
 

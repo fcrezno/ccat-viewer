@@ -11,10 +11,7 @@ import { trackForRound } from '@/lib/music'
 import { BitmapText } from '@/components/BitmapText'
 import { FxLabel } from '@/components/FxButton'
 import { noteWin, noteLoss, type Beat } from '@/lib/streak'
-import { Yard, type YardCat } from '@/components/Yard'
-import { residents, DEMO_KEY } from '@/lib/yardstore'
 import { NO_CHAIN } from '@/lib/appmode'
-import { myRoster } from '@/lib/mycats'
 import { catsForWins } from '@/lib/season'
 import {
   addFriend, friends as loadFriends, ladder, noteFight, ratio,
@@ -1156,166 +1153,13 @@ export function Cradle() {
     ? `/mint/v3?r=${encodeURIComponent(tag)}`
     : null
 
-  const [yardCats, setYardCats] = useState<YardCat[]>([])
-  const [yardBusy, setYardBusy] = useState(false)
-
-  const faceOf = (c: Cat) =>
-    c.meta?.attributes?.find(a => /face/i.test(a.trait_type ?? ''))?.value ?? null
-
   /*
-   * THE CATS YOU WON, WHETHER OR NOT YOU HOLD A TOKEN.
-   *
-   * JP, 2026-09-10: "if you have the NFT, it probably just gives you, like, a
-   * ticket to go play the game. That's it. I don't think it needs to cost
-   * anything. I just want it to be more open."
-   *
-   * So this is no longer only the app build's business. EVERY visitor gets a
-   * stable — the cat they arrived with, plus whatever they have won — and a
-   * token is an extra on top rather than the price of admission.
-   *
-   * It is the same `firstCat()` and the same `myRoster()` the App Store build
-   * uses, which is the point: one game, and the wallet stops being the door.
+   * THE YARD LIVES ON ITS OWN PAGE NOW (JP, 2026-09-29: "remove the yard and
+   * just make it its own page"). Who lives in it is lib/useYardResidents.ts,
+   * moved there from here. The one thing it did that this page still needs is
+   * `firstCat()`: the cat a new player arrives with.
    */
-  const [roster, setRoster] = useState<YardCat[]>([])
-  useEffect(() => {
-    firstCat()
-    let live = true
-    myRoster()
-      .then(got => { if (live) setRoster(got.map(c => ({ ...c, mine: true }))) })
-      .catch(() => {})
-    return () => { live = false }
-  }, [])
-
-  const held: YardCat[] = useMemo(() => (cats ?? []).map(c => ({
-    uid: c.uid,
-    name: nameFor(c.uid) ?? c.meta?.name ?? `#${c.id}`,
-    face: faceOf(c),
-    art: c.meta?.image ?? '',
-    mine: true,
-  })), [cats])
-
-  /*
-   * TOKENS FIRST, so a holder's own cats lead the list and a yard that has to be
-   * trimmed keeps them. Both halves are `mine`; the yard cannot tell them apart
-   * and should not — a cat is a cat.
-   */
-  const mine: YardCat[] = useMemo(() => [...held, ...roster], [held, roster])
-
-  useEffect(() => {
-    /*
-     * ?fid= STANDS IN FOR THE FARCASTER CONTEXT.
-     *
-     * Outside Farcaster there is no identity, so the yard would be your own shelf
-     * and nothing else — including in a browser, which is where it is easiest to
-     * look at. This makes any yard viewable by hand.
-     *
-     * It reads nothing private: a follow list and who owns which cat are both
-     * public, and the same call serves them to anybody already.
-     */
-    const asked = Number(new URLSearchParams(window.location.search).get('fid'))
-    const who = fcFid ?? (Number.isInteger(asked) && asked > 0 ? asked : null)
-
-    let live = true
-    setYardBusy(true)
-
-    /*
-     * THE BUILD WITH NO CHAIN HAS ONE SOURCE: THE CATS YOU WON.
-     *
-     * Everything below this needs the chain — your own cats come from a wallet,
-     * the neighbours come from a follow graph, and the demo yard reads token
-     * metadata. None of that exists in the app build, so none of it runs.
-     *
-     * `firstCat()` is why a new player is not looking at an empty pen: the cat
-     * they arrived with counts as the first one, so one 3-win run gives them a
-     * second and opens the yard. See lib/stable.ts.
-     *
-     * Every cat here is `mine`, because in this build there is nobody else.
-     */
-    /*
-     * THE APP BUILD STOPS HERE, because everything below needs the chain: the
-     * neighbours come from a follow graph and the demo yard reads token
-     * metadata. `mine` already holds this player's own cats, won rather than
-     * held, so there is nothing left to fetch.
-     */
-    if (NO_CHAIN) {
-      setYardCats(mine)
-      setYardBusy(false)
-      return () => { live = false }
-    }
-
-    /*
-     * THE DEMO YARD, when there is nobody to show.
-     *
-     * JP: "maybe have a demo yard… that features random holder's cats."
-     *
-     * The yard is the first thing on this page now, and it needs at least two
-     * ADOPTED cats to be a yard at all. Without a wallet and without Farcaster
-     * that is nobody — so the front door showed an empty space to exactly the
-     * audience the whole pitch is aimed at, the one that has not connected
-     * anything.
-     *
-     * ?demo=1 answers with real minted cats belonging to real holders, one per
-     * address. A stranger sees the actual collection getting on with itself, and
-     * lib/yardstore keeps it under its own key so it can never be written over
-     * somebody's real yard.
-     */
-    const demo = () => {
-      /*
-       * A DEMO YARD KEEPS THE CAST IT STARTED WITH.
-       *
-       * The endpoint rotates which holders it picks every ten minutes, which is
-       * right for a first visit and was quietly ruinous after it: a different
-       * eight cats means reconcile() drops every memory naming a cat who has
-       * gone, so the demo restarted socially on every rotation. Caught it at 314
-       * ticks and ZERO memories — days of simulated time, nothing remembered,
-       * which is precisely what the demo exists to show.
-       *
-       * So once a demo yard exists, its own residents are the cast. It also
-       * saves the call.
-       */
-      const already = residents(DEMO_KEY) as YardCat[]
-      if (already.length > 1) {
-        setYardCats(already)
-        return Promise.resolve()
-      }
-
-      return fetch('/api/yard?demo=1&n=8')
-        .then(r => r.json())
-        .then(d => {
-          if (!live) return
-          const cats: YardCat[] = (d?.residents ?? []).map((r: YardCat) => ({ ...r, mine: false, demo: true }))
-          // Still nothing? Then there is genuinely nothing, and the section hides.
-          setYardCats(cats.length > 1 ? cats : mine)
-        })
-        .catch(() => { if (live) setYardCats(mine) })
-    }
-
-    if (!who) {
-      // Your own cats are a shelf, not a yard — under two there is nothing to watch.
-      if (mine.length > 1) {
-        setYardCats(mine)
-        setYardBusy(false)
-      } else {
-        demo().finally(() => { if (live) setYardBusy(false) })
-      }
-      return () => { live = false }
-    }
-
-    fetch(`/api/yard?fid=${who}`)
-      .then(r => r.json())
-      .then(d => {
-        if (!live) return
-        const theirs: YardCat[] = (d?.residents ?? []).map((r: YardCat) => ({ ...r, mine: false }))
-        const all = [...mine, ...theirs]
-        // Followed nobody who owns one, and hold fewer than two yourself.
-        if (all.length > 1) setYardCats(all)
-        else return demo()
-      })
-      // A yard that cannot reach its neighbours still has your own cats in it.
-      .catch(() => { if (live) setYardCats(mine) })
-      .finally(() => { if (live) setYardBusy(false) })
-    return () => { live = false }
-  }, [fcFid, mine])
+  useEffect(() => { firstCat() }, [])
 
   const [beat, setBeat] = useState<Beat | null>(null)
   const streaked = useRef<string | null>(null)
@@ -1756,46 +1600,6 @@ export function Cradle() {
 
       {view === 'home' && (
         <>
-          {/*
-            THE YARD COMES FIRST.
-
-            JP: "I want the yard the first thing the players see, which is just
-            their cats interact with each other."
-
-            It was fourth, below the fight buttons, the QR code and the wallet
-            row — which meant the one thing here that nothing else has was the
-            one thing you had to scroll to find.
-
-            COMPACT, so it does not become the whole screen: three lines of what
-            just happened, and they grow. The full account, the pair list and the
-            cats themselves are through the door at /yard.
-          */}
-          {yardCats.length > 0 && (
-            <section style={s.block}>
-              <div style={s.yardHead}>
-                <p style={{ ...s.label, margin: 0 }}>THE YARD</p>
-                <a href="/yard" style={s.yardIn}>ENTER →</a>
-              </div>
-              <p style={{ ...s.fine0, marginBottom: 12 }}>
-                Your cats and the cats of people you follow.
-              </p>
-              {/*
-                THE YARD CAN START A FIGHT FROM HERE, and only from here.
-
-                A strange mood asks for one thing — to go out — and the only
-                place that can answer it is inside the game. The yard's own page
-                shows the ask and no button, which is honest: it is a window on
-                the yard, not the game.
-              */}
-              <Yard
-                cats={yardCats}
-                busy={yardBusy}
-                compact
-                onFight={uid => startFight({ uid })}
-              />
-            </section>
-          )}
-
           {isConnected && cats === null && <p style={s.quiet}>looking for your cats…</p>}
 
           {isConnected && pickable.length > 0 && (
@@ -2740,15 +2544,6 @@ const s: Record<string, React.CSSProperties> = {
     color: 'inherit', fontFamily: 'inherit',
   },
   slider: { width: 110, accentColor: '#8b5cf6', cursor: 'pointer' },
-
-  yardHead: {
-    display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
-    gap: 12, marginBottom: 4,
-  },
-  yardIn: {
-    color: '#8b5cf6', fontSize: 11, letterSpacing: 1, textDecoration: 'none',
-    whiteSpace: 'nowrap',
-  },
 
   nav: {
     marginTop: 'auto', display: 'flex', justifyContent: 'center', gap: 8,

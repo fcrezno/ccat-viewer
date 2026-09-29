@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { COLS, ROWS, DOING, layout, layoutAt, moodOf, poseOf, type Placed } from '@/lib/yardmap'
 import { bond, reads, temperOf, type PropKind, type YardState } from '@/lib/yard'
 import { ITEMS, skinOf } from '@/lib/items'
@@ -333,6 +333,33 @@ export function YardMap({
   const night = hour < 6 || hour >= 18
   const sky = night ? NIGHT : DAY
 
+  /*
+   * A NARROW SCREEN GETS THE MAP ON ITS SIDE.
+   *
+   * JP, 2026-09-29: "make it more easier to see for viewers". The yard is 13 wide
+   * and 8 tall, and a phone is the other shape: at 375px every tile came out 22px
+   * and every cat 19px. Turned on its side it is 8 wide and 13 tall, so the same
+   * width holds 8 tiles instead of 13 — each one nearly twice the size.
+   *
+   * ONLY THE DRAWING TURNS. World positions, pathing, props and poses are all in
+   * the yard's own (x, y); a cell is simply drawn at (y, x) on screen. Wide
+   * screens keep the 13 x 8 field.
+   */
+  const box = useRef<HTMLDivElement>(null)
+  const [tall, setTall] = useState(false)
+  useEffect(() => {
+    const el = box.current
+    if (!el) return
+    const fit = () => setTall(el.clientWidth < 480)
+    fit()
+    const ro = new ResizeObserver(fit)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  /** Screen columns and rows. */
+  const DC = tall ? ROWS : COLS
+  const DR = tall ? COLS : ROWS
+
   const byCell = useMemo(() => {
     const m = new Map<number, Placed>()
     for (const p of placed) m.set(p.cell.y * COLS + p.cell.x, p)
@@ -360,7 +387,7 @@ export function YardMap({
   const b = sel && anchor ? bond(yard, sel.cat.uid, anchor) : null
 
   return (
-    <div>
+    <div ref={box}>
       {/*
         THE GROUND AND THE FURNITURE ARE THE GRID. THE CATS ARE NOT.
 
@@ -383,10 +410,12 @@ export function YardMap({
         <span>{String(hour).padStart(2, '0')}:00</span>
       </div>
 
-      <div style={{ ...s.grid, background: sky.grid }}>
-        {Array.from({ length: COLS * ROWS }, (_, i) => {
-          const x = i % COLS, y = Math.floor(i / COLS)
-          const here = byCell.get(i)
+      <div style={{ ...s.grid, gridTemplateColumns: `repeat(${DC}, 1fr)`, background: sky.grid }}>
+        {Array.from({ length: DC * DR }, (_, i) => {
+          // Screen cell i, and the yard cell drawn there.
+          const col = i % DC, row = Math.floor(i / DC)
+          const x = tall ? row : col, y = tall ? col : row
+          const here = byCell.get(y * COLS + x)
 
           if (here?.what === 'prop') {
             const item = skinOf(here.prop, yard.seed)
@@ -441,6 +470,8 @@ export function YardMap({
                 aria-label={`${here.cat.name}, ${here.doing ? DOING[here.doing.kind] : 'keeping to itself'}`}
                 style={{
                   ...s.catCell,
+                  width: `calc((100% - ${DC - 1}px) / ${DC})`,
+                  height: `calc((100% - ${DR - 1}px) / ${DR})`,
                   background: sky.soil[soilOf(here.cell.x, here.cell.y, yard.seed)],
                   /*
                    * ONE STEP IS A TRACK PLUS A GAP. A percentage in `translate`
@@ -448,7 +479,9 @@ export function YardMap({
                    * track — so the 1px gap has to be added per step or the tiles
                    * creep left across the map.
                    */
-                  transform: `translate(calc(${here.cell.x} * (100% + 1px)), calc(${here.cell.y} * (100% + 1px)))`,
+                  transform: tall
+                    ? `translate(calc(${here.cell.y} * (100% + 1px)), calc(${here.cell.x} * (100% + 1px)))`
+                    : `translate(calc(${here.cell.x} * (100% + 1px)), calc(${here.cell.y} * (100% + 1px)))`,
                   /*
                    * THE RING IS ON THE CAT NOW, not on the tile — see `art`.
                    * A tile-wide ring around an inset cat outlines the GROUND it
@@ -547,7 +580,7 @@ export function YardMap({
         {sel ? (
           <>
             <b style={{ color: '#e6e6f0' }}>{sel.cat.name}</b>
-            <span style={{ color: '#8a8aa0' }}>
+            <span style={{ color: '#b4b4ca' }}>
               {/*
                 WHOSE IT IS, which used to live in a hover card over the log. The
                 log is drawn in the bitmap font now and cannot carry a handler per
@@ -564,7 +597,7 @@ export function YardMap({
             </span>
           </>
         ) : (
-          <span style={{ color: '#55556a' }}>
+          <span style={{ color: '#9a9ab5' }}>
             {yard.props.length
               ? 'Tap a cat.'
               : 'Tap a cat. Nothing to play with out here yet.'}
@@ -728,6 +761,14 @@ const s: Record<string, React.CSSProperties> = {
     width: '84%', height: '84%',
     objectFit: 'cover', imageRendering: 'pixelated', display: 'block',
     borderRadius: 2,
+    /*
+     * AN INK EDGE, the dark line every portrait in the game is mounted in. On
+     * daylight grass a pale cat had no edge at all (JP, 2026-09-29: "make it more
+     * easier to see for viewers"). A shadow, not a border, so the art keeps its
+     * size, and it fills the 1px outline offset, so the purple "yours" and gold
+     * "picked" rings sit just outside it.
+     */
+    boxShadow: '0 0 0 1px #1a1a1a',
   },
   fallback: { fontSize: 11, color: '#cfcfe0' },
   /*
@@ -742,7 +783,7 @@ const s: Record<string, React.CSSProperties> = {
     // NOT a negative offset: the tile clips its overflow to keep the portrait
     // square, so -1 quietly shaved the top off every glyph.
     position: 'absolute', top: 0, right: 1,
-    fontSize: 12, lineHeight: 1, fontWeight: 'bold',
+    fontSize: 13, lineHeight: 1, fontWeight: 'bold',
     textShadow: '0 0 2px #000, 0 0 2px #000, 0 1px 2px #000',
     pointerEvents: 'none', userSelect: 'none',
   },
@@ -755,12 +796,12 @@ const s: Record<string, React.CSSProperties> = {
   propArt:  { width: '82%', height: '82%', objectFit: 'contain', display: 'block', userSelect: 'none' },
   sky: {
     display: 'flex', alignItems: 'center', gap: 5,
-    marginBottom: 6, fontSize: 11, color: '#55556a',
+    marginBottom: 6, fontSize: 12, color: '#9a9ab5',
     letterSpacing: 0.5,
   },
-  skyArt:   { width: 14, height: 14, objectFit: 'contain', display: 'block' },
-  shelfArt: { width: 16, height: 16, objectFit: 'contain', display: 'block' },
-  readout:  { marginTop: 8, fontSize: 12, minHeight: 18, lineHeight: 1.4 },
+  skyArt:   { width: 16, height: 16, objectFit: 'contain', display: 'block' },
+  shelfArt: { width: 22, height: 22, objectFit: 'contain', display: 'block', flexShrink: 0 },
+  readout:  { marginTop: 10, fontSize: 13, minHeight: 20, lineHeight: 1.45 },
   /*
    * Gold, and the only gold thing under the map. It is the one row that is not a
    * report — everything else here says what happened, this asks.
@@ -781,12 +822,12 @@ const s: Record<string, React.CSSProperties> = {
     background: '#e0a72c', border: '1px solid #e0a72c', color: '#1a1a1a',
     font: 'inherit', fontSize: 12, cursor: 'pointer',
   },
-  shelf:    { display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' },
+  shelf:    { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, marginTop: 10 },
   shelfBtn: {
-    display: 'flex', alignItems: 'center', gap: 5,
-    padding: '6px 10px', borderRadius: 999,
-    background: '#12121c', border: '1px solid #23232e',
-    color: '#6a6a80', fontSize: 11, cursor: 'pointer',
+    display: 'flex', alignItems: 'center', gap: 8,
+    padding: '8px 10px', borderRadius: 10,
+    background: '#171722', border: '1px solid #2c2c3c',
+    color: '#b4b4ca', fontSize: 12, cursor: 'pointer', textAlign: 'left',
   },
   /*
    * THE WHOLE `border`, not just its colour. React warns outright when a
