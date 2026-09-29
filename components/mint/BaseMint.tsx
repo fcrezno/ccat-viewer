@@ -8,6 +8,7 @@ import { V2, V2_ABI, MINT_ERRORS, type Voucher } from '@/lib/mint'
 import { APP_URL } from '@/lib/miniapp'
 import { useWebConnectors } from '@/lib/useWebConnectors'
 import { GameBar } from '@/components/GameBar'
+import { FxButton } from '@/components/FxButton'
 
 /**
  * THE BASE (V2) MINT — FARCASTER ONLY. app/mint/page.tsx renders this inside a
@@ -186,25 +187,24 @@ export function BaseMint() {
             <div style={s.successBox}>
               <div style={{ fontSize: 40 }}>✅</div>
               <div style={{ fontSize: 16, fontWeight: 'bold' }}>Your cat is minted</div>
-              <button style={s.primaryBtn} onClick={share}>Cast it 🐱</button>
-              <a href="/cats" style={s.secondaryBtn}>View my cats</a>
+              <FxButton style={s.primaryBtn} tone="light" onClick={share} label="Cast it" />
+              <FxButton href="/cats" style={s.secondaryBtn} tone="soft" label="View my cats" />
             </div>
           ) : !isConnected ? (
             <div style={s.column}>
               <div style={s.notice}>Connect a wallet to mint.</div>
               {webConnectors.map(c => (
-                <button key={c.id} style={s.secondaryBtn} onClick={() => connect({ connector: c })}>{c.name}</button>
+                <FxButton key={c.id} style={s.secondaryBtn} tone="soft" onClick={() => connect({ connector: c })} label={c.name} />
               ))}
             </div>
           ) : open === false ? (
             <div style={s.notice}>Minting hasn’t opened yet.</div>
           ) : (
-            <button style={{ ...s.primaryBtn, opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={mint}>
-              {phase === 'authorising' ? 'Checking your account…'
+            <FxButton style={{ ...s.primaryBtn, opacity: busy ? 0.6 : 1 }} tone="light" disabled={busy} onClick={mint}
+              label={phase === 'authorising' ? 'Checking your account…'
                 : phase === 'minting'  ? 'Confirm in wallet…'
                 : busy                 ? 'Minting…'
-                : 'Mint my cat'}
-            </button>
+                : 'Mint my cat'} />
           )}
 
           {error && <div style={s.error}>{error}</div>}
@@ -227,8 +227,8 @@ const s: Record<string, React.CSSProperties> = {
   supplyRow:    { display: 'flex', gap: 6, fontSize: 13, justifyContent: 'center' },
   // right-*.png is 172x13: exactly 2x, so every drawn pixel stays square.
   hpBar:        { width: 344, maxWidth: '100%', alignSelf: 'center' },
-  primaryBtn:   { width: '100%', maxWidth: 320, padding: '14px 24px', borderRadius: 12, background: '#7c3aed', color: 'white', border: 'none', cursor: 'pointer', fontSize: 15, fontWeight: 'bold' },
-  secondaryBtn: { width: '100%', maxWidth: 320, padding: '12px 24px', borderRadius: 12, background: '#1e1e2e', color: '#ccc', border: 'none', cursor: 'pointer', fontSize: 14, textAlign: 'center', textDecoration: 'none' },
+  primaryBtn:   { width: '100%', maxWidth: 320, padding: '11px 24px', borderRadius: 12, background: '#7c3aed', color: 'white', border: 'none', cursor: 'pointer', fontSize: 15, fontWeight: 'bold' },
+  secondaryBtn: { width: '100%', maxWidth: 320, padding: '9px 24px', borderRadius: 12, background: '#1e1e2e', color: '#ccc', border: 'none', cursor: 'pointer', fontSize: 14, textAlign: 'center', textDecoration: 'none' },
   column:       { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, width: '100%' },
   successBox:   { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, width: '100%', maxWidth: 320 },
   notice:       { fontSize: 13, color: '#666', textAlign: 'center', padding: '12px 0' },

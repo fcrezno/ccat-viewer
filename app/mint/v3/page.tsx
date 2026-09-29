@@ -276,7 +276,7 @@ export default function MintV3Page() {
       {!V3_DEPLOYED ? (
         <>
           <div style={s.notice}>Not live yet. The cats are made, the contract isn’t deployed.</div>
-          <FxButton href="/" style={s.secondaryBtn} ink="#cccccc" label="Play the game — it’s free" />
+          <FxButton href="/" style={s.secondaryBtn} tone="soft" label="Play the game — it’s free" />
         </>
       ) : !mounted ? (
         <div style={s.notice}>Loading…</div>
@@ -288,7 +288,7 @@ export default function MintV3Page() {
               : 'Free to mint, one per wallet. Connect to claim yours.'}
           </div>
           {webConnectors.map(c => (
-            <FxButton key={c.uid} style={s.secondaryBtn} ink="#cccccc" onClick={() => connect({ connector: c })} label={c.name.toUpperCase()} />
+            <FxButton key={c.uid} style={s.secondaryBtn} tone="soft" onClick={() => connect({ connector: c })} label={c.name.toUpperCase()} />
           ))}
           {/* A failed connect used to do nothing visible. Say why. */}
           {connectError && !/rejected|denied/i.test(connectError.message) && (
@@ -301,14 +301,14 @@ export default function MintV3Page() {
             <div style={s.notice}>Claiming is not open yet. It opens soon.</div>
           )}
           {hasMinted === false && catId === null && open === true && (
-            <FxButton style={{ ...s.primaryBtn, opacity: busy ? 0.6 : 1 }} ink="#ffffff" onClick={claim} disabled={!!busy} label={busy ?? 'Claim your cat — free'} />
+            <FxButton style={{ ...s.primaryBtn, opacity: busy ? 0.6 : 1 }} tone="light" onClick={claim} disabled={!!busy} label={busy ?? 'Claim your cat — free'} />
           )}
 
           {catId !== null && (burner ? (
             <div style={s.burnerBadge}>BUNBURNER</div>
           ) : terms && burner === false && (
             <>
-              <FxButton style={{ ...s.burnBtn, opacity: busy ? 0.6 : 1 }} ink="#e0a72c" onClick={becomeBurner} disabled={!!busy} label={busy ?? `Burn ${price} BUN → BunBurner`} />
+              <FxButton style={{ ...s.burnBtn, opacity: busy ? 0.6 : 1 }} tone="gold" onClick={becomeBurner} disabled={!!busy} label={busy ?? `Burn ${price} BUN → BunBurner`} />
               {/* Where the BUN goes, said before it is spent rather than after. */}
               <div style={s.splitNote}>
                 Optional. Your cat gets the BunBurner trait for good.
@@ -326,7 +326,7 @@ export default function MintV3Page() {
                 value={typed}
                 onChange={e => setTyped(e.target.value.replace(/\D/g, ''))}
               />
-              <FxButton style={s.smallBtn} ink="#cccccc" onClick={pickTyped} disabled={!typed || !!busy} label="Use" />
+              <FxButton style={s.smallBtn} tone="soft" onClick={pickTyped} disabled={!typed || !!busy} label="Use" />
             </div>
           )}
         </>
@@ -335,7 +335,7 @@ export default function MintV3Page() {
       {error && <div style={s.error}>{error}</div>}
 
       {/* A PLAY BUTTON THAT CANNOT BE MISSED. The game is free and needs no wallet. */}
-      <FxButton href="/" style={s.playBtn} ink="#e0a72c" label="PLAY THE GAME — FREE, NO WALLET" />
+      <FxButton href="/" style={s.playBtn} tone="gold" label="PLAY THE GAME — FREE, NO WALLET" />
 
       {/* HOW THE CATS WORK — asked for by JP, 2026-09-28. */}
       <div style={s.how}>

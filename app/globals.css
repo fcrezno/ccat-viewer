@@ -827,3 +827,33 @@ button, input, select, textarea, optgroup {
   from { visibility: hidden; }
   to   { visibility: visible; }
 }
+
+/*
+ * THE BUTTONS' WAVE (components/FxButton — FxLabel inside any .fx-host).
+ *
+ * JP, 2026-09-29: "add the same button style we have for the title page and
+ * apply it to all the other buttons; make them match their colors so they are
+ * not all gold". The title's wave, with a glow in each button's OWN colours:
+ * --glow-a is the label's resting ink, so the glow starts without a jump, and
+ * --glow-b a light tint of it. --d steps each glyph so the wave travels.
+ *
+ * Pure CSS on the host's :hover and :focus-visible, so a button needs no state
+ * for it, and a disabled one stays still.
+ */
+@keyframes fx-glow {
+  0%, 100% { background-color: var(--glow-a); }
+  50%      { background-color: var(--glow-b); }
+}
+.fx-host:hover:not(:disabled) .fx-g,
+.fx-host:focus-visible .fx-g {
+  animation:
+    cradle-wave 1.15s ease-in-out var(--d) infinite,
+    fx-glow 1.15s ease-in-out var(--d) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  /* The colour still breathes; only the movement stops — cradle-fx's trade. */
+  .fx-host:hover:not(:disabled) .fx-g,
+  .fx-host:focus-visible .fx-g {
+    animation: fx-glow 1.15s ease-in-out var(--d) infinite;
+  }
+}

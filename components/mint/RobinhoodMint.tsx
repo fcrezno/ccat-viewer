@@ -5,6 +5,7 @@ import { useReadContract } from 'wagmi'
 import { V3, V3_ABI, V3_DEPLOYED } from '@/lib/mintv3'
 import { robinhood } from '@/lib/chains'
 import { MintStage } from '@/components/MintStage'
+import { FxButton } from '@/components/FxButton'
 
 /**
  * THE ROBINHOOD MINT, on the web. app/mint/page.tsx renders this everywhere
@@ -51,9 +52,9 @@ export function RobinhoodMint() {
       </section>
 
       <section style={s.block}>
-        <a href="/mint/v3" style={s.primary}>CLAIM A ROBINHOOD CAT</a>
+        <FxButton href="/mint/v3" style={s.primary} tone="light" label="CLAIM A ROBINHOOD CAT" />
         <p style={s.modeFine}>free for BUN holders · one per wallet</p>
-        <a href="/" style={s.ghost}>PLAY THE GAME</a>
+        <FxButton href="/" style={s.ghost} tone="grey" label="PLAY THE GAME" />
         <p style={{ ...s.modeFine, marginBottom: 0 }}>free · no wallet needed</p>
       </section>
     </main>
@@ -75,6 +76,6 @@ const s: Record<string, React.CSSProperties> = {
   count:    { color: '#7a7a95', fontSize: 13, margin: '10px 0 0', textAlign: 'center' },
   countNum: { color: '#f0f0f5', fontWeight: 'normal' },
   modeFine: { color: '#63637d', fontSize: 11, margin: '6px 0 14px', textAlign: 'center', lineHeight: 1.5 },
-  primary:  { display: 'block', boxSizing: 'border-box', width: '100%', background: '#8b5cf6', color: '#fff', borderRadius: 10, padding: '14px 16px', fontSize: 14, letterSpacing: 1, textAlign: 'center', textDecoration: 'none' },
-  ghost:    { display: 'block', boxSizing: 'border-box', width: '100%', background: 'transparent', color: '#7a7a95', border: '1px solid #21212f', borderRadius: 10, padding: '12px 16px', fontSize: 12, letterSpacing: 1, textAlign: 'center', textDecoration: 'none' },
+  primary:  { display: 'block', boxSizing: 'border-box', width: '100%', background: '#8b5cf6', color: '#fff', borderRadius: 10, padding: '11px 16px', fontSize: 14, letterSpacing: 1, textAlign: 'center', textDecoration: 'none' },
+  ghost:    { display: 'block', boxSizing: 'border-box', width: '100%', background: 'transparent', color: '#7a7a95', border: '1px solid #21212f', borderRadius: 10, padding: '9px 16px', fontSize: 12, letterSpacing: 1, textAlign: 'center', textDecoration: 'none' },
 }

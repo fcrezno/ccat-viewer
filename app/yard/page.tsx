@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import sdk from '@farcaster/miniapp-sdk'
 import { Yard, type YardCat } from '@/components/Yard'
+import { FxButton } from '@/components/FxButton'
 import { residents, DEMO_KEY } from '@/lib/yardstore'
 import { NO_CHAIN } from '@/lib/appmode'
 import { myRoster } from '@/lib/mycats'
@@ -112,7 +113,7 @@ export default function YardPage() {
           <p style={s.quiet}>
             The yard fills with your own cats and the cats of people you follow.
           </p>
-          <a href="/" style={s.button}>Open the game</a>
+          <FxButton href="/" style={s.button} tone="light" label="Open the game" />
         </div>
       ) : (
         <>
@@ -138,7 +139,7 @@ const s: Record<string, React.CSSProperties> = {
   quiet: { color: '#63637d', fontSize: 12, margin: 0, lineHeight: 1.6 },
   empty: { display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-start', marginTop: 20 },
   button: {
-    marginTop: 6, padding: '12px 20px', borderRadius: 12, background: '#7c3aed',
+    marginTop: 6, padding: '9px 20px', borderRadius: 12, background: '#7c3aed',
     color: 'white', fontSize: 14, textDecoration: 'none',
   },
   footer: { marginTop: 'auto', paddingTop: 24, textAlign: 'center', color: '#3f3f55', fontSize: 10, letterSpacing: 1 },

@@ -56,6 +56,7 @@ export function BitmapText({
   color = '#1a1a1a',
   className,
   fx = false,
+  glow,
 }: {
   text?: string
   /** Coloured stretches, laid out as one line. Used instead of `text`. */
@@ -79,7 +80,14 @@ export function BitmapText({
    * something that starts on hover: true's negative delays put every letter mid-wave on the first
    * frame, so switching it on made the whole word jump.
    */
-  fx?: boolean | 'wave' | 'roll'
+  fx?: boolean | 'wave' | 'roll' | 'host'
+  /**
+   * fx 'host' only: the two colours the glow breathes between, the first being
+   * the label's own ink so it starts without a jump. The wave and glow run only
+   * while an ancestor with class `fx-host` is hovered or keyboard-focused — the
+   * CSS in globals.css decides, so a button needs no hover state of its own.
+   */
+  glow?: readonly [string, string]
 }) {
   const whole = runs ? runs.map(r => r.text).join('') : (text ?? '')
   const inks: string[] = []
@@ -127,7 +135,7 @@ export function BitmapText({
             return (
               <span
                 key={i}
-                className={fx === true || fx === 'roll' ? 'cradle-fx' : fx === 'wave' ? 'cradle-wave' : beat ? 'yard-say' : undefined}
+                className={fx === 'host' ? 'fx-g' : fx === true || fx === 'roll' ? 'cradle-fx' : fx === 'wave' ? 'cradle-wave' : beat ? 'yard-say' : undefined}
                 style={{
                   width: width * scale,
                   height: CELL_H * scale,
@@ -146,7 +154,12 @@ export function BitmapText({
                   } : null),
                   // VICTOR's own settings from the game: Amp 3, Freq 0.7, gold
                   // #b07a10 through #f0d060. The step is what makes it travel.
-                  ...(fx === 'wave' ? {
+                  ...(fx === 'host' ? {
+                    // Positive steps, as 'roll': the wave joins left to right from flat.
+                    ['--d' as string]: `${(gi * 0.07).toFixed(2)}s`,
+                    ['--glow-a' as string]: glow?.[0] ?? '#b07a10',
+                    ['--glow-b' as string]: glow?.[1] ?? '#f0d060',
+                  } : fx === 'wave' ? {
                     animation: `cradle-wave 1.15s ease-in-out ${-(gi * 0.07).toFixed(2)}s infinite`,
                   } : fx === 'roll' ? {
                     animation:

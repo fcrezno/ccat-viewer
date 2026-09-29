@@ -9,6 +9,7 @@ import { GameBar } from '@/components/GameBar'
 import { useSound } from '@/lib/useSound'
 import { trackForRound } from '@/lib/music'
 import { BitmapText } from '@/components/BitmapText'
+import { FxLabel } from '@/components/FxButton'
 import { noteWin, noteLoss, type Beat } from '@/lib/streak'
 import { Yard, type YardCat } from '@/components/Yard'
 import { residents, DEMO_KEY } from '@/lib/yardstore'
@@ -1842,20 +1843,20 @@ export function Cradle() {
               {picked ? (
                 <div style={{ ...s.modes, ...s.fighterRow }}>
                   <div style={s.fighterOpts}>
-                    <button style={s.primary} disabled={busy}
+                    <button className="fx-host" style={s.primary} disabled={busy}
                       onClick={() => startFight({ uid: picked.uid })}>
-                      QUICK FIGHT
+                      <FxLabel text={"QUICK FIGHT"} tone='light' />
                     </button>
                     <p style={s.modeFine}>one fight · goes on your record</p>
 
-                    <button style={s.gauntlet} disabled={busy}
+                    <button className="fx-host" style={s.gauntlet} disabled={busy}
                       onClick={() => startGauntlet(false)}>
-                      GAUNTLET
+                      <FxLabel text={"GAUNTLET"} tone='gold' />
                     </button>
                     <p style={s.modeFine}>five cats people own · survive it to be champion</p>
 
                     {/* THE YARD AS AN OPTION (JP, 2026-09-28), beside the fights. */}
-                    <a href="/yard" style={s.yardBtn}>THE YARD</a>
+                    <a href="/yard" className="fx-host" style={s.yardBtn}><FxLabel text="THE YARD" tone="green" /></a>
                     <p style={s.modeFine}>your cats and the cats of people you follow</p>
                   </div>
                   <FighterPortrait
@@ -1887,8 +1888,8 @@ export function Cradle() {
               */}
               <div style={s.fighterRow}>
                 <div style={s.fighterOpts}>
-                  <button style={s.primary} onClick={() => { setPicked(null); startFight({ demo: true }) }} disabled={busy}>
-                    QUICK FIGHT
+                  <button className="fx-host" style={s.primary} onClick={() => { setPicked(null); startFight({ demo: true }) }} disabled={busy}>
+                    <FxLabel text={"QUICK FIGHT"} tone='light' />
                   </button>
                   <p style={s.modeFine}>a real fight, with a cat that is not yours — no wallet needed</p>
 
@@ -1899,14 +1900,14 @@ export function Cradle() {
                     game. Nothing a demo does is recorded either way, so the only
                     thing being withheld at the end is the title.
                   */}
-                  <button style={s.gauntlet} disabled={busy}
+                  <button className="fx-host" style={s.gauntlet} disabled={busy}
                     onClick={() => { setPicked(null); startGauntlet(true) }}>
-                    GAUNTLET
+                    <FxLabel text={"GAUNTLET"} tone='gold' />
                   </button>
                   <p style={s.modeFine}>five cats people own · a demo run is never recorded</p>
 
                   {/* THE YARD AS AN OPTION (JP, 2026-09-28). /yard shows the demo yard to a guest. */}
-                  <a href="/yard" style={s.yardBtn}>THE YARD</a>
+                  <a href="/yard" className="fx-host" style={s.yardBtn}><FxLabel text="THE YARD" tone="green" /></a>
                   <p style={s.modeFine}>the cats together, when nobody is fighting</p>
                 </div>
                 {myCode > 0 && (
@@ -1955,12 +1956,12 @@ export function Cradle() {
                   inputMode="numeric"
                   style={s.input}
                 />
-                <button
-                  style={{ ...s.primary, width: 'auto', padding: '10px 14px' }}
+                <button className="fx-host"
+                  style={{ ...s.primary, width: 'auto', padding: '7px 14px' }}
                   onClick={fightCode}
                   disabled={busy}
                 >
-                  FIGHT
+                  <FxLabel text={"FIGHT"} tone='light' />
                 </button>
               </div>
               <p style={s.modeFine}>an exhibition &middot; nothing is recorded until you adopt a cat</p>
@@ -1971,8 +1972,8 @@ export function Cradle() {
                   </p>
                   {webConnectors
                     .map(c => (
-                      <button key={c.id} style={s.ghost} onClick={() => connect({ connector: c })}>
-                        {c.name.toUpperCase()}
+                      <button className="fx-host" key={c.id} style={s.ghost} onClick={() => connect({ connector: c })}>
+                        <FxLabel text={c.name.toUpperCase()} tone='grey' />
                       </button>
                     ))}
                 </>
@@ -1991,8 +1992,8 @@ export function Cradle() {
                 placeholder="token id, e.g. 412 or v1:46"
                 style={s.input}
               />
-              <button style={{ ...s.primary, width: 'auto', padding: '10px 14px' }} onClick={lookUpFriend}>
-                ADOPT
+              <button className="fx-host" style={{ ...s.primary, width: 'auto', padding: '7px 14px' }} onClick={lookUpFriend}>
+                <FxLabel text={"ADOPT"} tone='light' />
               </button>
             </div>
             {friends.length > 0 && (
@@ -2007,13 +2008,13 @@ export function Cradle() {
                 ))}
               </div>
             )}
-            <button
+            <button className="fx-host"
               style={s.ghost}
               onClick={() => { setView('adopt'); if (!found) shuffle() }}
             >
-              ADOPT A CAT
+              <FxLabel text={"ADOPT A CAT"} tone='grey' />
             </button>
-            <button style={s.ghost} onClick={() => setView('ranks')}>RANKINGS</button>
+            <button className="fx-host" style={s.ghost} onClick={() => setView('ranks')}><FxLabel text={"RANKINGS"} tone='grey' /></button>
           </section>
         </>
       )}
@@ -2064,10 +2065,10 @@ export function Cradle() {
             <p style={s.quiet}>nothing came back — try again.</p>
           )}
 
-          <button style={s.primary} onClick={shuffle} disabled={finding}>
-            SHUFFLE
+          <button className="fx-host" style={s.primary} onClick={shuffle} disabled={finding}>
+            <FxLabel text={"SHUFFLE"} tone='light' />
           </button>
-          <button style={s.ghost} onClick={() => setView('home')}>BACK</button>
+          <button className="fx-host" style={s.ghost} onClick={() => setView('home')}><FxLabel text={"BACK"} tone='grey' /></button>
         </section>
       )}
 
@@ -2092,7 +2093,7 @@ export function Cradle() {
               ? <p style={s.quiet}>no cats yet — connect a wallet or add a friend.</p>
               : ranked.map((r, i) => <RankRow key={r.uid} r={r} place={i + 1} />)}
             <p style={s.fine}>Records are kept on this device. The public version of a result is a cast.</p>
-            <button style={s.ghost} onClick={() => setView('home')}>BACK</button>
+            <button className="fx-host" style={s.ghost} onClick={() => setView('home')}><FxLabel text={"BACK"} tone='grey' /></button>
           </section>
         </>
       )}
@@ -2276,17 +2277,17 @@ export function Cradle() {
                         {run.foes[run.roundNo]?.label ?? 'the next cat'} is next. Choose.
                       </p>
 
-                      <button style={{ ...s.gauntlet, marginTop: 14 }} disabled={choosing}
+                      <button className="fx-host" style={{ ...s.gauntlet, marginTop: 14 }} disabled={choosing}
                         onClick={() => choose('double')}>
-                        DOUBLE THE POT → {run.pot * 2}
+                        <FxLabel text={`DOUBLE THE POT → ${run.pot * 2}`} tone="gold" />
                       </button>
                       <p style={s.modeFine}>
                         keep the damage you are carrying
                       </p>
 
-                      <button style={s.primary} disabled={choosing}
+                      <button className="fx-host" style={s.primary} disabled={choosing}
                         onClick={() => choose('heal')}>
-                        HEAL TO FULL
+                        <FxLabel text={"HEAL TO FULL"} tone='light' />
                       </button>
                       <p style={s.modeFine}>the pot stays at {run.pot}</p>
 
@@ -2315,17 +2316,17 @@ export function Cradle() {
                         round {run.roundNo}.
                       </p>
 
-                      <button style={{ ...s.gauntlet, marginTop: 14 }} disabled={choosing}
+                      <button className="fx-host" style={{ ...s.gauntlet, marginTop: 14 }} disabled={choosing}
                         onClick={() => choose('continue')}>
-                        REPOST TO CONTINUE
+                        <FxLabel text={"REPOST TO CONTINUE"} tone='gold' />
                       </button>
                       <p style={s.modeFine}>
                         back to full health, same cat, fresh fight · you can still
                         win one cat, but not two
                       </p>
 
-                      <button style={s.ghost} onClick={() => { clearRun(); setView('home') }}>
-                        GIVE UP
+                      <button className="fx-host" style={s.ghost} onClick={() => { clearRun(); setView('home') }}>
+                        <FxLabel text={"GIVE UP"} tone='grey' />
                       </button>
                     </>
                   )}
@@ -2342,18 +2343,18 @@ export function Cradle() {
                       </p>
                       {claimHref && (
                         <>
-                          <a href={claimHref} style={{ ...s.gauntlet, marginTop: 14, display: 'block', boxSizing: 'border-box', textAlign: 'center', textDecoration: 'none' }}>
-                            CLAIM YOUR CAT
+                          <a href={claimHref} className="fx-host" style={{ ...s.gauntlet, marginTop: 14, display: 'block', boxSizing: 'border-box', textAlign: 'center', textDecoration: 'none' }}>
+                            <FxLabel text="CLAIM YOUR CAT" tone="gold" />
                           </a>
                           <p style={s.modeFine}>three wins earns one · free, on Robinhood Chain · one per wallet</p>
                         </>
                       )}
-                      <button style={claimHref ? s.ghost : { ...s.gauntlet, marginTop: 14 }} disabled={busy}
+                      <button className="fx-host" style={claimHref ? s.ghost : { ...s.gauntlet, marginTop: 14 }} disabled={busy}
                         onClick={() => startGauntlet(!run.recorded)}>
-                        RUN IT AGAIN
+                        <FxLabel text="RUN IT AGAIN" tone={claimHref ? 'grey' : 'gold'} />
                       </button>
-                      <button style={s.ghost} onClick={() => { clearRun(); setView('home') }}>
-                        BACK
+                      <button className="fx-host" style={s.ghost} onClick={() => { clearRun(); setView('home') }}>
+                        <FxLabel text={"BACK"} tone='grey' />
                       </button>
                     </>
                   )}
@@ -2382,21 +2383,21 @@ export function Cradle() {
 
                       {claimHref && (
                         <>
-                          <a href={claimHref} style={{ ...s.gauntlet, marginTop: 14, display: 'block', boxSizing: 'border-box', textAlign: 'center', textDecoration: 'none' }}>
-                            CLAIM YOUR CAT
+                          <a href={claimHref} className="fx-host" style={{ ...s.gauntlet, marginTop: 14, display: 'block', boxSizing: 'border-box', textAlign: 'center', textDecoration: 'none' }}>
+                            <FxLabel text="CLAIM YOUR CAT" tone="gold" />
                           </a>
                           <p style={s.modeFine}>free, on Robinhood Chain · one per wallet</p>
                         </>
                       )}
-                      <button style={{ ...s.primary, marginTop: 14 }} onClick={share}>
-                        SHARE ON FARCASTER
+                      <button className="fx-host" style={{ ...s.primary, marginTop: 14 }} onClick={share}>
+                        <FxLabel text={"SHARE ON FARCASTER"} tone='light' />
                       </button>
-                      <button style={s.ghost} disabled={busy}
+                      <button className="fx-host" style={s.ghost} disabled={busy}
                         onClick={() => startGauntlet(!run.recorded)}>
-                        RUN IT AGAIN
+                        <FxLabel text={"RUN IT AGAIN"} tone='grey' />
                       </button>
-                      <button style={s.ghost} onClick={() => { clearRun(); setView('home') }}>
-                        BACK
+                      <button className="fx-host" style={s.ghost} onClick={() => { clearRun(); setView('home') }}>
+                        <FxLabel text={"BACK"} tone='grey' />
                       </button>
                     </>
                   )}
@@ -2415,17 +2416,17 @@ export function Cradle() {
                     </p>
                   )}
 
-                  <button style={{ ...s.primary, marginTop: 12 }} onClick={share}>
-                    SHARE ON FARCASTER
+                  <button className="fx-host" style={{ ...s.primary, marginTop: 12 }} onClick={share}>
+                    <FxLabel text={"SHARE ON FARCASTER"} tone='light' />
                   </button>
 
-                  <button
+                  <button className="fx-host"
                     style={s.ghost}
                     onClick={() => (isDemo || !picked
                       ? startFight({ demo: true })
                       : startFight({ uid: picked.uid }))}
                   >
-                    FIGHT AGAIN
+                    <FxLabel text={"FIGHT AGAIN"} tone='grey' />
                   </button>
 
                   {/*
@@ -2447,8 +2448,8 @@ export function Cradle() {
                             style={s.input}
                             autoFocus
                           />
-                          <button
-                            style={{ ...s.primary, width: 'auto', padding: '10px 14px' }}
+                          <button className="fx-host"
+                            style={{ ...s.primary, width: 'auto', padding: '7px 14px' }}
                             onClick={() => {
                               const saved = setName(picked.uid, nameDraft)
                               setNaming(false)
@@ -2456,20 +2457,20 @@ export function Cradle() {
                               bump(n => n + 1)
                             }}
                           >
-                            SAVE
+                            <FxLabel text={"SAVE"} tone='light' />
                           </button>
                         </div>
                         <p style={s.fine}>Leave it empty to go back to the collection name.</p>
                       </div>
                     ) : (
-                      <button
+                      <button className="fx-host"
                         style={s.ghost}
                         onClick={() => {
                           setNameDraft(nameFor(picked.uid) ?? '')
                           setNaming(true)
                         }}
                       >
-                        {nameFor(picked.uid) ? 'RENAME THIS CAT' : 'NAME THIS CAT'}
+                        <FxLabel text={nameFor(picked.uid) ? 'RENAME THIS CAT' : 'NAME THIS CAT'} tone='grey' />
                       </button>
                     )
                   )}
@@ -2479,35 +2480,35 @@ export function Cradle() {
                       <div style={{ marginTop: 10 }}>
                         <p style={s.fine0}>Retiring keeps the record and stops the fighting. Sure?</p>
                         <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                          <button
+                          <button className="fx-host"
                             // `border`, not `borderColor`: s.ghost sets the
                             // shorthand, so the longhand was being dropped and
                             // this destructive button kept the plain grey edge.
                             style={{ ...s.ghost, marginTop: 0, border: '1px solid #d1495b', color: '#d1495b' }}
                             onClick={retire}
                           >
-                            YES, RETIRE
+                            <FxLabel text={"YES, RETIRE"} tone='red' />
                           </button>
-                          <button style={{ ...s.ghost, marginTop: 0 }} onClick={() => setConfirmRetire(false)}>
-                            KEEP FIGHTING
+                          <button className="fx-host" style={{ ...s.ghost, marginTop: 0 }} onClick={() => setConfirmRetire(false)}>
+                            <FxLabel text={"KEEP FIGHTING"} tone='grey' />
                           </button>
                         </div>
                       </div>
                     ) : (
-                      <button style={s.ghost} onClick={() => setConfirmRetire(true)}>RETIRE THIS CAT</button>
+                      <button className="fx-host" style={s.ghost} onClick={() => setConfirmRetire(true)}><FxLabel text={"RETIRE THIS CAT"} tone='grey' /></button>
                     )
                   )}
 
-                  <button style={s.ghost} onClick={() => setView('ranks')}>RANKINGS</button>
-                  <button style={s.ghost} onClick={() => { setResult(null); setShown(0); setView('home') }}>
-                    BACK
+                  <button className="fx-host" style={s.ghost} onClick={() => setView('ranks')}><FxLabel text={"RANKINGS"} tone='grey' /></button>
+                  <button className="fx-host" style={s.ghost} onClick={() => { setResult(null); setShown(0); setView('home') }}>
+                    <FxLabel text={"BACK"} tone='grey' />
                   </button>
                 </section>
               )}
             </>
           )}
 
-          {!result && !busy && <button style={s.ghost} onClick={() => setView('home')}>BACK</button>}
+          {!result && !busy && <button className="fx-host" style={s.ghost} onClick={() => setView('home')}><FxLabel text={"BACK"} tone='grey' /></button>}
         </>
       )}
 
@@ -2632,8 +2633,8 @@ const s: Record<string, React.CSSProperties> = {
 
   input: { flex: 1, minWidth: 0, background: '#0b0b13', border: '1px solid #21212f', borderRadius: 10, color: '#f0f0f5', padding: '10px 12px', fontSize: 13, fontFamily: 'inherit' },
 
-  primary: { width: '100%', background: '#8b5cf6', color: '#fff', border: 0, borderRadius: 10, padding: '14px 16px', fontSize: 14, letterSpacing: 1, cursor: 'pointer', fontFamily: 'inherit' },
-  ghost:   { width: '100%', background: 'transparent', color: '#7a7a95', border: '1px solid #21212f', borderRadius: 10, padding: '12px 16px', fontSize: 12, letterSpacing: 1, cursor: 'pointer', fontFamily: 'inherit', marginTop: 10 },
+  primary: { width: '100%', background: '#8b5cf6', color: '#fff', border: 0, borderRadius: 10, padding: '11px 16px', fontSize: 14, letterSpacing: 1, cursor: 'pointer', fontFamily: 'inherit' },
+  ghost:   { width: '100%', background: 'transparent', color: '#7a7a95', border: '1px solid #21212f', borderRadius: 10, padding: '9px 16px', fontSize: 12, letterSpacing: 1, cursor: 'pointer', fontFamily: 'inherit', marginTop: 10 },
 
   /*
    * THE MODE LIST. Each button carries one line under it saying what the mode
@@ -2643,9 +2644,9 @@ const s: Record<string, React.CSSProperties> = {
   modes:    { marginTop: 16, borderTop: '1px solid #21212f', paddingTop: 16 },
   modeFine: { color: '#63637d', fontSize: 11, margin: '6px 0 14px', textAlign: 'center', lineHeight: 1.5 },
   /* The gauntlet is the one with something at stake, so it is the one that is gold. */
-  gauntlet: { width: '100%', background: 'transparent', color: '#e0a72c', border: '1px solid #7a5c18', borderRadius: 10, padding: '13px 16px', fontSize: 13, letterSpacing: 1, cursor: 'pointer', fontFamily: 'inherit', marginTop: 10 },
+  gauntlet: { width: '100%', background: 'transparent', color: '#e0a72c', border: '1px solid #7a5c18', borderRadius: 10, padding: '10px 16px', fontSize: 13, letterSpacing: 1, cursor: 'pointer', fontFamily: 'inherit', marginTop: 10 },
   // The yard's green, the colour this page already uses for good news. A link, drawn as a button.
-  yardBtn:  { display: 'block', boxSizing: 'border-box', width: '100%', background: 'transparent', color: '#7ee081', border: '1px solid #2f5a34', borderRadius: 10, padding: '13px 16px', fontSize: 13, letterSpacing: 1, textAlign: 'center', textDecoration: 'none', fontFamily: 'inherit', marginTop: 10 },
+  yardBtn:  { display: 'block', boxSizing: 'border-box', width: '100%', background: 'transparent', color: '#7ee081', border: '1px solid #2f5a34', borderRadius: 10, padding: '10px 16px', fontSize: 13, letterSpacing: 1, textAlign: 'center', textDecoration: 'none', fontFamily: 'inherit', marginTop: 10 },
 
   /* The menu beside your fighter: options LEFT and compact, the cat gets the room. */
   fighterRow:  { display: 'flex', gap: 16, alignItems: 'flex-start' },
