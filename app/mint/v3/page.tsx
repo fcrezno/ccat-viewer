@@ -1,11 +1,11 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAccount, useConnect, useSwitchChain, useWriteContract, usePublicClient } from 'wagmi'
 import { formatUnits, parseEventLogs } from 'viem'
 import { V3, V3_ABI, V3_DEPLOYED, V3_MINT_ERRORS, RUN_DOOR } from '@/lib/mintv3'
 import { robinhood } from '@/lib/chains'
-import { BitmapText } from '@/components/BitmapText'
+import { TitleScreen } from '@/components/TitleScreen'
 import { useWebConnectors } from '@/lib/useWebConnectors'
 
 /**
@@ -41,8 +41,6 @@ const ERC20 = [
     outputs: [{ type: 'bool' }] },
 ] as const
 
-/** How many V3 cats exist, and so how many pictures the hero can pick from. */
-const V3_COUNT = 1111
 
 /** BUN's decimals. deploy-v3.mjs refuses to deploy if the live token disagrees. */
 const BUN_DECIMALS = 18
@@ -64,7 +62,6 @@ export default function MintV3Page() {
   const client = usePublicClient({ chainId: robinhood.id })
 
   const [tag,       setTag]       = useState<string | null>(null)
-  const [heroId,    setHeroId]    = useState<number | null>(null)
   const [busy,      setBusy]      = useState<string | null>(null)
   const [error,     setError]     = useState<string | null>(null)
   const [hasMinted, setHasMinted] = useState<boolean | null>(null)
@@ -79,9 +76,9 @@ export default function MintV3Page() {
    * React threw a hydration error (seen 2026-09-28 with Rabby). Everything that
    * depends on the wallet waits one frame, until the page is mounted.
    */
+  const actionRef = useRef<HTMLDivElement>(null)
   const [mounted, setMounted] = useState(false)
-  const [wide, setWide] = useState(false)
-  useEffect(() => { setMounted(true); setWide(window.innerWidth >= 480) }, [])
+  useEffect(() => { setMounted(true) }, [])
 
   /*
    * Read on the client only: the URL and the random pick would both differ
@@ -89,7 +86,6 @@ export default function MintV3Page() {
    * With the run door off a tag earns nothing, so it is not even read.
    */
   useEffect(() => {
-    setHeroId(1 + Math.floor(Math.random() * V3_COUNT))
     if (!RUN_DOOR) return
     const r = new URLSearchParams(window.location.search).get('r')
     setTag(r && r.length < 8192 ? r : null)
@@ -243,7 +239,6 @@ export default function MintV3Page() {
   }, [client, address, typed])
 
   const price = terms ? formatUnits(terms.price, BUN_DECIMALS) : null
-  const shownId = catId !== null ? Number(catId) : heroId
 
   return (
     <div style={s.root}>
@@ -253,24 +248,20 @@ export default function MintV3Page() {
       </div>
 
       {/*
-        THE TITLE SCREEN (JP, 2026-09-28: "why dont we use the title screen as the
-        mint page?"). The name in the game's own bitmap font and the slogan in his
-        casing, the way the game and the link card open. Scale 3 is 408px wide, so
-        narrow screens get scale 2 — decided after mount so both renders agree.
+        THE s&box TITLE SCREEN is the front of this page (JP, 2026-09-28): the
+        game's backdrop, its two reels of cats and its rippling gold name, with
+        CLAIM YOUR CAT where PRESS START blinks. Clicking it brings the claim up.
       */}
-      <div style={s.titleScreen}>
-        <BitmapText text="CLANKER CATS" scale={wide ? 3 : 2} color="#f0f0f5" />
-        <div style={{ marginTop: 10 }}>
-          <BitmapText text="playing with bots has never been this fun." scale={1} color="#7a7a95" />
-        </div>
-      </div>
+      <TitleScreen onStart={() => actionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })} />
 
-      {/* A random V3 cat, or this wallet's own once it has one. */}
-      <div style={{ ...s.heroBox, ...(burner ? s.heroBurner : {}) }}>
-        {shownId && <img src={`/v3/images/${shownId}.png`} alt={`Clanker Cat #${shownId}`} style={s.heroImg} />}
-      </div>
+      {/* This wallet's own cat, once it has one. */}
+      {catId !== null && (
+        <div style={{ ...s.heroBox, ...(burner ? s.heroBurner : {}) }}>
+          <img src={`/v3/images/${String(catId)}.png`} alt={`Clanker Cat #${String(catId)}`} style={s.heroImg} />
+        </div>
+      )}
       {catId !== null && <div style={s.title}>#{String(catId)} is yours</div>}
-      <div style={s.subtitle}>Robinhood Chain · free for BUN holders</div>
+      <div ref={actionRef} style={s.subtitle}>Robinhood Chain · free for BUN holders</div>
 
       {!V3_DEPLOYED ? (
         <>
@@ -354,7 +345,6 @@ const s: Record<string, React.CSSProperties> = {
   logo:         { fontSize: 16, fontWeight: 'bold', letterSpacing: 1 },
   navLink:      { fontSize: 12, color: '#7c3aed', textDecoration: 'none' },
   // 1000x796 art, so 200x159 keeps its shape; nearest-neighbour keeps the pixels.
-  titleScreen:  { display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 8, maxWidth: '100%' },
   playBtn:      { width: '100%', maxWidth: 320, boxSizing: 'border-box', marginTop: 8, padding: '14px 18px', borderRadius: 12, background: 'transparent', color: '#e0a72c', border: '1px solid #7a5c18', fontSize: 14, letterSpacing: 1, textAlign: 'center', textDecoration: 'none' },
   how:          { width: '100%', maxWidth: 360, boxSizing: 'border-box', marginTop: 12, padding: 16, borderRadius: 12, border: '1px solid #21212f', background: '#0e0e18', display: 'flex', flexDirection: 'column', gap: 10 },
   howHead:      { fontSize: 11, letterSpacing: 2, color: '#7a7a95' },

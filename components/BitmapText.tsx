@@ -73,7 +73,8 @@ export function BitmapText({
    * The animation paints `background-color`, which IS the glyph's ink here, so
    * it takes over from `color` while it runs — that is what the glow is.
    */
-  fx?: boolean
+  /** true = gold wave + glow (VICTOR). 'wave' = the motion alone, for ink copies that must move with it. */
+  fx?: boolean | 'wave'
 }) {
   const whole = runs ? runs.map(r => r.text).join('') : (text ?? '')
   const inks: string[] = []
@@ -121,7 +122,7 @@ export function BitmapText({
             return (
               <span
                 key={i}
-                className={fx ? 'cradle-fx' : beat ? 'yard-say' : undefined}
+                className={fx === true ? 'cradle-fx' : fx === 'wave' ? 'cradle-wave' : beat ? 'yard-say' : undefined}
                 style={{
                   width: width * scale,
                   height: CELL_H * scale,
@@ -140,7 +141,9 @@ export function BitmapText({
                   } : null),
                   // VICTOR's own settings from the game: Amp 3, Freq 0.7, gold
                   // #b07a10 through #f0d060. The step is what makes it travel.
-                  ...(fx ? {
+                  ...(fx === 'wave' ? {
+                    animation: `cradle-wave 1.15s ease-in-out ${-(gi * 0.07).toFixed(2)}s infinite`,
+                  } : fx ? {
                     animation:
                       `cradle-wave 1.15s ease-in-out ${-(gi * 0.07).toFixed(2)}s infinite, ` +
                       `cradle-glow 1.15s ease-in-out ${-(gi * 0.07).toFixed(2)}s infinite`,

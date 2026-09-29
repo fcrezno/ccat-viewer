@@ -787,3 +787,17 @@ button, input, select, textarea, optgroup {
   75%  { color: var(--say-b); }
   100% { color: var(--say-a); }
 }
+
+/*
+ * THE s&box TITLE SCREEN (components/TitleScreen.tsx). The game's own numbers:
+ * the top reel slides 3072px in 60s, the lower one 2688px in 79s the other way —
+ * exactly one copy of its cats, which is why the loop has no seam. The prompt
+ * breathes 4px, as PRESS START does.
+ */
+@keyframes title-reel-run  { from { transform: translateX(0); }       to { transform: translateX(-3072px); } }
+@keyframes title-reel-back { from { transform: translateX(-2688px); } to { transform: translateX(0); } }
+@keyframes title-hint-bob  { from { transform: translateY(0); }       to { transform: translateY(-4px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .cradle-wave { animation: none !important; }
+}
