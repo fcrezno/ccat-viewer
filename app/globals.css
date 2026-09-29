@@ -808,3 +808,22 @@ button, input, select, textarea, optgroup {
  * onto a second line should stay centred in its button.
  */
 .fx-btn-text { justify-content: center; }
+
+/*
+ * THE DAMAGE FLOATER (components/Floater). Ported from floaterLayers() in
+ * clanker-arena/render.mjs: rise 30 * (1 - (1-t)^2) on the ease-out-quad bezier,
+ * full opacity until 55% and then a straight fade. --rise is set per scale.
+ * floater-gate holds an afterimage back until its lag has passed.
+ */
+@keyframes floater-rise {
+  from { transform: translateY(0); }
+  to   { transform: translateY(var(--rise)); }
+}
+@keyframes floater-fade {
+  0%, 55% { opacity: 1; }
+  100%    { opacity: 0; }
+}
+@keyframes floater-gate {
+  from { visibility: hidden; }
+  to   { visibility: visible; }
+}

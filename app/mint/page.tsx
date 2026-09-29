@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useAccount, useConnect, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import sdk from '@farcaster/miniapp-sdk'
 import { V2, V2_ABI, MINT_ERRORS, type Voucher } from '@/lib/mint'
@@ -10,6 +10,7 @@ import { V3, V3_ABI, V3_DEPLOYED } from '@/lib/mintv3'
 import { robinhood } from '@/lib/chains'
 import { base } from 'wagmi/chains'
 import { GameBar } from '@/components/GameBar'
+import { Floater } from '@/components/Floater'
 
 type Phase = 'idle' | 'authorising' | 'minting' | 'confirming' | 'done' | 'error'
 
@@ -89,9 +90,41 @@ export default function MintPage() {
    * toward red as the collection goes. The previous value is the bar's ghost, so
    * a mint landing plays the fight's red trail.
    */
-  const left = minted !== null && total !== null ? total - minted : null
-  const lastLeft = useRef<number | null>(null)
-  useEffect(() => { if (left !== null) lastLeft.current = left }, [left])
+  //
+  // Nothing counts until `inApp` is known: before that the page reads Base, and
+  // switching to Robinhood half way would land a hit of the wrong size.
+  const left = inApp !== null && minted !== null && total !== null ? total - minted : null
+
+  /*
+   * THE BAR TAKES A HIT ON ARRIVAL. JP, 2026-09-28: "when you get to that page;
+   * make it so the hp bar gets hit and appoxmate how much damage (mints) there
+   * are". It shows full, then every mint lands as one blow: the health snaps
+   * down, the red trail drains on the fight's clock (GameBar: a big hit takes
+   * up to 3 s), the bar jolts, and the damage floats up. With nothing minted
+   * the blow is a MISS. A later change, a mint landing, hits for the difference.
+   *
+   * `ghost` is the health BEFORE the blow and stays put until the next one.
+   * GameBar times its drain from ghost - hp, so a ghost that caught up at once
+   * would cut a 3 s drain to its 0.25 s floor.
+   */
+  const [bar, setBar] = useState<{ hp: number; ghost: number } | null>(null)
+  const [hit, setHit] = useState<{ n: number; seq: number } | null>(null)
+  useEffect(() => {
+    if (left === null || total === null) return
+    if (bar === null) {
+      setBar({ hp: total, ghost: total })
+      // Long enough to see it whole before it is hit.
+      const t = setTimeout(() => {
+        setBar({ hp: left, ghost: total })
+        setHit({ n: total - left, seq: 1 })
+      }, 700)
+      return () => clearTimeout(t)
+    }
+    if (left !== bar.hp) {
+      setHit(h => ({ n: bar.hp - left, seq: (h?.seq ?? 0) + 1 }))
+      setBar({ hp: left, ghost: bar.hp })
+    }
+  }, [left, total])
 
   useEffect(() => {
     if (!isSuccess) return
@@ -204,9 +237,26 @@ export default function MintPage() {
                 <span style={{ color: '#7c3aed', fontWeight: 'bold' }}>{minted}</span>
                 <span style={{ color: '#555' }}>/ {total} minted</span>
               </div>
-              <div style={s.hpBar}>
-                <GameBar hp={left!} ghost={lastLeft.current ?? left!} max={total} side="right" />
-              </div>
+              {bar && (
+                <div style={{
+                  ...s.hpBar,
+                  // The fight's crit jolt. Alternating the NAME replays it for each new blow.
+                  animation: hit && hit.n > 0 ? `cradle-shake${hit.seq % 2 ? '' : '-b'} 0.3s ease-out` : undefined,
+                }}>
+                  <GameBar hp={bar.hp} ghost={bar.ghost} max={total} side="right" />
+                  {hit && (
+                    <div style={s.floater}>
+                      {/* Crit red for damage; a miss is the weak grey and wobbles. */}
+                      <Floater
+                        key={hit.seq}
+                        text={hit.n > 0 ? `-${hit.n}` : 'MISS'}
+                        color={hit.n > 0 ? '#e04a3a' : '#6a6a6a'}
+                        wavy={hit.n === 0}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -262,7 +312,9 @@ const s: Record<string, React.CSSProperties> = {
   subtitle:     { fontSize: 13, color: '#666', marginBottom: 8 },
   supplyBox:    { width: '100%', maxWidth: 344, display: 'flex', flexDirection: 'column', gap: 6 },
   supplyRow:    { display: 'flex', gap: 6, fontSize: 13, justifyContent: 'center' },
-  hpBar:        { width: 344, maxWidth: '100%', alignSelf: 'center' },
+  hpBar:        { position: 'relative', width: 344, maxWidth: '100%', alignSelf: 'center' },
+  // A scale-2 glyph row is 48px; this centres it on the 26px bar, and it rises from there.
+  floater:      { position: 'absolute', left: 0, right: 0, top: -11, height: 48 },
   primaryBtn:   { width: '100%', maxWidth: 320, padding: '14px 24px', borderRadius: 12, background: '#7c3aed', color: 'white', border: 'none', cursor: 'pointer', fontSize: 15, fontWeight: 'bold' },
   secondaryBtn: { width: '100%', maxWidth: 320, padding: '12px 24px', borderRadius: 12, background: '#1e1e2e', color: '#ccc', border: 'none', cursor: 'pointer', fontSize: 14, textAlign: 'center', textDecoration: 'none' },
   primaryLink:  { width: '100%', maxWidth: 320, boxSizing: 'border-box', padding: '14px 24px', borderRadius: 12, background: '#7c3aed', color: 'white', fontSize: 15, textAlign: 'center', textDecoration: 'none' },
