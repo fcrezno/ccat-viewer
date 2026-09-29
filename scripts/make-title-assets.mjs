@@ -11,10 +11,9 @@
  *              per zone, so the page streams a video instead of 150 images.
  *
  *   PORTRAITS  The game's own portraits are res<id>.png, 168x168: a 4px paper
- *              ring, a 4px ink edge, the cat inside. Those are V1/V2 cats; the
+ *              ring, an 8px ink edge, the cat inside. Those are V1/V2 cats; the
  *              mint page shows ROBINHOOD cats, so the same frame is built here
- *              around V3 art. The crop is 608x608 source px = 152 art px, so the
- *              nearest-neighbour resize lands on whole pixels.
+ *              around V3 art, with the game's recipe (see below).
  */
 import sharp from 'sharp'
 import { execFileSync } from 'child_process'
