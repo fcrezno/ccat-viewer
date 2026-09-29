@@ -1,11 +1,15 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAccount, useConnect, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import sdk from '@farcaster/miniapp-sdk'
 import { V2, V2_ABI, MINT_ERRORS, type Voucher } from '@/lib/mint'
 import { APP_URL } from '@/lib/miniapp'
 import { useWebConnectors } from '@/lib/useWebConnectors'
+import { V3, V3_ABI, V3_DEPLOYED } from '@/lib/mintv3'
+import { robinhood } from '@/lib/chains'
+import { base } from 'wagmi/chains'
+import { GameBar } from '@/components/GameBar'
 
 type Phase = 'idle' | 'authorising' | 'minting' | 'confirming' | 'done' | 'error'
 
@@ -49,20 +53,45 @@ export default function MintPage() {
 
   const enabled = !!V2
   const { data: supply, refetch: refetchSupply } = useReadContract({
-    address: V2 as `0x${string}`, abi: V2_ABI, functionName: 'totalSupply',
+    address: V2 as `0x${string}`, abi: V2_ABI, functionName: 'totalSupply', chainId: base.id,
     query: { enabled },
   })
   const { data: max } = useReadContract({
-    address: V2 as `0x${string}`, abi: V2_ABI, functionName: 'maxSupply',
+    address: V2 as `0x${string}`, abi: V2_ABI, functionName: 'maxSupply', chainId: base.id,
     query: { enabled },
   })
   const { data: open } = useReadContract({
-    address: V2 as `0x${string}`, abi: V2_ABI, functionName: 'mintOpen',
+    address: V2 as `0x${string}`, abi: V2_ABI, functionName: 'mintOpen', chainId: base.id,
     query: { enabled },
   })
 
-  const minted = supply !== undefined ? Number(supply) : null
-  const total  = max    !== undefined ? Number(max)    : null
+  /*
+   * ON THE WEB THIS PAGE COUNTS ROBINHOOD CATS. JP, 2026-09-28, looking at
+   * "574 / 1111 minted": "fix this; none are minted yet". 574 was true — it is
+   * the Base (V2) count — but on the web the only mint this page offers is the
+   * Robinhood one, so that is the one it counts. Inside Farcaster it is still the
+   * Base mint and still counts Base cats.
+   */
+  const web = inApp === false
+  const onWeb = { query: { enabled: web && V3_DEPLOYED } }
+  const { data: v3Supply } = useReadContract({ address: V3, abi: V3_ABI, functionName: 'totalSupply', chainId: robinhood.id, ...onWeb })
+  const { data: v3Max }    = useReadContract({ address: V3, abi: V3_ABI, functionName: 'maxSupply',   chainId: robinhood.id, ...onWeb })
+  const { data: v3Open }   = useReadContract({ address: V3, abi: V3_ABI, functionName: 'mintOpen',    chainId: robinhood.id, ...onWeb })
+
+  const shownSupply = web ? v3Supply : supply
+  const shownMax    = web ? v3Max    : max
+  const minted = shownSupply !== undefined ? Number(shownSupply) : null
+  const total  = shownMax    !== undefined ? Number(shownMax)    : null
+
+  /*
+   * THE HP BAR COUNTS CATS LEFT. A progress bar of cats minted would be empty at
+   * zero and read as broken; as health it starts full and green and drains
+   * toward red as the collection goes. The previous value is the bar's ghost, so
+   * a mint landing plays the fight's red trail.
+   */
+  const left = minted !== null && total !== null ? total - minted : null
+  const lastLeft = useRef<number | null>(null)
+  useEffect(() => { if (left !== null) lastLeft.current = left }, [left])
 
   useEffect(() => {
     if (!isSuccess) return
@@ -153,7 +182,6 @@ export default function MintPage() {
 
   if (!ready) return null
 
-  const pct = minted !== null && total ? Math.round((minted / total) * 100) : 0
   const busy = phase === 'authorising' || phase === 'minting' || phase === 'confirming' || isConfirming
 
   return (
@@ -164,7 +192,7 @@ export default function MintPage() {
       </div>
 
       <div style={s.hero}>🐱</div>
-      <div style={s.title}>{gate?.phase === 'premint' ? 'Premint' : 'Free Mint'}</div>
+      <div style={s.title}>{(web ? v3Open === true : gate?.phase !== 'premint') ? 'Free Mint' : 'Premint'}</div>
 
       {!enabled ? (
         <div style={s.notice}>Mint opens soon. Follow @crezno for the drop.</div>
@@ -176,20 +204,19 @@ export default function MintPage() {
                 <span style={{ color: '#7c3aed', fontWeight: 'bold' }}>{minted}</span>
                 <span style={{ color: '#555' }}>/ {total} minted</span>
               </div>
-              <div style={s.bar}>
-                <div style={{ ...s.barFill, width: `${pct}%` }} />
+              <div style={s.hpBar}>
+                <GameBar hp={left!} ghost={lastLeft.current ?? left!} max={total} side="right" />
               </div>
             </div>
           )}
 
           {inApp === null ? null : !inApp ? (
             <div style={s.webBox}>
-              <div style={s.notice}>
-                Base cats are tied to a Farcaster account, so they mint inside Farcaster.
-                Open Clanker Cats there to mint one.
-              </div>
               <a href="/mint/v3" style={s.primaryLink}>Claim a Robinhood cat, free for BUN holders</a>
               <a href="/" style={s.secondaryBtn}>Play the game, free, no wallet</a>
+              <div style={s.notice}>
+                Base cats are tied to a Farcaster account, so they mint inside Farcaster.
+              </div>
             </div>
           ) : phase === 'done' ? (
             <div style={s.successBox}>
@@ -220,7 +247,7 @@ export default function MintPage() {
         </>
       )}
 
-      <div style={s.footnote}>Free — you only pay Base gas.</div>
+      <div style={s.footnote}>{web ? 'Free for BUN holders · one per wallet · Robinhood Chain' : 'Free — you only pay Base gas.'}</div>
     </div>
   )
 }
@@ -233,10 +260,9 @@ const s: Record<string, React.CSSProperties> = {
   hero:         { fontSize: 64, marginTop: 20 },
   title:        { fontSize: 24, fontWeight: 'bold' },
   subtitle:     { fontSize: 13, color: '#666', marginBottom: 8 },
-  supplyBox:    { width: '100%', maxWidth: 320, display: 'flex', flexDirection: 'column', gap: 6 },
+  supplyBox:    { width: '100%', maxWidth: 344, display: 'flex', flexDirection: 'column', gap: 6 },
   supplyRow:    { display: 'flex', gap: 6, fontSize: 13, justifyContent: 'center' },
-  bar:          { background: '#12122a', borderRadius: 6, height: 8, overflow: 'hidden', border: '1px solid #1e1e2e' },
-  barFill:      { height: '100%', background: '#7c3aed', borderRadius: 6, transition: 'width 0.4s ease' },
+  hpBar:        { width: 344, maxWidth: '100%', alignSelf: 'center' },
   primaryBtn:   { width: '100%', maxWidth: 320, padding: '14px 24px', borderRadius: 12, background: '#7c3aed', color: 'white', border: 'none', cursor: 'pointer', fontSize: 15, fontWeight: 'bold' },
   secondaryBtn: { width: '100%', maxWidth: 320, padding: '12px 24px', borderRadius: 12, background: '#1e1e2e', color: '#ccc', border: 'none', cursor: 'pointer', fontSize: 14, textAlign: 'center', textDecoration: 'none' },
   primaryLink:  { width: '100%', maxWidth: 320, boxSizing: 'border-box', padding: '14px 24px', borderRadius: 12, background: '#7c3aed', color: 'white', fontSize: 15, textAlign: 'center', textDecoration: 'none' },
