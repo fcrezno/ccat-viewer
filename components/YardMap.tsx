@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { FxLabel } from '@/components/FxButton'
 import { COLS, ROWS, DOING, layout, layoutAt, moodOf, poseOf, type Placed } from '@/lib/yardmap'
 import { bond, reads, temperOf, type PropKind, type YardState } from '@/lib/yard'
 import { ITEMS, skinOf } from '@/lib/items'
@@ -656,12 +657,15 @@ export function YardMap({
             return (
               <button
                 key={p}
+                className="fx-host"
                 onClick={() => onFurnish(p)}
                 aria-pressed={out}
+                aria-label={PROP_WHY[p]}
                 style={{ ...s.shelfBtn, ...(out ? s.shelfOn : null) }}
               >
                 <img src={`/yard/items/${item.file}.png`} alt="" style={s.shelfArt} />
-                <span>{PROP_WHY[p]}</span>
+                {/* The game font and the buttons' wave; green once it is out in the yard. */}
+                <FxLabel text={PROP_WHY[p]} tone={out ? 'green' : 'soft'} />
               </button>
             )
           })}
@@ -800,7 +804,7 @@ const s: Record<string, React.CSSProperties> = {
     letterSpacing: 0.5,
   },
   skyArt:   { width: 16, height: 16, objectFit: 'contain', display: 'block' },
-  shelfArt: { width: 22, height: 22, objectFit: 'contain', display: 'block', flexShrink: 0 },
+  shelfArt: { width: 30, height: 30, objectFit: 'contain', display: 'block', flexShrink: 0 },
   readout:  { marginTop: 10, fontSize: 13, minHeight: 20, lineHeight: 1.45 },
   /*
    * Gold, and the only gold thing under the map. It is the one row that is not a
@@ -824,9 +828,9 @@ const s: Record<string, React.CSSProperties> = {
   },
   shelf:    { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, marginTop: 10 },
   shelfBtn: {
-    display: 'flex', alignItems: 'center', gap: 8,
-    padding: '8px 10px', borderRadius: 10,
-    background: '#171722', border: '1px solid #2c2c3c',
+    display: 'flex', alignItems: 'center', gap: 8, minHeight: 56,
+    padding: '10px 12px', borderRadius: 12,
+    background: '#171722', border: '1px solid #34344a',
     color: '#b4b4ca', fontSize: 12, cursor: 'pointer', textAlign: 'left',
   },
   /*

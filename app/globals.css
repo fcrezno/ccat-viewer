@@ -857,3 +857,25 @@ button, input, select, textarea, optgroup {
     animation: fx-glow 1.15s ease-in-out var(--d) infinite;
   }
 }
+
+/*
+ * ON A SCREEN WITH NO HOVER, THE BUTTONS ALWAYS WAVE.
+ *
+ * JP, 2026-09-29, looking at the menu at phone size: "make the buttons animate"
+ * — "for all of them". A phone has no pointer to rest on a button, so the hover
+ * rule above never fired there and every label sat still. Where there is no
+ * hover at all, the labels move all the time, like the title's CLANKER CATS.
+ * With a mouse they still wait for it, as he asked on 2026-09-28.
+ */
+@media (hover: none) {
+  .fx-host:not(:disabled) .fx-g {
+    animation:
+      cradle-wave 1.15s ease-in-out var(--d) infinite,
+      fx-glow 1.15s ease-in-out var(--d) infinite;
+  }
+}
+@media (hover: none) and (prefers-reduced-motion: reduce) {
+  .fx-host:not(:disabled) .fx-g {
+    animation: fx-glow 1.15s ease-in-out var(--d) infinite;
+  }
+}

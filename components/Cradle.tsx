@@ -2453,7 +2453,8 @@ const s: Record<string, React.CSSProperties> = {
   yardBtn:  { display: 'block', boxSizing: 'border-box', width: '100%', background: 'transparent', color: '#7ee081', border: '1px solid #2f5a34', borderRadius: 10, padding: '10px 16px', fontSize: 13, letterSpacing: 1, textAlign: 'center', textDecoration: 'none', fontFamily: 'inherit', marginTop: 10 },
 
   /* The menu beside your fighter: options LEFT and compact, the cat gets the room. */
-  fighterRow:  { display: 'flex', gap: 16, alignItems: 'flex-start' },
+  // Centred, so the cat sits level with the middle option, GAUNTLET (JP, 2026-09-29).
+  fighterRow:  { display: 'flex', gap: 16, alignItems: 'center' },
   fighterOpts: { flex: '1 1 0', minWidth: 0 },
   fighter:     { flex: '0 0 44%', maxWidth: 240, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginTop: 0 },
   fighterName: { margin: 0, fontSize: 12, letterSpacing: 1, color: '#f0f0f5', textAlign: 'center', overflowWrap: 'anywhere' },

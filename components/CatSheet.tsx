@@ -356,9 +356,18 @@ const s: Record<string, React.CSSProperties> = {
   mood:  { fontSize: 14, fontWeight: 'bold' },
   owner: { fontSize: 11, color: '#6b6b60', marginTop: 2 },
   doing: { fontSize: 12, color: '#3a3a30', marginTop: 3 },
+  /*
+   * A REAL TARGET. It was a bare glyph, and its `font: 'inherit'` came AFTER
+   * fontSize 20 — the shorthand resets the size, so it drew at 13px. The
+   * shorthand goes first now, and the box is a thumb's width (JP, 2026-09-29:
+   * "make the buttons bigger and easier to see").
+   */
   close: {
-    background: 'none', border: 0, color: '#8a8a7a', fontSize: 20,
-    lineHeight: 1, cursor: 'pointer', padding: '0 2px', font: 'inherit',
+    font: 'inherit', fontSize: 22, lineHeight: 1,
+    width: 34, height: 34, flexShrink: 0,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    background: 'rgba(0,0,0,0.05)', border: '1px solid rgba(0,0,0,0.18)', borderRadius: 8,
+    color: '#3a3a30', cursor: 'pointer', padding: 0,
   },
 
   about: {
@@ -386,9 +395,9 @@ const s: Record<string, React.CSSProperties> = {
    * The case. It wraps, because a full bag is eighteen things and a row that
    * scrolls sideways on a phone hides most of a cat's worth behind a gesture.
    */
-  bag: { display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  bag: { display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 },
   slot: {
-    width: 34, height: 34, padding: 3,
+    width: 44, height: 44, padding: 4,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     background: 'rgba(0,0,0,0.05)',
     border: '2px solid rgba(0,0,0,0.10)',

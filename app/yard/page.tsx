@@ -31,9 +31,8 @@ export default function YardPage() {
   return (
     <main style={s.page}>
       <header style={s.head}>
-        <a href="/" style={s.back}>← THE GAME</a>
+        <FxButton href="/" style={s.back} tone="grey" label="← THE GAME" />
         <h1 style={s.title}>THE YARD</h1>
-        <span style={s.balance} aria-hidden />
       </header>
       <p style={s.sub}>Your cats and the cats of people you follow, getting on with it.</p>
 
@@ -68,10 +67,10 @@ const s: Record<string, React.CSSProperties> = {
     padding: '22px 18px 40px', maxWidth: 560, margin: '0 auto',
     display: 'flex', flexDirection: 'column', gap: 12,
   },
-  head:    { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  back:    { color: '#a78bfa', fontSize: 12, letterSpacing: 1, textDecoration: 'none', width: 90, whiteSpace: 'nowrap' },
-  balance: { width: 90 },
-  title:   { fontSize: 30, letterSpacing: 1, margin: 0, textAlign: 'center', flex: 1, lineHeight: 1.1 },
+  // Two rows: a 120px button either side of the title left it 79px on a phone.
+  head:    { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 },
+  back:    { alignSelf: 'flex-start', padding: '7px 12px', border: '1px solid #2c2c3c', borderRadius: 10, background: 'transparent' },
+  title:   { fontSize: 30, letterSpacing: 1, margin: 0, textAlign: 'center', lineHeight: 1.1 },
   sub:     { color: '#9a9ab5', fontSize: 13, margin: 0, textAlign: 'center' },
   // Less side padding than the front page's 16, so the map gets the width.
   block:   { background: '#12121c', border: '1px solid #21212f', borderRadius: 14, padding: '14px 10px' },
