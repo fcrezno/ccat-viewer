@@ -12,10 +12,10 @@ import { embedTags, APP_URL } from '@/lib/miniapp'
  */
 export const metadata: Metadata = {
   title: 'Claim your cat — Clanker Cats',
-  description: 'Clanker Cats V3 on Robinhood Chain, for BUN holders. Free to mint, one per wallet. Burn BUN through your cat and it becomes a BunBurner.',
+  description: 'Clanker Cats on Robinhood Chain, for BUN holders. Free to mint, one per wallet. Burn BUN through your cat and it becomes a BunBurner.',
   openGraph: {
-    title: 'Clanker Cats V3',
-    description: 'Clanker Cats V3 on Robinhood Chain, for BUN holders. Free to mint, one per wallet. Burn BUN through your cat and it becomes a BunBurner.',
+    title: 'Clanker Cats',
+    description: 'Clanker Cats on Robinhood Chain, for BUN holders. Free to mint, one per wallet. Burn BUN through your cat and it becomes a BunBurner.',
     images: [`${APP_URL}/cradle.png`],
   },
   other: embedTags({

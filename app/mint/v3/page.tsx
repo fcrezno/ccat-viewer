@@ -267,9 +267,9 @@ export default function MintV3Page() {
 
       {/* A random V3 cat, or this wallet's own once it has one. */}
       <div style={{ ...s.heroBox, ...(burner ? s.heroBurner : {}) }}>
-        {shownId && <img src={`/v3/images/${shownId}.png`} alt={`Clanker Cats V3 #${shownId}`} style={s.heroImg} />}
+        {shownId && <img src={`/v3/images/${shownId}.png`} alt={`Clanker Cat #${shownId}`} style={s.heroImg} />}
       </div>
-      <div style={s.title}>{catId !== null ? `#${catId} is yours` : 'V3'}</div>
+      {catId !== null && <div style={s.title}>#{String(catId)} is yours</div>}
       <div style={s.subtitle}>Robinhood Chain · free for BUN holders</div>
 
       {!V3_DEPLOYED ? (
