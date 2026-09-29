@@ -117,6 +117,10 @@ const warnFor = (hp: number, max: number) =>
   hp <= 0 ? null : hp === PERIL ? 'PERIL!' : hp / max <= LOW ? 'CAUTION!' : null
 
 const PAPER = '#f2eee3'
+
+/** The zones the game loops behind a fight, one per turf: "the forest" is `forest`. */
+const ZONES = ['caves', 'forest', 'mountain', 'temple', 'town']
+const zoneOf = (turf: string) => turf.replace(/^the /, '')
 const INK = '#1a1a1a'
 
 const KIND_INK: Record<LogLine['kind'], string> = {
@@ -1411,14 +1415,35 @@ export function Cradle() {
       ? run.pot > 0 ? ` Pot ${run.pot}.` : ''
       : rec && rec.wins + rec.losses > 0 ? ` Now ${recordLine(rec)}.` : ''
 
-    try {
-      await sdk.actions.composeCast({
-        text: `${line}${tail}\n\nClanker Cats. ${SEASON_TAG}`,
-        embeds: [tag ? `${APP_URL}/cradle?r=${encodeURIComponent(tag)}` : `${APP_URL}/cradle`],
-      })
-    } catch {
-      setError('could not open the composer — are you in a Farcaster client?')
+    /*
+     * INSIDE FARCASTER IT IS STILL A CAST, because the season depends on it:
+     * /api/ticker rebuilds the board by searching casts for #ClankerCats and the
+     * signed ?r= link. Sent to X instead, a champion's run would never be counted.
+     */
+    if (fcFid !== null) {
+      try {
+        await sdk.actions.composeCast({
+          text: `${line}${tail}\n\nClanker Cats. ${SEASON_TAG}`,
+          embeds: [tag ? `${APP_URL}/cradle?r=${encodeURIComponent(tag)}` : `${APP_URL}/cradle`],
+        })
+      } catch {
+        setError('could not open the composer')
+      }
+      return
     }
+
+    /*
+     * EVERYWHERE ELSE, X (JP, 2026-09-29: "we dont need to share on farcaster;
+     * but maybe share on X?"). X's own post intent, with the brand domain rather
+     * than the Vercel one. SEASON_TAG stays with Farcaster: its "@crezno" is the
+     * Farcaster handle and $CLKCAT the Base token.
+     */
+    const url = 'https://x.com/intent/post?' + new URLSearchParams({
+      text: `${line}${tail}\n\nClanker Cats #ClankerCats`,
+      url: 'https://clankercats.com',
+    }).toString()
+    // Inside a Farcaster client a new window is not allowed; the SDK opens it instead.
+    try { await sdk.actions.openUrl(url) } catch { window.open(url, '_blank', 'noopener') }
   }
 
   function retire() {
@@ -1916,6 +1941,27 @@ export function Cradle() {
                     : undefined,
                 }}
               >
+                {/*
+                  THE STAGE'S OWN BACKGROUND (JP, 2026-09-29: "lets add the
+                  backgrounds for the stages"). Every fight is already set somewhere
+                  — "the forest" — and the five turfs are the five zones the s&box
+                  game loops behind a fight, the same loops the title screen plays
+                  (scripts/make-title-assets.mjs). It shakes with the stage on a
+                  crit, as the game's whole screen does. The scrim keeps the names
+                  and bars reading over a bright zone.
+                */}
+                {ZONES.includes(zoneOf(result.turf)) && (
+                  <>
+                    <video
+                      key={result.seed}
+                      src={`/title/${zoneOf(result.turf)}.mp4`}
+                      poster={`/title/${zoneOf(result.turf)}.jpg`}
+                      autoPlay muted loop playsInline aria-hidden
+                      style={s.zone}
+                    />
+                    <div style={s.zoneScrim} aria-hidden />
+                  </>
+                )}
                 <div style={s.versus}>
                   <Fighter
                     cat={result.you}
@@ -2194,7 +2240,7 @@ export function Cradle() {
                         </>
                       )}
                       <button className="fx-host" style={{ ...s.primary, marginTop: 14 }} onClick={share}>
-                        <FxLabel text={"SHARE ON FARCASTER"} tone='light' />
+                        <FxLabel text={fcFid !== null ? 'CAST IT' : 'SHARE ON X'} tone='light' />
                       </button>
                       <button className="fx-host" style={s.ghost} disabled={busy}
                         onClick={() => startGauntlet(!run.recorded)}>
@@ -2221,7 +2267,7 @@ export function Cradle() {
                   )}
 
                   <button className="fx-host" style={{ ...s.primary, marginTop: 12 }} onClick={share}>
-                    <FxLabel text={"SHARE ON FARCASTER"} tone='light' />
+                    <FxLabel text={fcFid !== null ? 'CAST IT' : 'SHARE ON X'} tone='light' />
                   </button>
 
                   <button className="fx-host"
@@ -2398,7 +2444,10 @@ const s: Record<string, React.CSSProperties> = {
   placeholder: { width: '100%', aspectRatio: '1', display: 'grid', placeItems: 'center', fontSize: 22, background: '#0b0b13' },
 
   // `position: relative` so the countdown can sit over it.
-  stage:  { position: 'relative', background: '#12121c', border: '1px solid #21212f', borderRadius: 14, padding: '14px 16px' },
+  stage:  { position: 'relative', overflow: 'hidden', isolation: 'isolate', background: '#12121c', border: '1px solid #21212f', borderRadius: 14, padding: '14px 16px' },
+  // The zone loop fills the stage; 480x320 art, kept square-pixelled. Behind everything on it.
+  zone:      { position: 'absolute', inset: 0, width: '100%', height: '100%', maxWidth: 'none', objectFit: 'cover', imageRendering: 'pixelated', zIndex: -2 },
+  zoneScrim: { position: 'absolute', inset: 0, zIndex: -1, background: 'linear-gradient(180deg, rgba(11,11,19,0.35) 0%, rgba(11,11,19,0.6) 100%)' },
   countWrap: {
     position: 'absolute', inset: 0, display: 'flex',
     alignItems: 'center', justifyContent: 'center',
