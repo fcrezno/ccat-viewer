@@ -118,7 +118,14 @@ export function MintStage({ left, total, art, framed = true }: {
           </div>
         )}
 
-        {/* The chrome, then the bar over it — the s&box HUD's order. */}
+        {/*
+          The KO box's paper, then the chrome, then the bar over it — the s&box
+          HUD's order. The line art is transparent inside; the game floods the
+          box and the hole of its O with paper white (kobox.png, kohole.png), and
+          without them the box showed the backdrop through it.
+        */}
+        <img src="/game/bar/kobox.png" alt="" style={st.kobox} />
+        <img src="/game/bar/kohole.png" alt="" style={st.kohole} />
         <img src="/game/hud-ko-right.png" alt="" style={st.chrome} />
         {bar && total !== null && (
           <div style={{ ...st.bar, animation: recoil }}>
@@ -162,6 +169,9 @@ const st: Record<string, React.CSSProperties> = {
   backdrop: { position: 'absolute', left: (W - 480) / 2, top: (H - 320) / 2, width: 480, height: 320, maxWidth: 'none', imageRendering: 'pixelated' },
   wash:     { position: 'absolute', inset: 0, background: 'rgba(232, 238, 246, 0.62)' },
   chrome:   { position: 'absolute', left: CHROME.x, top: CHROME.y, width: CHROME.w, height: CHROME.h, imageRendering: 'pixelated' },
+  // BattleScreen.razor.scss .paper.kobox / .paper.kohole, at the bounds the game's flood fill found.
+  kobox:    { position: 'absolute', left: gx(214), top: gy(16), width: 50, height: 37, imageRendering: 'pixelated' },
+  kohole:   { position: 'absolute', left: gx(242), top: gy(26), width: 15, height: 11, imageRendering: 'pixelated' },
   bar:      { position: 'absolute', left: gx(274), top: gy(22), width: 172 },
   hpnum:    { position: 'absolute', right: W - gx(448), top: gy(0) },
   caution:  { position: 'absolute', left: gx(277), top: gy(0) },
