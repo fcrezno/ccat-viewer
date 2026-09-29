@@ -254,7 +254,7 @@ function Mug({ cat }: { cat: YardCat }) {
         ? <img src={cat.art} alt="" style={mug} />
         : <div style={{ ...mug, background: '#ddd6c4' }} />}
       <span style={{ color: nameInk(cat) }}>{cat.name}</span>
-      <span style={{ color: '#8a8a7a' }}>{temperOf(cat.face).label}</span>
+      <span style={{ color: '#6b6b5c' }}>{temperOf(cat.face).label}</span>
     </div>
   )
 }
@@ -434,11 +434,21 @@ export function Yard({
 
   useEffect(() => {
     if (!state) return
-    const total = Math.min(14, state.happened.length)
+    /*
+     * The lines the log is SHOWING: new ones, or with none new, what the cats
+     * still remember (see `recent`). Counting only `happened` left the roll at 0
+     * and printed a caret under an empty page on a second look.
+     */
+    const news = state.happened.length > 0
+    const total = Math.min(14, (news ? state.happened : state.state.kept).length)
     if (rolled >= total) return
 
-    const still = typeof window !== 'undefined'
-      && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    /*
+     * Typing is how NEW lines arrive — watching it happen. Remembered ones are the
+     * past, so they are simply there, the way a diary is.
+     */
+    const still = !news || (typeof window !== 'undefined'
+      && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
     if (still) { setRolled(total); return }
 
     const t = setTimeout(() => setRolled(n => n + 1), LINE_MS)
@@ -590,7 +600,18 @@ export function Yard({
   if (!state) return <p style={fine}>reading the yard…</p>
 
   const name = (uid: string) => byUid.get(uid)
-  const recent = state.happened.slice(-14).reverse()
+  /*
+   * NEW LINES IF THERE ARE ANY; OTHERWISE WHAT THEY STILL REMEMBER.
+   *
+   * JP, 2026-09-29: "dont forget the text log for the yard too". The log only
+   * ever printed what happened SINCE THE LAST VISIT, so looking in twice within
+   * an hour printed nothing and the paper vanished — on its own page the yard
+   * had no words at all. `kept` is every memory still inside the 24-hour span,
+   * the same list the bonds are summed from, so this is the recent past, not
+   * filler: the status line above says which of the two it is.
+   */
+  const fresh = state.happened.length > 0
+  const recent = (fresh ? state.happened : state.state.kept).slice(-14).reverse()
 
   /*
    * ONE LIST, ROLLED IN. There was a short version and a long one with a control
@@ -639,7 +660,9 @@ export function Yard({
         {state.fresh
           ? `${cats.length} cats in the yard. Come back later and they will have got on with it.`
           : state.hours === 0
-            ? 'Nothing new since you last looked in.'
+            ? state.state.kept.length
+              ? 'Nothing new since you last looked in. This is what they remember.'
+              : 'Nothing new since you last looked in.'
             : `While you were away — ${state.hours} hour${state.hours === 1 ? '' : 's'}${
                 state.hours >= MAX_TICKS ? ' (as much as the yard plays out)' : ''}.`}
       </p>
@@ -705,13 +728,13 @@ export function Yard({
         grow control hides itself because there is nothing to grow — so an empty
         sheet of paper rendered under the map.
       */}
-      {(shown.length > 0 || pairs.length > 0) && (
+      {(shown.length > 0 || pairs.length > 0 || (full && past.length > 0)) && (
         <div
           ref={logRef}
           onWheel={readerMoved}
           onTouchMove={readerMoved}
           onKeyDown={readerMoved}
-          style={{ ...paper, maxHeight: compact ? 190 : 340 }}
+          style={{ ...paper, maxHeight: compact ? 190 : 440 }}
         >
           {shown.slice(0, rolled).map((m, i) => {
             const a = name(m.a), b = name(m.b)
@@ -835,7 +858,7 @@ export function Yard({
                 return (
                   <div key={i} style={convoRow}>
                     <Bit runs={runs} />
-                    <span style={{ color: '#8a8a7a', whiteSpace: 'nowrap' }}>{ago <= 0 ? 'just now' : `${ago}h`}</span>
+                    <span style={{ color: '#6b6b5c', whiteSpace: 'nowrap' }}>{ago <= 0 ? 'just now' : `${ago}h`}</span>
                   </div>
                 )
               })}
@@ -922,7 +945,7 @@ export function Yard({
                 aria-label="Close"
                 style={shut}
               >
-                <span style={{ color: '#8a8a7a' }}>X</span>
+                <span style={{ color: '#6b6b5c' }}>X</span>
               </button>
             </div>
 
@@ -960,7 +983,7 @@ export function Yard({
                       { text: speaker.name, color: nameInk(speaker) },
                       { text: ' ' + t.text, color: t.good ? '#2f7a44' : '#a01b1b' },
                     ]} />
-                    <span style={{ color: '#8a8a7a', whiteSpace: 'nowrap' }}>{ago <= 0 ? 'just now' : `${ago}h`}</span>
+                    <span style={{ color: '#6b6b5c', whiteSpace: 'nowrap' }}>{ago <= 0 ? 'just now' : `${ago}h`}</span>
                   </div>
                 )
               })}
@@ -1085,7 +1108,7 @@ const BOND_INK: Record<string, string> = {
   enemies:     '#a01b1b',
 }
 
-const fine: React.CSSProperties = { color: '#9a9ab5', fontSize: 12.5, margin: 0, lineHeight: 1.6 }
+const fine: React.CSSProperties = { color: '#c4c4d8', fontSize: 15, margin: 0, lineHeight: 1.5 }
 const say: React.CSSProperties = { color: '#a9a9c0', fontSize: 13, margin: 0, lineHeight: 1.6 }
 const label: React.CSSProperties = { fontSize: 10, letterSpacing: 2, color: '#7a7a95', margin: '4px 0 8px' }
 
@@ -1115,8 +1138,8 @@ const paper: React.CSSProperties = {
    * 24px cell — which is why the log always read as bigger than the page around
    * it. 13 is the app's own body size, so the log and the chrome finally agree.
    */
-  fontSize: 13,
-  lineHeight: 1.5,
+  fontSize: 15,
+  lineHeight: 1.6,
   /*
    * Shorter than the fight's 320 on the front page, because the yard is a
    * PREVIEW there and sits above everything else on the screen. The yard's own
@@ -1125,22 +1148,22 @@ const paper: React.CSSProperties = {
   overflowY: 'auto',
 }
 
-const line: React.CSSProperties = { color: INK, fontSize: 13, margin: 0, lineHeight: 1.55 }
+const line: React.CSSProperties = { color: INK, fontSize: 15, margin: 0, lineHeight: 1.6 }
 
 /* The same caret the fight log shows while it is still typing. */
-const caret: React.CSSProperties = { color: '#8a8a7a', fontSize: 14, lineHeight: 1 }
+const caret: React.CSSProperties = { color: '#6b6b5c', fontSize: 16, lineHeight: 1 }
 
 /* A pair, as a row you can open. Printed, not chromed — it sits on the paper. */
 const pairRow: React.CSSProperties = {
   display: 'flex', width: '100%', gap: 10, alignItems: 'baseline',
   justifyContent: 'space-between', textAlign: 'left',
   background: 'none', border: 0, padding: '2px 0',
-  font: 'inherit', fontSize: 13, color: INK, cursor: 'pointer',
+  font: 'inherit', fontSize: 15, color: INK, cursor: 'pointer',
 }
 
 const convoRow: React.CSSProperties = {
   display: 'flex', gap: 10, justifyContent: 'space-between',
-  alignItems: 'baseline', fontSize: 12.5, lineHeight: 1.45,
+  alignItems: 'baseline', fontSize: 14, lineHeight: 1.5,
 }
 
 
@@ -1306,7 +1329,7 @@ const windowBody: React.CSSProperties = {
 
 /* The divider inside the paper. Ruled, the way a printed sheet would be. */
 const rule: React.CSSProperties = {
-  fontSize: 10, letterSpacing: 2, color: '#8a8a7a',
+  fontSize: 11, letterSpacing: 2, color: '#6b6b5c',
   margin: '8px 0 2px', paddingTop: 10,
   borderTop: '1px solid rgba(0,0,0,0.10)',
 }

@@ -71,10 +71,10 @@ const s: Record<string, React.CSSProperties> = {
   head:    { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 },
   back:    { alignSelf: 'flex-start', padding: '7px 12px', border: '1px solid #2c2c3c', borderRadius: 10, background: 'transparent' },
   title:   { fontSize: 30, letterSpacing: 1, margin: 0, textAlign: 'center', lineHeight: 1.1 },
-  sub:     { color: '#9a9ab5', fontSize: 13, margin: 0, textAlign: 'center' },
+  sub:     { color: '#c4c4d8', fontSize: 15, margin: 0, textAlign: 'center', lineHeight: 1.4 },
   // Less side padding than the front page's 16, so the map gets the width.
   block:   { background: '#12121c', border: '1px solid #21212f', borderRadius: 14, padding: '14px 10px' },
-  quiet:   { color: '#9a9ab5', fontSize: 13, margin: 0, lineHeight: 1.6 },
+  quiet:   { color: '#c4c4d8', fontSize: 15, margin: 0, lineHeight: 1.6 },
   empty:   { display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-start', margin: '10px 6px' },
   button: {
     marginTop: 6, padding: '9px 20px', borderRadius: 12, background: '#7c3aed',

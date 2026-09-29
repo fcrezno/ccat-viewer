@@ -580,8 +580,8 @@ export function YardMap({
       <div style={s.readout}>
         {sel ? (
           <>
-            <b style={{ color: '#e6e6f0' }}>{sel.cat.name}</b>
-            <span style={{ color: '#b4b4ca' }}>
+            <b style={{ color: '#ffffff' }}>{sel.cat.name}</b>
+            <span style={{ color: '#d0d0e0' }}>
               {/*
                 WHOSE IT IS, which used to live in a hover card over the log. The
                 log is drawn in the bitmap font now and cannot carry a handler per
@@ -598,7 +598,7 @@ export function YardMap({
             </span>
           </>
         ) : (
-          <span style={{ color: '#9a9ab5' }}>
+          <span style={{ color: '#c4c4d8' }}>
             {yard.props.length
               ? 'Tap a cat.'
               : 'Tap a cat. Nothing to play with out here yet.'}
@@ -800,12 +800,12 @@ const s: Record<string, React.CSSProperties> = {
   propArt:  { width: '82%', height: '82%', objectFit: 'contain', display: 'block', userSelect: 'none' },
   sky: {
     display: 'flex', alignItems: 'center', gap: 5,
-    marginBottom: 6, fontSize: 12, color: '#9a9ab5',
+    marginBottom: 8, fontSize: 15, color: '#c4c4d8',
     letterSpacing: 0.5,
   },
-  skyArt:   { width: 16, height: 16, objectFit: 'contain', display: 'block' },
+  skyArt:   { width: 20, height: 20, objectFit: 'contain', display: 'block' },
   shelfArt: { width: 30, height: 30, objectFit: 'contain', display: 'block', flexShrink: 0 },
-  readout:  { marginTop: 10, fontSize: 13, minHeight: 20, lineHeight: 1.45 },
+  readout:  { marginTop: 10, fontSize: 15, minHeight: 22, lineHeight: 1.45 },
   /*
    * Gold, and the only gold thing under the map. It is the one row that is not a
    * report — everything else here says what happened, this asks.
