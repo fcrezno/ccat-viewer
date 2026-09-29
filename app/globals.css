@@ -801,3 +801,10 @@ button, input, select, textarea, optgroup {
 @media (prefers-reduced-motion: reduce) {
   .cradle-wave { animation: none !important; }
 }
+
+/*
+ * A button label in the game's font (components/FxButton). BitmapText lays its
+ * words out as a wrapping flex row that starts at the left; a label that wraps
+ * onto a second line should stay centred in its button.
+ */
+.fx-btn-text { justify-content: center; }

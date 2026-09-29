@@ -73,8 +73,13 @@ export function BitmapText({
    * The animation paints `background-color`, which IS the glyph's ink here, so
    * it takes over from `color` while it runs — that is what the glow is.
    */
-  /** true = gold wave + glow (VICTOR). 'wave' = the motion alone, for ink copies that must move with it. */
-  fx?: boolean | 'wave'
+  /**
+   * true = gold wave + glow (VICTOR). 'wave' = the motion alone, for ink copies that must move with it.
+   * 'roll' = the same wave + glow, but each glyph STARTS FLAT and joins in turn, left to right. For
+   * something that starts on hover: true's negative delays put every letter mid-wave on the first
+   * frame, so switching it on made the whole word jump.
+   */
+  fx?: boolean | 'wave' | 'roll'
 }) {
   const whole = runs ? runs.map(r => r.text).join('') : (text ?? '')
   const inks: string[] = []
@@ -122,7 +127,7 @@ export function BitmapText({
             return (
               <span
                 key={i}
-                className={fx === true ? 'cradle-fx' : fx === 'wave' ? 'cradle-wave' : beat ? 'yard-say' : undefined}
+                className={fx === true || fx === 'roll' ? 'cradle-fx' : fx === 'wave' ? 'cradle-wave' : beat ? 'yard-say' : undefined}
                 style={{
                   width: width * scale,
                   height: CELL_H * scale,
@@ -143,6 +148,10 @@ export function BitmapText({
                   // #b07a10 through #f0d060. The step is what makes it travel.
                   ...(fx === 'wave' ? {
                     animation: `cradle-wave 1.15s ease-in-out ${-(gi * 0.07).toFixed(2)}s infinite`,
+                  } : fx === 'roll' ? {
+                    animation:
+                      `cradle-wave 1.15s ease-in-out ${(gi * 0.07).toFixed(2)}s infinite, ` +
+                      `cradle-glow 1.15s ease-in-out ${(gi * 0.07).toFixed(2)}s infinite`,
                   } : fx ? {
                     animation:
                       `cradle-wave 1.15s ease-in-out ${-(gi * 0.07).toFixed(2)}s infinite, ` +

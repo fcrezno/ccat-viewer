@@ -6,6 +6,7 @@ import { formatUnits, parseEventLogs } from 'viem'
 import { V3, V3_ABI, V3_DEPLOYED, V3_MINT_ERRORS, RUN_DOOR } from '@/lib/mintv3'
 import { robinhood } from '@/lib/chains'
 import { TitleScreen } from '@/components/TitleScreen'
+import { FxButton } from '@/components/FxButton'
 import { useWebConnectors } from '@/lib/useWebConnectors'
 
 /**
@@ -275,7 +276,7 @@ export default function MintV3Page() {
       {!V3_DEPLOYED ? (
         <>
           <div style={s.notice}>Not live yet. The cats are made, the contract isn’t deployed.</div>
-          <a href="/" style={s.secondaryBtn}>Play the game — it’s free</a>
+          <FxButton href="/" style={s.secondaryBtn} ink="#cccccc" label="Play the game — it’s free" />
         </>
       ) : !mounted ? (
         <div style={s.notice}>Loading…</div>
@@ -287,9 +288,7 @@ export default function MintV3Page() {
               : 'Free to mint, one per wallet. Connect to claim yours.'}
           </div>
           {webConnectors.map(c => (
-            <button key={c.uid} style={s.secondaryBtn} onClick={() => connect({ connector: c })}>
-              {c.name.toUpperCase()}
-            </button>
+            <FxButton key={c.uid} style={s.secondaryBtn} ink="#cccccc" onClick={() => connect({ connector: c })} label={c.name.toUpperCase()} />
           ))}
           {/* A failed connect used to do nothing visible. Say why. */}
           {connectError && !/rejected|denied/i.test(connectError.message) && (
@@ -302,18 +301,14 @@ export default function MintV3Page() {
             <div style={s.notice}>Claiming is not open yet. It opens soon.</div>
           )}
           {hasMinted === false && catId === null && open === true && (
-            <button style={{ ...s.primaryBtn, opacity: busy ? 0.6 : 1 }} onClick={claim} disabled={!!busy}>
-              {busy ?? 'Claim your cat — free'}
-            </button>
+            <FxButton style={{ ...s.primaryBtn, opacity: busy ? 0.6 : 1 }} ink="#ffffff" onClick={claim} disabled={!!busy} label={busy ?? 'Claim your cat — free'} />
           )}
 
           {catId !== null && (burner ? (
             <div style={s.burnerBadge}>BUNBURNER</div>
           ) : terms && burner === false && (
             <>
-              <button style={{ ...s.burnBtn, opacity: busy ? 0.6 : 1 }} onClick={becomeBurner} disabled={!!busy}>
-                {busy ?? `Burn ${price} BUN → BunBurner`}
-              </button>
+              <FxButton style={{ ...s.burnBtn, opacity: busy ? 0.6 : 1 }} ink="#e0a72c" onClick={becomeBurner} disabled={!!busy} label={busy ?? `Burn ${price} BUN → BunBurner`} />
               {/* Where the BUN goes, said before it is spent rather than after. */}
               <div style={s.splitNote}>
                 Optional. Your cat gets the BunBurner trait for good.
@@ -331,7 +326,7 @@ export default function MintV3Page() {
                 value={typed}
                 onChange={e => setTyped(e.target.value.replace(/\D/g, ''))}
               />
-              <button style={s.smallBtn} onClick={pickTyped} disabled={!typed || !!busy}>Use</button>
+              <FxButton style={s.smallBtn} ink="#cccccc" onClick={pickTyped} disabled={!typed || !!busy} label="Use" />
             </div>
           )}
         </>
@@ -340,7 +335,7 @@ export default function MintV3Page() {
       {error && <div style={s.error}>{error}</div>}
 
       {/* A PLAY BUTTON THAT CANNOT BE MISSED. The game is free and needs no wallet. */}
-      <a href="/" style={s.playBtn}>PLAY THE GAME — FREE, NO WALLET</a>
+      <FxButton href="/" style={s.playBtn} ink="#e0a72c" label="PLAY THE GAME — FREE, NO WALLET" />
 
       {/* HOW THE CATS WORK — asked for by JP, 2026-09-28. */}
       <div style={s.how}>
@@ -361,7 +356,7 @@ const s: Record<string, React.CSSProperties> = {
   logo:         { fontSize: 16, fontWeight: 'bold', letterSpacing: 1 },
   navLink:      { fontSize: 12, color: '#7c3aed', textDecoration: 'none' },
   // 1000x796 art, so 200x159 keeps its shape; nearest-neighbour keeps the pixels.
-  playBtn:      { width: '100%', maxWidth: 320, boxSizing: 'border-box', marginTop: 8, padding: '14px 18px', borderRadius: 12, background: 'transparent', color: '#e0a72c', border: '1px solid #7a5c18', fontSize: 14, letterSpacing: 1, textAlign: 'center', textDecoration: 'none' },
+  playBtn:      { width: '100%', maxWidth: 360, boxSizing: 'border-box', marginTop: 8, padding: '11px 18px', borderRadius: 12, background: 'transparent', color: '#e0a72c', border: '1px solid #7a5c18', fontSize: 14, letterSpacing: 1, textAlign: 'center', textDecoration: 'none' },
   how:          { width: '100%', maxWidth: 360, boxSizing: 'border-box', marginTop: 12, padding: 16, borderRadius: 12, border: '1px solid #21212f', background: '#0e0e18', display: 'flex', flexDirection: 'column', gap: 10 },
   howHead:      { fontSize: 11, letterSpacing: 2, color: '#7a7a95' },
   howStep:      { display: 'flex', gap: 10, fontSize: 13, color: '#aaa', lineHeight: 1.55, fontWeight: 'normal' },
@@ -372,12 +367,12 @@ const s: Record<string, React.CSSProperties> = {
   heroImg:      { width: '100%', height: '100%', display: 'block', imageRendering: 'pixelated' },
   title:        { fontSize: 20, fontWeight: 'normal', color: '#ddd' },
   subtitle:     { fontSize: 13, color: '#666', marginBottom: 8 },
-  primaryBtn:   { width: '100%', maxWidth: 320, padding: '14px 24px', borderRadius: 12, background: '#7c3aed', color: 'white', border: 'none', cursor: 'pointer', fontSize: 15, fontWeight: 'normal', textAlign: 'center', textDecoration: 'none' },
-  burnBtn:      { width: '100%', maxWidth: 320, padding: '13px 24px', borderRadius: 12, background: 'transparent', color: '#e0a72c', border: '1px solid #7a5c18', cursor: 'pointer', fontSize: 14, fontWeight: 'normal', textAlign: 'center' },
-  secondaryBtn: { width: '100%', maxWidth: 320, padding: '12px 24px', borderRadius: 12, background: '#1e1e2e', color: '#ccc', border: 'none', cursor: 'pointer', fontSize: 14, textAlign: 'center', textDecoration: 'none' },
-  smallBtn:     { padding: '10px 16px', borderRadius: 10, background: '#1e1e2e', color: '#ccc', border: 'none', cursor: 'pointer', fontSize: 13 },
+  primaryBtn:   { width: '100%', maxWidth: 360, padding: '11px 24px', borderRadius: 12, background: '#7c3aed', color: 'white', border: 'none', cursor: 'pointer', fontSize: 15, fontWeight: 'normal', textAlign: 'center', textDecoration: 'none' },
+  burnBtn:      { width: '100%', maxWidth: 360, padding: '10px 24px', borderRadius: 12, background: 'transparent', color: '#e0a72c', border: '1px solid #7a5c18', cursor: 'pointer', fontSize: 14, fontWeight: 'normal', textAlign: 'center' },
+  secondaryBtn: { width: '100%', maxWidth: 360, padding: '10px 24px', borderRadius: 12, background: '#1e1e2e', color: '#ccc', border: 'none', cursor: 'pointer', fontSize: 14, textAlign: 'center', textDecoration: 'none' },
+  smallBtn:     { padding: '8px 14px', borderRadius: 10, background: '#1e1e2e', color: '#ccc', border: 'none', cursor: 'pointer', fontSize: 13 },
   input:        { flex: 1, minWidth: 0, padding: '10px 12px', borderRadius: 10, background: '#12121c', color: 'white', border: '1px solid #2a2a4e', fontSize: 13 },
-  typedRow:     { display: 'flex', gap: 8, width: '100%', maxWidth: 320 },
+  typedRow:     { display: 'flex', gap: 8, width: '100%', maxWidth: 360 },
   notice:       { fontSize: 13, color: '#666', textAlign: 'center', padding: '12px 0', maxWidth: 320 },
   burnerBadge:  { fontSize: 12, color: '#e0a72c', border: '1px solid #7a5c18', background: '#1a1408', padding: '6px 14px', borderRadius: 20, letterSpacing: 1.5, fontWeight: 'bold' },
   error:        { fontSize: 12, color: '#ef4444', textAlign: 'center', maxWidth: 320 },
