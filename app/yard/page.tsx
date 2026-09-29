@@ -5,6 +5,7 @@ import sdk from '@farcaster/miniapp-sdk'
 import { Yard } from '@/components/Yard'
 import { FxButton } from '@/components/FxButton'
 import { useYardResidents } from '@/lib/useYardResidents'
+import { PageBackdrop } from '@/components/PageBackdrop'
 
 /**
  * THE YARD — ITS OWN PAGE, AND THE ONLY PLACE IT LIVES.
@@ -30,6 +31,7 @@ export default function YardPage() {
 
   return (
     <main style={s.page}>
+      <PageBackdrop />
       <header style={s.head}>
         <FxButton href="/" style={s.back} tone="grey" label="← THE GAME" />
         <h1 style={s.title}>THE YARD</h1>
@@ -63,7 +65,7 @@ export default function YardPage() {
 /* The front page's own values (components/Cradle.tsx s.page / s.block), a little brighter. */
 const s: Record<string, React.CSSProperties> = {
   page: {
-    minHeight: '100dvh', background: '#0b0b13', color: '#f0f0f5',
+    minHeight: '100dvh', color: '#f0f0f5',
     padding: '22px 18px 40px', maxWidth: 560, margin: '0 auto',
     display: 'flex', flexDirection: 'column', gap: 12,
   },

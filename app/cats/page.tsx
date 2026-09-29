@@ -8,8 +8,47 @@ import { loadStats, saveStats, feed, pet, play, mood, moodEmoji, catLine, type S
 import { COLLECTION_ABI, COLLECTIONS, getCollection, type Cat } from '@/lib/collection'
 import { APP_URL } from '@/lib/miniapp'
 import { useWebConnectors } from '@/lib/useWebConnectors'
+import { BitmapText } from '@/components/BitmapText'
+import { FxButton } from '@/components/FxButton'
+import { PageBackdrop } from '@/components/PageBackdrop'
+
+/**
+ * YOUR CATS — made over in the game's own look.
+ *
+ * JP, 2026-09-29: "give the cat view a makeover using what we use this from
+ * before". Everything this page did, it still does — the grid, the detail with
+ * traits and the season record, the TamoCatch panel, sending a cat — drawn the
+ * way the rest of the site now is: the title screen's blurred zone behind the
+ * page, the front page's column and panels, cats in the game's portrait mount
+ * (a 2px paper ring round a 4px ink edge, cropped from the top), and every
+ * button in the game's font with the wave and the light-up.
+ *
+ * FARCASTER KEPT APART ("seperate the farcaster stuff"): nothing here tells a
+ * web visitor to open Warpcast. Inside a Farcaster client the frame connector
+ * still connects on its own, and sharing a cat is still a cast; on the web it
+ * goes to X, as a fight result does.
+ */
 
 const OPENSEA = 'https://opensea.io/collection/clanker-cats'
+/** Robinhood cats to stand in when there is none of yours to show: every 17th. The plain art —
+ *  the title screen's copies have the frame drawn in, and Portrait adds its own. */
+const POOL = Array.from({ length: 64 }, (_, i) => 1 + i * 17)
+
+/** Open a URL: the Farcaster SDK inside a client, a new tab on the web. */
+async function openOut(url: string) {
+  try { await sdk.actions.openUrl(url) } catch { window.open(url, '_blank', 'noopener') }
+}
+
+/** A cat in the game's mount. */
+function Portrait({ src, pixel = true, size }: { src?: string; pixel?: boolean; size?: number | string }) {
+  return (
+    <div style={{ ...s.mount, width: size ?? '100%' }}>
+      {src
+        ? <img src={src} alt="" loading="lazy" style={{ ...s.mountArt, imageRendering: pixel ? 'pixelated' : 'auto' }} />
+        : <div style={{ ...s.mountArt, display: 'grid', placeItems: 'center', fontSize: 28 }}>🐱</div>}
+    </div>
+  )
+}
 
 function CatCard({ cat, selected, onClick }: { cat: Cat; selected: boolean; onClick: () => void }) {
   const meta = cat.meta
@@ -18,25 +57,27 @@ function CatCard({ cat, selected, onClick }: { cat: Cat; selected: boolean; onCl
   const showBadge = COLLECTIONS.length > 1 && cat.collection === 'v1'
 
   return (
-    <div onClick={onClick} style={{ ...s.card, position: 'relative', border: selected ? '1px solid #7c3aed' : '1px solid #1e1e2e', transform: selected ? 'scale(0.97)' : 'scale(1)', transition: 'all 0.15s ease' }}>
-      {meta?.image
-        ? <img src={meta.image} loading="lazy" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block', imageRendering: col.pixelArt ? 'pixelated' : 'auto' }} />
-        : <div style={s.placeholder}><span style={{ fontSize: 24 }}>🐱</span></div>
-      }
+    <button
+      type="button"
+      className="fx-host"
+      onClick={onClick}
+      style={{ ...s.card, ...(selected ? s.cardOn : null) }}
+    >
+      <Portrait src={meta?.image} pixel={col.pixelArt} />
       {showBadge && <div style={s.ogBadge}>OG</div>}
       <div style={s.cardLabel}>{meta?.name ?? `#${cat.id}`}</div>
-    </div>
+    </button>
   )
 }
 
 function StatBar({ label, value, color }: { label: string; value: number; color: string }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#555' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#9a9ab5' }}>
         <span style={{ textTransform: 'uppercase', letterSpacing: 1 }}>{label}</span>
         <span>{Math.round(value)}%</span>
       </div>
-      <div style={{ background: '#1a1a2e', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+      <div style={{ background: '#1a1a2e', borderRadius: 4, height: 8, overflow: 'hidden' }}>
         <div style={{ width: `${value}%`, height: '100%', background: color, borderRadius: 4, transition: 'width 0.4s ease' }} />
       </div>
     </div>
@@ -61,19 +102,20 @@ function TamagotchiPanel({ catId }: { catId: string }) {
   const emoji = moodEmoji(m)
 
   return (
-    <div style={s.tamaPanel}>
+    <section style={s.block}>
+      <p style={s.label}>HOW IT IS</p>
       <div style={s.tamaMessage}>{emoji} &ldquo;{catLine(stats)}&rdquo;</div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
         <StatBar label="Hunger"    value={stats.hunger}    color="#f59e0b" />
         <StatBar label="Happiness" value={stats.happiness} color="#7c3aed" />
         <StatBar label="Energy"    value={stats.energy}    color="#10b981" />
       </div>
       <div style={s.tamaActions}>
-        <button style={s.tamaBtn} onClick={() => act(feed)}>🍖 Feed</button>
-        <button style={s.tamaBtn} onClick={() => act(pet)}>🤚 Pet</button>
-        <button style={s.tamaBtn} onClick={() => act(play)}>🎮 Play</button>
+        <FxButton style={s.tamaBtn} tone="gold"  onClick={() => act(feed)} label="FEED" />
+        <FxButton style={s.tamaBtn} tone="light" onClick={() => act(pet)}  label="PET" />
+        <FxButton style={s.tamaBtn} tone="green" onClick={() => act(play)} label="PLAY" />
       </div>
-    </div>
+    </section>
   )
 }
 
@@ -90,6 +132,7 @@ function SendPanel({ cat, onClose }: { cat: Cat; onClose: () => void }) {
   const { isSuccess, isLoading: isConfirming } = useWaitForTransactionReceipt({ hash: txHash })
 
   const meta      = cat.meta
+  const col       = getCollection(cat.collection)
   const isRawAddr = isAddress(to)
   // Anything that isn't an address is treated as a Farcaster handle.
   const asHandle  = !isRawAddr && /^@?[a-z0-9][a-z0-9._-]{0,32}$/i.test(to.trim())
@@ -126,7 +169,7 @@ function SendPanel({ cat, onClose }: { cat: Cat; onClose: () => void }) {
   function send() {
     if (!valid || !address || !target) return
     writeContract({
-      address: getCollection(cat.collection).address,
+      address: col.address,
       abi: COLLECTION_ABI,
       functionName: 'safeTransferFrom',
       args: [address, target as `0x${string}`, BigInt(cat.id)],
@@ -135,102 +178,98 @@ function SendPanel({ cat, onClose }: { cat: Cat; onClose: () => void }) {
 
   if (isSuccess) {
     return (
-      <div style={s.sendPanel}>
+      <section style={s.block}>
         <div style={{ fontSize: 36, textAlign: 'center' as const }}>✅</div>
-        <div style={{ fontSize: 15, fontWeight: 'bold', textAlign: 'center' as const }}>{meta?.name ?? `Cat #${cat.id}`} sent!</div>
-        <div style={{ fontSize: 11, color: '#555', textAlign: 'center' as const, wordBreak: 'break-all' as const }}>To: {resolved ? '@' + resolved.username : target}</div>
-        <button style={s.sendConfirmBtn} onClick={onClose}>Done</button>
-      </div>
+        <div style={{ fontSize: 16, textAlign: 'center' as const, margin: '6px 0' }}>{meta?.name ?? `Cat #${cat.id}`} sent!</div>
+        <div style={{ fontSize: 12, color: '#9a9ab5', textAlign: 'center' as const, wordBreak: 'break-all' as const, marginBottom: 12 }}>To: {resolved ? '@' + resolved.username : target}</div>
+        <FxButton style={s.primary} tone="light" onClick={onClose} label="DONE" />
+      </section>
     )
   }
 
   return (
-    <div style={s.sendPanel}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 14, fontWeight: 'bold', color: '#ccc' }}>Send Cat</span>
-        <button style={{ background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 18 }} onClick={onClose}>×</button>
-      </div>
+    <section style={s.block}>
+      <p style={s.label}>SEND THIS CAT</p>
 
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-        {meta?.image
-          ? <img src={meta.image} style={{ width: 64, height: 64, borderRadius: 8, border: '1px solid #2a2a3e', objectFit: 'cover' }} />
-          : <div style={{ width: 64, height: 64, borderRadius: 8, background: '#12122a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>🐱</div>
-        }
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
+        <Portrait src={meta?.image} pixel={col.pixelArt} size={64} />
         <div>
-          <div style={{ fontSize: 15, fontWeight: 'bold' }}>{meta?.name ?? `Cat #${cat.id}`}</div>
-          <div style={{ fontSize: 11, color: '#555' }}>{getCollection(cat.collection).label} · Base</div>
+          <div style={{ fontSize: 16 }}>{meta?.name ?? `Cat #${cat.id}`}</div>
+          <div style={{ fontSize: 12, color: '#9a9ab5' }}>{col.label} · {col.chain.name}</div>
         </div>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <label style={{ fontSize: 11, color: '#555', textTransform: 'uppercase' as const, letterSpacing: 1 }}>Send to</label>
+        <label style={{ fontSize: 11, color: '#9a9ab5', textTransform: 'uppercase' as const, letterSpacing: 2 }}>Send to</label>
         <input
           value={to}
           onChange={e => setTo(e.target.value)}
-          placeholder="@username or 0x..."
-          style={s.sendInput}
+          placeholder="0x... or @username"
+          style={s.input}
           spellCheck={false}
           autoComplete="off"
           autoCapitalize="none"
         />
 
-        {looking && <div style={{ fontSize: 11, color: '#555' }}>Looking up…</div>}
+        {looking && <div style={{ fontSize: 12, color: '#9a9ab5' }}>Looking up…</div>}
 
         {resolved && (
           <div style={s.resolvedRow}>
             {resolved.pfp && <img src={resolved.pfp} alt="" style={{ width: 22, height: 22, borderRadius: 11 }} />}
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: 12, color: '#ccc' }}>@{resolved.username}</span>
-              <span style={{ fontSize: 10, color: '#555' }}>{resolved.address.slice(0, 6)}…{resolved.address.slice(-4)}</span>
+              <span style={{ fontSize: 13, color: '#e8e8f0' }}>@{resolved.username}</span>
+              <span style={{ fontSize: 11, color: '#9a9ab5' }}>{resolved.address.slice(0, 6)}…{resolved.address.slice(-4)}</span>
             </div>
           </div>
         )}
 
         {/* Custody wallets are often inaccessible in practice — say so plainly. */}
         {resolved && !resolved.verified && (
-          <div style={{ fontSize: 11, color: '#f2d857' }}>
+          <div style={{ fontSize: 12, color: '#f2d857' }}>
             No verified wallet — this goes to their custody address.
           </div>
         )}
 
-        {lookupError && <div style={{ fontSize: 11, color: '#ef4444' }}>{lookupError}</div>}
+        {lookupError && <div style={{ fontSize: 12, color: '#ff8080' }}>{lookupError}</div>}
         {to.length > 0 && !asHandle && !isRawAddr && (
-          <div style={{ fontSize: 11, color: '#ef4444' }}>Enter a Farcaster username or a 0x address</div>
+          <div style={{ fontSize: 12, color: '#ff8080' }}>Enter a 0x address or a Farcaster username</div>
         )}
       </div>
 
-      {!confirmed ? (
-        <button
-          style={{ ...s.sendConfirmBtn, opacity: valid ? 1 : 0.4 }}
-          disabled={!valid}
-          onClick={() => setConfirmed(true)}
-        >
-          Review Send →
-        </button>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ fontSize: 12, color: '#aaa', background: '#0a0a14', border: '1px solid #2a2a3e', borderRadius: 8, padding: '10px 12px' }}>
-            <div style={{ color: '#ef4444', fontWeight: 'bold', marginBottom: 4 }}>⚠️ This cannot be undone</div>
-            Sending <strong style={{ color: '#ccc' }}>{meta?.name ?? `Cat #${cat.id}`}</strong> to<br />
-            {resolved && <span style={{ color: '#ccc' }}>@{resolved.username}<br /></span>}
-            {/* Always show the address being sent to, even for a handle — this
-                is the last screen before an irreversible transfer. */}
-            <span style={{ fontSize: 10, color: '#555', wordBreak: 'break-all' as const }}>{target}</span>
+      <div style={{ marginTop: 14 }}>
+        {!confirmed ? (
+          <FxButton
+            style={{ ...s.primary, opacity: valid ? 1 : 0.4 }}
+            tone="light"
+            disabled={!valid}
+            onClick={() => setConfirmed(true)}
+            label="REVIEW THE SEND"
+          />
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={s.warnBox}>
+              <div style={{ color: '#ff8080', marginBottom: 4 }}>⚠️ This cannot be undone</div>
+              Sending <span style={{ color: '#f0f0f5' }}>{meta?.name ?? `Cat #${cat.id}`}</span> to<br />
+              {resolved && <span style={{ color: '#f0f0f5' }}>@{resolved.username}<br /></span>}
+              {/* Always show the address being sent to, even for a handle — this
+                  is the last screen before an irreversible transfer. */}
+              <span style={{ fontSize: 11, color: '#9a9ab5', wordBreak: 'break-all' as const }}>{target}</span>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <FxButton style={{ ...s.ghost, marginTop: 0, flex: 1 }} tone="grey" onClick={() => setConfirmed(false)} label="CANCEL" />
+              <FxButton
+                style={{ ...s.danger, flex: 2, opacity: isPending || isConfirming ? 0.6 : 1 }}
+                tone="red"
+                disabled={isPending || isConfirming}
+                onClick={send}
+                label={isPending ? 'Confirm in wallet…' : isConfirming ? 'Sending…' : 'CONFIRM SEND'}
+              />
+            </div>
+            {isError && <div style={{ fontSize: 12, color: '#ff8080' }}>{error?.message?.slice(0, 80)}</div>}
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button style={{ ...s.sendConfirmBtn, background: '#1e1e2e', flex: 1 }} onClick={() => setConfirmed(false)}>Cancel</button>
-            <button
-              style={{ ...s.sendConfirmBtn, flex: 2, opacity: isPending || isConfirming ? 0.6 : 1 }}
-              disabled={isPending || isConfirming}
-              onClick={send}
-            >
-              {isPending ? 'Confirm in wallet…' : isConfirming ? 'Sending…' : 'Confirm Send'}
-            </button>
-          </div>
-          {isError && <div style={{ fontSize: 11, color: '#ef4444' }}>{error?.message?.slice(0, 80)}</div>}
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </section>
   )
 }
 
@@ -271,10 +310,8 @@ function SeasonRecord({ uid }: { uid: string }) {
   const fought = !!rec && rec.wins + rec.losses > 0
 
   return (
-    <>
-      <div style={s.sectionLabel}>
-        {rec ? `Season ${rec.season}` : 'Season'}
-      </div>
+    <section style={s.block}>
+      <p style={s.label}>{rec ? `SEASON ${rec.season}` : 'SEASON'}</p>
       <div style={s.traits}>
         <div style={s.trait}>
           <div style={s.traitKey}>Beaten</div>
@@ -300,7 +337,7 @@ function SeasonRecord({ uid }: { uid: string }) {
           </div>
         </div>
       </div>
-      <div style={{ fontSize: 11, color: '#555', marginTop: 6, lineHeight: 1.5 }}>
+      <div style={{ fontSize: 12, color: '#9a9ab5', marginTop: 10, lineHeight: 1.5 }}>
         {failed
           ? 'could not reach the season board just now'
           : !rec
@@ -311,45 +348,48 @@ function SeasonRecord({ uid }: { uid: string }) {
                 ? 'take all five to bank points and get on the board'
                 : 'no cast runs yet — cast one and it counts'}
       </div>
-    </>
+    </section>
   )
 }
 
-function CatDetail({ cat, onBack }: { cat: Cat; onBack: () => void }) {
+function CatDetail({ cat, inApp, onBack }: { cat: Cat; inApp: boolean; onBack: () => void }) {
   const [showSend, setShowSend] = useState(false)
   const meta = cat.meta
   const col  = getCollection(cat.collection)
 
   async function share() {
-    const shareUrl = `${APP_URL}/api/share?id=${cat.id}&c=${cat.collection}`
     const name = meta?.name ?? `Clanker Cat #${cat.id}`
-    // $CLKCAT renders as a token chip; @crezno makes every share a mention so
-    // the drop collects into one thread instead of scattering.
-    const text = encodeURIComponent(`my cat 🐱 ${name}\nby @crezno\n$CLKCAT`)
-    const url = `https://warpcast.com/~/compose?text=${text}&embeds[]=${encodeURIComponent(shareUrl)}`
-    try { await sdk.actions.openUrl(url) }
-    catch { window.open(url, '_blank') }
-  }
-
-  async function viewOnSite() {
-    try { await sdk.actions.openUrl(`https://clankercats.com`) }
-    catch { window.open('https://clankercats.com', '_blank') }
+    /*
+     * INSIDE FARCASTER IT IS A CAST, as before: $CLKCAT renders as a token chip,
+     * @crezno makes every share a mention, and /api/share draws the cat as the
+     * embed. ON THE WEB IT GOES TO X (JP, 2026-09-29), with the same card: the
+     * share page carries og:image, so X shows the cat too.
+     */
+    if (inApp) {
+      const shareUrl = `${APP_URL}/api/share?id=${cat.id}&c=${cat.collection}`
+      const text = encodeURIComponent(`my cat 🐱 ${name}\nby @crezno\n$CLKCAT`)
+      return openOut(`https://warpcast.com/~/compose?text=${text}&embeds[]=${encodeURIComponent(shareUrl)}`)
+    }
+    const params = new URLSearchParams({
+      text: `my cat ${name}\n\nClanker Cats #ClankerCats`,
+      url: `https://clankercats.com/api/share?id=${cat.id}&c=${cat.collection}`,
+    })
+    return openOut(`https://x.com/intent/post?${params.toString()}`)
   }
 
   return (
-    <div style={s.detail}>
-      <button style={s.back} onClick={onBack}>← Back to my cats</button>
-      <div style={s.detailCard}>
-        {meta?.image
-          ? <img src={meta.image} style={{ width: '100%', borderRadius: 12, display: 'block', imageRendering: col.pixelArt ? 'pixelated' : 'auto' }} />
-          : <div style={{ ...s.placeholder, aspectRatio: '1', borderRadius: 12 }}><span style={{ fontSize: 48 }}>🐱</span></div>
-        }
-      </div>
-      <div style={s.detailName}>{meta?.name ?? `Clanker Cat #${cat.id}`}</div>
-      <div style={{ fontSize: 12, color: '#555' }}>{col.label} · token #{cat.id} on Base</div>
+    <div style={s.stack}>
+      <FxButton style={s.back} tone="grey" onClick={onBack} label="← MY CATS" />
+
+      <section style={{ ...s.block, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+        <Portrait src={meta?.image} pixel={col.pixelArt} size="min(100%, 300px)" />
+        <BitmapText text={meta?.name ?? `Clanker Cat #${cat.id}`} scale={2} color="#f0f0f5" className="fx-btn-text" />
+        <div style={{ fontSize: 13, color: '#9a9ab5', textAlign: 'center' }}>{col.label} · token #{cat.id} on {col.chain.name}</div>
+      </section>
+
       {meta?.attributes && meta.attributes.length > 0 && (
-        <>
-          <div style={s.sectionLabel}>Traits</div>
+        <section style={s.block}>
+          <p style={s.label}>TRAITS</p>
           <div style={s.traits}>
             {meta.attributes.map((a, i) => (
               <div key={i} style={s.trait}>
@@ -358,50 +398,44 @@ function CatDetail({ cat, onBack }: { cat: Cat; onBack: () => void }) {
               </div>
             ))}
           </div>
-        </>
+        </section>
       )}
+
       <SeasonRecord uid={cat.uid} />
 
       <TamagotchiPanel catId={cat.uid} />
 
       {showSend && <SendPanel cat={cat} onClose={() => setShowSend(false)} />}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <a href={`/tama/${cat.id}?c=${cat.collection}`} style={s.tamaPlayBtn}>🐾 TamoCatch</a>
-        <button style={s.shareBtn} onClick={share}>Cast this cat 🐱</button>
-        <button style={s.sendBtn} onClick={() => setShowSend(v => !v)}>
-          {showSend ? '✕ Cancel Send' : '📤 Send Cat'}
-        </button>
-        <button style={s.explorerBtn} onClick={viewOnSite}>clankercats.com</button>
-      </div>
+      <section style={{ ...s.block, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <FxButton href={`/tama/${cat.id}?c=${cat.collection}`} style={s.gold} tone="gold" label="TAMOCATCH" />
+        <FxButton style={s.primary} tone="light" onClick={share} label={inApp ? 'CAST THIS CAT' : 'SHARE ON X'} />
+        <FxButton style={{ ...s.ghost, marginTop: 0 }} tone="soft" onClick={() => setShowSend(v => !v)} label={showSend ? 'CANCEL THE SEND' : 'SEND THIS CAT'} />
+      </section>
     </div>
   )
 }
 
-function EmptyState() {
-  async function openOpenSea() {
-    try { await sdk.actions.openUrl(OPENSEA) }
-    catch { window.open(OPENSEA, '_blank') }
-  }
+function EmptyState({ art }: { art: string | null }) {
   return (
-    <div style={s.emptyState}>
-      <div style={s.heroCat}>🐱</div>
-      <div style={s.emptyTitle}>No Clanker Cats yet</div>
+    <section style={{ ...s.block, ...s.center }}>
+      {art && <Portrait src={art} size={140} />}
+      <BitmapText text="NO CATS YET" scale={2} color="#f0f0f5" className="fx-btn-text" />
       {/*
-        This page reads BOTH drops — /api/owned scans every collection — but the
-        copy only mentioned the original 200, which read as though V2 were not
-        being looked at. Say what is actually being checked, and say which wallet,
-        because the usual reason for an empty page is a different account being
-        connected rather than an empty one.
+        This page reads EVERY drop — /api/owned scans every collection — so say
+        what is actually being checked, and say which wallet, because the usual
+        reason for an empty page is a different account being connected rather
+        than an empty one.
       */}
       <div style={s.emptySubtitle}>
-        Nothing in this wallet, across either drop —<br />
-        the original 200 or the 1111 of V2.<br />
-        If you hold some, check which account is connected.
+        Nothing in this wallet, across any drop — the original 200, the 1111 on
+        Base, or the Robinhood cats. If you hold some, check which account is
+        connected.
       </div>
-      <button style={s.buyBtn} onClick={openOpenSea}>View on OpenSea →</button>
-      <div style={s.emptyHint}>More free mints coming — watch @crezno</div>
-    </div>
+      <FxButton href="/mint/v3" style={s.primary} tone="light" label="CLAIM A ROBINHOOD CAT" />
+      <div style={s.fine}>free for BUN holders · one per wallet</div>
+      <FxButton style={{ ...s.ghost, marginTop: 4 }} tone="grey" onClick={() => openOut(OPENSEA)} label="VIEW ON OPENSEA" />
+    </section>
   )
 }
 
@@ -410,13 +444,18 @@ export default function Home() {
   const { connect, connectors }  = useConnect()
   const webConnectors = useWebConnectors()
   const [ready, setReady]        = useState(false)
+  const [inApp, setInApp]        = useState(false)
   const [selected, setSelected]  = useState<Cat | null>(null)
   const [cats, setCats]          = useState<Cat[]>([])
   const [loading, setLoading]    = useState(false)
+  /* The stand-in cat: random, so after mount. */
+  const [art, setArt]            = useState<string | null>(null)
 
   useEffect(() => {
     try { sdk.actions.ready() } catch {}
     setReady(true)
+    sdk.isInMiniApp().then(setInApp).catch(() => setInApp(false))
+    setArt(`/v3/images/${POOL[Math.floor(Math.random() * POOL.length)]}.png`)
     const fc = connectors.find(c => c.id === 'farcaster-frame')
     if (fc) connect({ connector: fc })
   }, [])
@@ -439,97 +478,93 @@ export default function Home() {
   if (!ready) return null
 
   return (
-    <div style={s.root}>
-      <div style={s.header}>
-        <div>
-          <div style={s.logo}>Clanker Cats</div>
-          {count > 0 && <div style={s.supply}>{count} cat{count !== 1 ? 's' : ''}</div>}
+    <main style={s.page}>
+      {/* The title screen's page: a zone, blurred and darkened. */}
+      <PageBackdrop />
+
+      <header style={s.header}>
+        <div style={s.nav}>
+          <FxButton href="/" style={s.navBtn} tone="grey" label="← THE GAME" />
+          {address && <div style={s.addr}>{address.slice(0, 6)}…{address.slice(-4)}</div>}
+          <FxButton href="/mint" style={s.navBtn} tone="light" label="MINT" />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <a href="/mint" style={s.mintLink}>🐱 Mint</a>
-          {address && <div style={s.addr}>{address.slice(0,6)}…{address.slice(-4)}</div>}
-        </div>
-      </div>
+        <h1 style={s.title}>CLANKER CATS</h1>
+        <p style={s.sub}>{count > 0 ? `your ${count} cat${count !== 1 ? 's' : ''}` : 'your cats'}</p>
+      </header>
 
       {!isConnected ? (
-        <div style={s.connectState}>
-          <div style={s.heroCat}>🐱</div>
-          <div style={s.emptyTitle}>Clanker Cats Viewer</div>
-          <div style={s.emptySubtitle}>Open in Warpcast to auto-connect,<br />or connect your wallet below.</div>
+        <section style={{ ...s.block, ...s.center }}>
+          {art && <Portrait src={art} size={140} />}
+          <div style={s.emptySubtitle}>Connect a wallet to see your cats.</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
             {webConnectors.map(c => (
-              <button key={c.id} style={s.connectBtn} onClick={() => connect({ connector: c })}>{c.name}</button>
+              <FxButton key={c.id} style={s.ghostWide} tone="soft" onClick={() => connect({ connector: c })} label={c.name.toUpperCase()} />
             ))}
           </div>
-        </div>
+        </section>
       ) : selected !== null ? (
-        <CatDetail cat={selected} onBack={() => setSelected(null)} />
+        <CatDetail cat={selected} inApp={inApp} onBack={() => setSelected(null)} />
       ) : loading ? (
-        <div style={{ padding: 60, textAlign: 'center' as const, color: '#555', fontSize: 13 }}>Loading your cats…</div>
+        <section style={{ ...s.block, ...s.center }}>
+          <div style={s.emptySubtitle}>reading your wallet…</div>
+        </section>
       ) : cats.length > 0 ? (
-        <>
-          <div style={s.ownedHeader}>
-            <span style={{ color: '#7c3aed', fontWeight: 'bold' }}>{cats.length}</span>
-            <span style={{ color: '#555' }}> Clanker Cat{cats.length !== 1 ? 's' : ''} owned</span>
-          </div>
+        <section style={s.block}>
+          <p style={s.label}>{cats.length} CLANKER CAT{cats.length !== 1 ? 'S' : ''}</p>
           <div style={s.grid}>
             {cats.map(c => (
               <CatCard key={c.uid} cat={c} selected={selected === c} onClick={() => setSelected(c)} />
             ))}
           </div>
-          <div style={s.mintHint}>Tap a cat to see its traits ↑</div>
+          <div style={s.fine}>Tap a cat to see it.</div>
           {/* The idle game's card is off for now (JP, 2026-09-29); /game still works by its URL. */}
-        </>
+        </section>
       ) : (
-        <EmptyState />
+        <EmptyState art={art} />
       )}
-    </div>
+    </main>
   )
 }
 
+/* The front page's values (components/Cradle.tsx), on the title screen's page. */
 const s: Record<string, React.CSSProperties> = {
-  root:         { padding: '16px 16px 32px', maxWidth: 480, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16, minHeight: '100vh' },
-  header:       { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' },
-  logo:         { fontSize: 18, fontWeight: 'bold', color: '#7c3aed' },
-  supply:       { fontSize: 11, color: '#7c3aed', marginTop: 2 },
-  addr:         { fontSize: 11, color: '#555', background: '#1e1e2e', padding: '4px 10px', borderRadius: 20, flexShrink: 0 },
-  ownedHeader:  { fontSize: 14 },
-  mintHint:     { fontSize: 11, color: '#333', textAlign: 'center' as const },
-  grid:         { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 },
-  card:         { border: '1px solid #1e1e2e', borderRadius: 10, overflow: 'hidden', cursor: 'pointer', background: '#12122a' },
-  placeholder:  { display: 'flex', alignItems: 'center', justifyContent: 'center', aspectRatio: '1', color: '#2a2a3e', fontSize: 12 },
-  cardLabel:    { padding: '6px 8px', fontSize: 11, color: '#444' },
-  ogBadge:      { position: 'absolute', top: 6, right: 6, padding: '2px 6px', borderRadius: 5, background: '#7c3aed', color: '#fff', fontSize: 9, fontWeight: 'bold', letterSpacing: 1 },
-  detail:       { display: 'flex', flexDirection: 'column', gap: 14 },
-  detailCard:   { borderRadius: 14, overflow: 'hidden', border: '1px solid #1e1e2e' },
-  detailName:   { fontSize: 22, fontWeight: 'bold' },
-  sectionLabel: { fontSize: 11, color: '#555', textTransform: 'uppercase' as const, letterSpacing: 1 },
-  traits:       { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 },
-  trait:        { background: '#0a0a14', border: '1px solid #1a1a2e', borderRadius: 8, padding: '8px 10px' },
-  traitKey:     { fontSize: 10, color: '#555', textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 3 },
-  traitVal:     { fontSize: 13, color: '#ccc', fontWeight: 'bold' },
-  tamaPlayBtn:  { display: 'block', padding: 14, background: '#12122a', border: '2px solid #7c3aed', color: '#a78bfa', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 'bold', textAlign: 'center' as const, textDecoration: 'none' },
-  shareBtn:     { padding: 14, background: '#7c3aed', color: 'white', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 'bold' },
-  sendBtn:      { padding: 12, background: 'transparent', color: '#ccc', border: '1px solid #3a3a4e', borderRadius: 10, cursor: 'pointer', fontSize: 13 },
-  explorerBtn:  { padding: 12, background: 'transparent', color: '#555', border: '1px solid #2a2a3e', borderRadius: 10, cursor: 'pointer', fontSize: 13 },
-  sendPanel:    { display: 'flex', flexDirection: 'column', gap: 14, background: '#0a0a14', border: '1px solid #2a2a3e', borderRadius: 12, padding: '16px' },
-  resolvedRow:  { display: 'flex', alignItems: 'center', gap: 8, background: '#12122a', border: '1px solid #2a2a3e', borderRadius: 8, padding: '7px 10px' },
-  sendInput:    { background: '#12122a', border: '1px solid #2a2a3e', borderRadius: 8, padding: '10px 12px', color: 'white', fontSize: 13, width: '100%', boxSizing: 'border-box' as const, outline: 'none' },
-  sendConfirmBtn: { padding: '12px 0', background: '#7c3aed', color: 'white', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 'bold', width: '100%' },
-  back:         { background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 13, padding: '0 0 4px 0', textAlign: 'left' as const },
-  tamaPanel:    { display: 'flex', flexDirection: 'column', gap: 12, background: '#0a0a14', border: '1px solid #1a1a2e', borderRadius: 12, padding: '14px 16px' },
-  tamaMessage:  { fontSize: 13, color: '#aaa', fontStyle: 'italic', lineHeight: 1.5 },
-  tamaActions:  { display: 'flex', gap: 8 },
-  tamaBtn:      { flex: 1, padding: '10px 0', background: '#1e1e2e', border: '1px solid #2a2a3e', borderRadius: 10, color: 'white', cursor: 'pointer', fontSize: 13 },
-  gameLink:     { fontSize: 12, color: '#7c3aed', textDecoration: 'none', background: '#1a1a2e', padding: '4px 10px', borderRadius: 20 },
-  mintLink:     { fontSize: 12, color: '#fff', textDecoration: 'none', background: '#7c3aed', padding: '4px 10px', borderRadius: 20, fontWeight: 'bold' },
-  gameCard:     { display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: '#12122a', border: '1px solid #2a2a3e', borderRadius: 12, textDecoration: 'none', cursor: 'pointer' },
-  connectState: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, paddingTop: 24 },
-  emptyState:   { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, paddingTop: 24, textAlign: 'center' as const },
-  heroCat:      { fontSize: 72, lineHeight: 1 },
-  emptyTitle:   { fontSize: 20, fontWeight: 'bold', color: '#ccc' },
-  emptySubtitle:{ fontSize: 14, color: '#555', lineHeight: 1.6 },
-  emptyHint:    { fontSize: 11, color: '#333' },
-  buyBtn:       { padding: '14px 24px', background: '#7c3aed', color: 'white', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 15, fontWeight: 'bold', width: '100%' },
-  connectBtn:   { padding: '14px 20px', background: '#1e1e2e', border: '1px solid #2a2a3e', borderRadius: 10, color: 'white', cursor: 'pointer', fontSize: 14, width: '100%' },
+  page:      { minHeight: '100dvh', color: '#f0f0f5', padding: '22px 18px 40px', maxWidth: 520, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 },
+  header:    { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 },
+  nav:       { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  navBtn:    { padding: '6px 12px', border: '1px solid #2c2c3c', borderRadius: 10, background: 'rgba(18,18,28,0.6)' },
+  addr:      { fontSize: 12, color: '#9a9ab5', background: 'rgba(18,18,28,0.7)', padding: '5px 10px', borderRadius: 20 },
+  title:     { fontSize: 30, letterSpacing: 1, margin: '6px 0 0', lineHeight: 1.1, textAlign: 'center' },
+  sub:       { color: '#9a9ab5', fontSize: 14, margin: 0 },
+  block:     { background: 'rgba(18,18,28,0.92)', border: '1px solid #21212f', borderRadius: 14, padding: 16 },
+  center:    { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' },
+  stack:     { display: 'flex', flexDirection: 'column', gap: 16 },
+  label:     { fontSize: 11, letterSpacing: 2, color: '#9a9ab5', margin: '0 0 12px' },
+  fine:      { color: '#9a9ab5', fontSize: 12, margin: '12px 0 0', textAlign: 'center' },
+  grid:      { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 },
+  card:      { position: 'relative', display: 'flex', flexDirection: 'column', gap: 6, padding: 6, background: '#0b0b13', border: '1px solid #21212f', borderRadius: 10, cursor: 'pointer', color: 'inherit', font: 'inherit', textAlign: 'center' },
+  cardOn:    { border: '1px solid #8b5cf6' },
+  cardLabel: { fontSize: 12, color: '#c4c4d8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  // The game's portrait mount: a 2px paper ring round a 4px ink edge, cropped from the top.
+  mount:     { boxSizing: 'border-box', padding: 2, background: '#fdfdf8', flexShrink: 0, alignSelf: 'center' },
+  mountArt:  { width: '100%', aspectRatio: '1', display: 'block', boxSizing: 'border-box', border: '4px solid #1a1a1a', objectFit: 'cover', objectPosition: 'top', background: '#e6e0d2' },
+  ogBadge:   { position: 'absolute', top: 10, right: 10, padding: '2px 6px', borderRadius: 5, background: '#7c3aed', color: '#fff', fontSize: 10, letterSpacing: 1 },
+  traits:    { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 },
+  trait:     { background: '#0b0b13', border: '1px solid #21212f', borderRadius: 8, padding: '8px 10px' },
+  traitKey:  { fontSize: 11, color: '#9a9ab5', textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 3 },
+  traitVal:  { fontSize: 15, color: '#f0f0f5' },
+  tamaMessage: { fontSize: 14, color: '#c4c4d8', fontStyle: 'italic', lineHeight: 1.5 },
+  tamaActions: { display: 'flex', gap: 8, marginTop: 14 },
+  tamaBtn:   { flex: 1, padding: '8px 0', background: '#171722', border: '1px solid #34344a', borderRadius: 10, cursor: 'pointer' },
+  // The front page's button shapes; a glyph row is 24px, so padding is a little under theirs.
+  primary:   { width: '100%', background: '#8b5cf6', border: 0, borderRadius: 10, padding: '11px 16px', cursor: 'pointer' },
+  gold:      { width: '100%', background: 'transparent', border: '1px solid #7a5c18', borderRadius: 10, padding: '10px 16px', cursor: 'pointer' },
+  ghost:     { width: '100%', background: 'transparent', border: '1px solid #2c2c3c', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', marginTop: 10 },
+  ghostWide: { width: '100%', background: '#171722', border: '1px solid #2c2c3c', borderRadius: 10, padding: '10px 16px', cursor: 'pointer' },
+  danger:    { background: 'transparent', border: '1px solid #d1495b', borderRadius: 10, padding: '10px 16px', cursor: 'pointer' },
+  back:      { alignSelf: 'flex-start', padding: '6px 12px', border: '1px solid #2c2c3c', borderRadius: 10, background: 'rgba(18,18,28,0.6)' },
+  // `font` FIRST: the shorthand resets fontSize, the bug CatSheet's close button had.
+  input:     { font: 'inherit', fontSize: 14, background: '#0b0b13', border: '1px solid #2c2c3c', borderRadius: 8, padding: '10px 12px', color: 'white', width: '100%', boxSizing: 'border-box' as const, outline: 'none' },
+  resolvedRow: { display: 'flex', alignItems: 'center', gap: 8, background: '#0b0b13', border: '1px solid #2c2c3c', borderRadius: 8, padding: '7px 10px' },
+  warnBox:   { fontSize: 13, color: '#c4c4d8', background: '#0b0b13', border: '1px solid #2c2c3c', borderRadius: 8, padding: '10px 12px' },
+  emptySubtitle: { fontSize: 15, color: '#c4c4d8', lineHeight: 1.6, margin: 0 },
 }

@@ -10,6 +10,7 @@ import { trackForRound } from '@/lib/music'
 import { BitmapText } from '@/components/BitmapText'
 import { FxLabel } from '@/components/FxButton'
 import { FightStage, KIND_INK } from '@/components/FightStage'
+import { PageBackdrop } from '@/components/PageBackdrop'
 import { noteWin, noteLoss, type Beat } from '@/lib/streak'
 import { NO_CHAIN } from '@/lib/appmode'
 import { catsForWins } from '@/lib/season'
@@ -1482,7 +1483,9 @@ export function Cradle() {
   const retiredCount = (cats ?? []).length - pickable.length
 
   return (
-    <main style={{ ...s.page, ...(view === 'fight' && result ? { background: 'transparent' } : null) }}>
+    <main style={s.page}>
+      {/* The title screen's page (JP, 2026-09-29). A fight brings the zone it is in. */}
+      {!wide && <PageBackdrop />}
       <header style={s.header}>
         {/* The name of the game, and no "preview" — the same change as the link card. */}
         <h1 style={s.title}>CLANKER CATS</h1>
@@ -2366,7 +2369,8 @@ const s: Record<string, React.CSSProperties> = {
   pipPrizeOff: { border: '2px solid #7a5c18', color: '#7a5c18' },
 
   page: {
-    minHeight: '100dvh', background: '#0b0b13', color: '#f0f0f5',
+    // No background of its own: PageBackdrop (or a fight's zone) is behind it.
+    minHeight: '100dvh', color: '#f0f0f5',
     padding: '22px 18px 40px', maxWidth: 520, margin: '0 auto',
     display: 'flex', flexDirection: 'column', gap: 16,
   },

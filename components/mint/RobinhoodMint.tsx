@@ -6,6 +6,7 @@ import { V3, V3_ABI, V3_DEPLOYED } from '@/lib/mintv3'
 import { robinhood } from '@/lib/chains'
 import { MintStage } from '@/components/MintStage'
 import { FxButton } from '@/components/FxButton'
+import { PageBackdrop } from '@/components/PageBackdrop'
 
 /**
  * THE ROBINHOOD MINT, on the web. app/mint/page.tsx renders this everywhere
@@ -38,6 +39,7 @@ export function RobinhoodMint() {
 
   return (
     <main style={s.page}>
+      <PageBackdrop />
       <header style={s.header}>
         <h1 style={s.title}>CLANKER CATS</h1>
         <p style={s.sub}>Robinhood Chain · free for BUN holders</p>
@@ -64,7 +66,7 @@ export function RobinhoodMint() {
 /* The front page's own values, from components/Cradle.tsx. */
 const s: Record<string, React.CSSProperties> = {
   page: {
-    minHeight: '100dvh', background: '#0b0b13', color: '#f0f0f5',
+    minHeight: '100dvh', color: '#f0f0f5',
     padding: '22px 18px 40px', maxWidth: 520, margin: '0 auto',
     display: 'flex', flexDirection: 'column', gap: 16,
   },
