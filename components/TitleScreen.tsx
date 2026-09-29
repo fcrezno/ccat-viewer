@@ -90,10 +90,19 @@ export function TitleScreen({ prompt = 'CLAIM YOUR CAT', onStart }: {
   )
 
   return (
+    <>
+      {/*
+        THE PAGE BEHIND THE TITLE (JP, 2026-09-28: "make the background nicer" —
+        the soft, washed backdrop INSIDE the frame is intentional and stays).
+        The same zone, blurred and darkened, fills the whole page, so the title
+        sits in its own world instead of on flat navy.
+      */}
+      {zone && <div aria-hidden style={{ ...st.pageBg, backgroundImage: `url(/title/${zone}.jpg)` }} />}
+      <div aria-hidden style={st.pageShade} />
     <div ref={box} style={st.frame}>
       <div style={{ ...st.stage, transform: `scale(${k})` }}>
         {zone && (
-          <video src={`/title/${zone}.mp4`} autoPlay muted loop playsInline style={st.backdrop} />
+          <video src={`/title/${zone}.mp4`} poster={`/title/${zone}.jpg`} autoPlay muted loop playsInline style={st.backdrop} />
         )}
         <div style={st.wash} />
 
@@ -124,21 +133,24 @@ export function TitleScreen({ prompt = 'CLAIM YOUR CAT', onStart }: {
         {/* PRESS START's place. Opacity only, so the click target never goes. */}
         <button type="button" onClick={onStart} style={st.prompt} aria-label={prompt}>
           <span style={{ ...st.promptInner, opacity: lit ? 1 : 0 }}>
-            <span style={{ position: 'absolute', left: 1, top: 1 }}>
+            <span style={{ position: 'absolute', left: 1, top: 1, width: 'max-content' }}>
               <BitmapText text={prompt} scale={1} color={INK} />
             </span>
-            <span style={{ position: 'relative' }}>
+            <span style={{ position: 'relative', display: 'block', width: 'max-content' }}>
               <BitmapText text={prompt} scale={1} color="#ffffff" />
             </span>
           </span>
         </button>
       </div>
     </div>
+    </>
   )
 }
 
 const st: Record<string, React.CSSProperties> = {
-  frame:    { position: 'relative', width: '100%', maxWidth: 960, aspectRatio: `${W} / ${H}`, overflow: 'hidden', borderRadius: 8, border: '2px solid #21212f', background: '#0e0e18' },
+  pageBg:   { position: 'fixed', inset: -60, zIndex: -2, backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(28px) saturate(1.15) brightness(0.55)', transform: 'scale(1.1)' },
+  pageShade:{ position: 'fixed', inset: 0, zIndex: -1, background: 'radial-gradient(ellipse at 50% 30%, rgba(10,10,20,0.15) 0%, rgba(10,10,20,0.55) 55%, rgba(10,10,20,0.9) 100%)' },
+  frame:    { position: 'relative', width: '100%', maxWidth: 960, aspectRatio: `${W} / ${H}`, overflow: 'hidden', borderRadius: 8, border: '2px solid rgba(255,255,255,0.12)', background: '#0e0e18', boxShadow: '0 18px 60px rgba(0,0,0,0.55)' },
   stage:    { position: 'absolute', left: 0, top: 0, width: W, height: H, transformOrigin: '0 0' },
   backdrop: { position: 'absolute', left: 0, top: 0, width: W, height: H, objectFit: 'cover', imageRendering: 'pixelated' },
   wash:     { position: 'absolute', left: 0, top: 0, width: W, height: H, background: 'rgba(232, 238, 246, 0.62)' },

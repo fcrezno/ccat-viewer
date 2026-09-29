@@ -340,7 +340,7 @@ export default function MintV3Page() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  root:         { background: '#0a0a14', minHeight: '100vh', color: 'white', padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 },
+  root:         { background: 'transparent', minHeight: '100vh', color: 'white', padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 },
   header:       { width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   logo:         { fontSize: 16, fontWeight: 'bold', letterSpacing: 1 },
   navLink:      { fontSize: 12, color: '#7c3aed', textDecoration: 'none' },

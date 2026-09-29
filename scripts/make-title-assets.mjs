@@ -43,8 +43,18 @@ for (const z of zones) {
 }
 
 // ── portraits ────────────────────────────────────────────────────────────────
-const PAPER = { r: 253, g: 253, b: 248, alpha: 1 }
-const INK   = { r: 26,  g: 26,  b: 26,  alpha: 1 }
+/*
+ * THE GAME'S OWN RECIPE, copied from clanker-arena/tools/gen-fighters.mjs (which
+ * builds Assets/art/cats/res<id>.png). The first version here cropped a square
+ * out of the middle and the cats came out too big for the frame (JP: "the cat
+ * pfps are not the right size"). The game does not crop — it fits the WHOLE
+ * picture into the square, anchored at the top, where a cat's face is:
+ *
+ *   S = 2, DARK = 4*S, RING = 2*S, inner = 84*S - 2*(DARK + RING) = 144
+ *   lanczos3, cover, position top; then TWO separate extends, dark then ring
+ */
+const S = 2, DARK = 4 * S, RING = 2 * S
+const INNER = 84 * S - 2 * (DARK + RING)
 
 // Spread across the collection rather than the first few, so the reel mixes.
 const all = readdirSync(join('public', 'v3', 'images')).map(f => Number(f.replace('.png', ''))).filter(Boolean).sort((a, b) => a - b)
@@ -52,16 +62,19 @@ const step = Math.floor(all.length / PORTRAITS)
 const ids = Array.from({ length: PORTRAITS }, (_, i) => all[i * step])
 
 for (const id of ids) {
-  const src = join('public', 'v3', 'images', `${id}.png`)            // 1000x796, art x4
-  const inner = await sharp(src)
-    .extract({ left: 196, top: 40, width: 608, height: 608 })        // whole head, ears and all
-    .resize(152, 152, { kernel: 'nearest' })
+  const src = join('public', 'v3', 'images', `${id}.png`)
+  const withDark = await sharp(src)
+    .resize(INNER, INNER, { kernel: 'lanczos3', fit: 'cover', position: 'top' })
+    .extend({ top: DARK, bottom: DARK, left: DARK, right: DARK, background: '#1a1a1a' })
     .png().toBuffer()
-  const inked = await sharp({ create: { width: 160, height: 160, channels: 4, background: INK } })
-    .composite([{ input: inner, left: 4, top: 4 }]).png().toBuffer()
-  await sharp({ create: { width: 168, height: 168, channels: 4, background: PAPER } })
-    .composite([{ input: inked, left: 4, top: 4 }])
+  await sharp(withDark)
+    .extend({ top: RING, bottom: RING, left: RING, right: RING, background: '#fdfdf8' })
     .png().toFile(join(OUT, 'cats', `${id}.png`))
+}
+
+// ── poster frames: shown while a backdrop video loads, and blurred behind the page ──
+for (const z of zones) {
+  await sharp(join(BG, z, 'f000.png')).jpeg({ quality: 82 }).toFile(join(OUT, `${z}.jpg`))
 }
 console.log(`${ids.length} portraits -> ${OUT}/cats  (ids ${ids[0]}..${ids.at(-1)})`)
 console.log(`zones: ${zones.join(', ')}`)
