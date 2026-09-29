@@ -5,12 +5,14 @@ import { useAccount, useConnect, useReadContract, useWriteContract, useWaitForTr
 import sdk from '@farcaster/miniapp-sdk'
 import { V2, V2_ABI, MINT_ERRORS, type Voucher } from '@/lib/mint'
 import { APP_URL } from '@/lib/miniapp'
+import { useWebConnectors } from '@/lib/useWebConnectors'
 
 type Phase = 'idle' | 'authorising' | 'minting' | 'confirming' | 'done' | 'error'
 
 export default function MintPage() {
   const { address, isConnected } = useAccount()
   const { connect, connectors }  = useConnect()
+  const webConnectors = useWebConnectors()
 
   const [ready,  setReady]  = useState(false)
   const [phase,  setPhase]  = useState<Phase>('idle')
@@ -174,7 +176,7 @@ export default function MintPage() {
           ) : !isConnected ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
               <div style={s.notice}>Open in Farcaster to mint, or connect a wallet.</div>
-              {connectors.filter(c => c.id !== 'farcaster-frame').map(c => (
+              {webConnectors.map(c => (
                 <button key={c.id} style={s.secondaryBtn} onClick={() => connect({ connector: c })}>{c.name}</button>
               ))}
             </div>

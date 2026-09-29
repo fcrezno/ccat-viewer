@@ -5,6 +5,8 @@ import { useAccount, useConnect, useSwitchChain, useWriteContract, usePublicClie
 import { formatUnits, parseEventLogs } from 'viem'
 import { V3, V3_ABI, V3_DEPLOYED, V3_MINT_ERRORS, RUN_DOOR } from '@/lib/mintv3'
 import { robinhood } from '@/lib/chains'
+import { BitmapText } from '@/components/BitmapText'
+import { useWebConnectors } from '@/lib/useWebConnectors'
 
 /**
  * Claim a V3 cat, Robinhood Chain. Rebuilt 2026-09-28 for the rules JP set:
@@ -55,7 +57,8 @@ type BurnTerms = { price: bigint; bun: `0x${string}` }
 
 export default function MintV3Page() {
   const { address, isConnected, chainId } = useAccount()
-  const { connectors, connect } = useConnect()
+  const { connect, error: connectError } = useConnect()
+  const webConnectors = useWebConnectors()
   const { switchChainAsync } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
   const client = usePublicClient({ chainId: robinhood.id })
@@ -69,6 +72,16 @@ export default function MintV3Page() {
   const [burner,    setBurner]    = useState<boolean | null>(null)
   const [terms,     setTerms]     = useState<BurnTerms | null>(null)
   const [typed,     setTyped]     = useState('')
+
+  /*
+   * WALLET STATE EXISTS ONLY IN THE BROWSER. wagmi reconnects a returning wallet
+   * on load, so the server drew 'Connect' while the browser drew 'Claim' and
+   * React threw a hydration error (seen 2026-09-28 with Rabby). Everything that
+   * depends on the wallet waits one frame, until the page is mounted.
+   */
+  const [mounted, setMounted] = useState(false)
+  const [wide, setWide] = useState(false)
+  useEffect(() => { setMounted(true); setWide(window.innerWidth >= 480) }, [])
 
   /*
    * Read on the client only: the URL and the random pick would both differ
@@ -235,30 +248,49 @@ export default function MintV3Page() {
   return (
     <div style={s.root}>
       <div style={s.header}>
-        <span style={s.logo}>CLANKER CATS</span>
+        <span />
         <a href="/" style={s.navLink}>← the game</a>
+      </div>
+
+      {/*
+        THE TITLE SCREEN (JP, 2026-09-28: "why dont we use the title screen as the
+        mint page?"). The name in the game's own bitmap font and the slogan in his
+        casing, the way the game and the link card open. Scale 3 is 408px wide, so
+        narrow screens get scale 2 — decided after mount so both renders agree.
+      */}
+      <div style={s.titleScreen}>
+        <BitmapText text="CLANKER CATS" scale={wide ? 3 : 2} color="#f0f0f5" />
+        <div style={{ marginTop: 10 }}>
+          <BitmapText text="playing with bots has never been this fun." scale={1} color="#7a7a95" />
+        </div>
       </div>
 
       {/* A random V3 cat, or this wallet's own once it has one. */}
       <div style={{ ...s.heroBox, ...(burner ? s.heroBurner : {}) }}>
         {shownId && <img src={`/v3/images/${shownId}.png`} alt={`Clanker Cats V3 #${shownId}`} style={s.heroImg} />}
       </div>
-      <div style={s.title}>{catId !== null ? `#${catId} is yours` : 'Clanker Cats V3'}</div>
-      <div style={s.subtitle}>Robinhood Chain · for BUN holders</div>
+      <div style={s.title}>{catId !== null ? `#${catId} is yours` : 'V3'}</div>
+      <div style={s.subtitle}>Robinhood Chain · free for BUN holders</div>
 
       {!V3_DEPLOYED ? (
         <>
           <div style={s.notice}>Not live yet. The cats are made, the contract isn’t deployed.</div>
           <a href="/" style={s.secondaryBtn}>Play the game — it’s free</a>
         </>
+      ) : !mounted ? (
+        <div style={s.notice}>Loading…</div>
       ) : !isConnected ? (
         <>
           <div style={s.notice}>Free to mint, one per wallet. Connect to claim yours.</div>
-          {connectors.map(c => (
+          {webConnectors.map(c => (
             <button key={c.uid} style={s.secondaryBtn} onClick={() => connect({ connector: c })}>
               {c.name.toUpperCase()}
             </button>
           ))}
+          {/* A failed connect used to do nothing visible. Say why. */}
+          {connectError && !/rejected|denied/i.test(connectError.message) && (
+            <div style={s.error}>Could not connect: {connectError.message.slice(0, 160)}</div>
+          )}
         </>
       ) : (
         <>
@@ -300,6 +332,17 @@ export default function MintV3Page() {
 
       {error && <div style={s.error}>{error}</div>}
 
+      {/* A PLAY BUTTON THAT CANNOT BE MISSED. The game is free and needs no wallet. */}
+      <a href="/" style={s.playBtn}>PLAY THE GAME — FREE, NO WALLET</a>
+
+      {/* HOW THE CATS WORK — asked for by JP, 2026-09-28. */}
+      <div style={s.how}>
+        <div style={s.howHead}>HOW IT WORKS</div>
+        <div style={s.howStep}><b style={s.howNum}>1</b> <span><span style={s.howLabel}>Claim.</span> Hold at least 1 BUN on Robinhood Chain and claim one cat free. One per wallet.</span></div>
+        <div style={s.howStep}><b style={s.howNum}>2</b> <span><span style={s.howLabel}>Play.</span> Your cat fights in Clanker Cats, right here in the browser. Its stats come from the cat itself and never change.</span></div>
+        <div style={s.howStep}><b style={s.howNum}>3</b> <span><span style={s.howLabel}>Burn (optional).</span> Burn 111 BUN through your cat and it becomes a BunBurner, a trait it keeps for good. 30% goes to the agents, 30% to the creator, 40% is burned.</span></div>
+      </div>
+
       <div style={s.footnote}>Free · one per wallet · burning BUN is optional</div>
     </div>
   )
@@ -311,13 +354,20 @@ const s: Record<string, React.CSSProperties> = {
   logo:         { fontSize: 16, fontWeight: 'bold', letterSpacing: 1 },
   navLink:      { fontSize: 12, color: '#7c3aed', textDecoration: 'none' },
   // 1000x796 art, so 200x159 keeps its shape; nearest-neighbour keeps the pixels.
+  titleScreen:  { display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 8, maxWidth: '100%' },
+  playBtn:      { width: '100%', maxWidth: 320, boxSizing: 'border-box', marginTop: 8, padding: '14px 18px', borderRadius: 12, background: 'transparent', color: '#e0a72c', border: '1px solid #7a5c18', fontSize: 14, letterSpacing: 1, textAlign: 'center', textDecoration: 'none' },
+  how:          { width: '100%', maxWidth: 360, boxSizing: 'border-box', marginTop: 12, padding: 16, borderRadius: 12, border: '1px solid #21212f', background: '#0e0e18', display: 'flex', flexDirection: 'column', gap: 10 },
+  howHead:      { fontSize: 11, letterSpacing: 2, color: '#7a7a95' },
+  howStep:      { display: 'flex', gap: 10, fontSize: 13, color: '#aaa', lineHeight: 1.55, fontWeight: 'normal' },
+  howLabel:     { color: '#e8e8f0' },
+  howNum:       { color: '#e0a72c', fontWeight: 'normal', minWidth: 14 },
   heroBox:      { width: 200, height: 159, marginTop: 20, borderRadius: 8, overflow: 'hidden', border: '4px solid #21212f', background: '#12121c' },
   heroBurner:   { border: '4px solid #e0a72c', boxShadow: '0 0 18px rgba(224,167,44,0.35)' },
   heroImg:      { width: '100%', height: '100%', display: 'block', imageRendering: 'pixelated' },
-  title:        { fontSize: 24, fontWeight: 'bold' },
+  title:        { fontSize: 20, fontWeight: 'normal', color: '#ddd' },
   subtitle:     { fontSize: 13, color: '#666', marginBottom: 8 },
-  primaryBtn:   { width: '100%', maxWidth: 320, padding: '14px 24px', borderRadius: 12, background: '#7c3aed', color: 'white', border: 'none', cursor: 'pointer', fontSize: 15, fontWeight: 'bold', textAlign: 'center', textDecoration: 'none' },
-  burnBtn:      { width: '100%', maxWidth: 320, padding: '13px 24px', borderRadius: 12, background: 'transparent', color: '#e0a72c', border: '1px solid #7a5c18', cursor: 'pointer', fontSize: 14, fontWeight: 'bold', textAlign: 'center' },
+  primaryBtn:   { width: '100%', maxWidth: 320, padding: '14px 24px', borderRadius: 12, background: '#7c3aed', color: 'white', border: 'none', cursor: 'pointer', fontSize: 15, fontWeight: 'normal', textAlign: 'center', textDecoration: 'none' },
+  burnBtn:      { width: '100%', maxWidth: 320, padding: '13px 24px', borderRadius: 12, background: 'transparent', color: '#e0a72c', border: '1px solid #7a5c18', cursor: 'pointer', fontSize: 14, fontWeight: 'normal', textAlign: 'center' },
   secondaryBtn: { width: '100%', maxWidth: 320, padding: '12px 24px', borderRadius: 12, background: '#1e1e2e', color: '#ccc', border: 'none', cursor: 'pointer', fontSize: 14, textAlign: 'center', textDecoration: 'none' },
   smallBtn:     { padding: '10px 16px', borderRadius: 10, background: '#1e1e2e', color: '#ccc', border: 'none', cursor: 'pointer', fontSize: 13 },
   input:        { flex: 1, minWidth: 0, padding: '10px 12px', borderRadius: 10, background: '#12121c', color: 'white', border: '1px solid #2a2a4e', fontSize: 13 },

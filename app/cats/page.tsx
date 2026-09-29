@@ -7,6 +7,7 @@ import sdk from '@farcaster/miniapp-sdk'
 import { loadStats, saveStats, feed, pet, play, mood, moodEmoji, catLine, type Stats } from '@/lib/tamagotchi'
 import { COLLECTION_ABI, COLLECTIONS, getCollection, type Cat } from '@/lib/collection'
 import { APP_URL } from '@/lib/miniapp'
+import { useWebConnectors } from '@/lib/useWebConnectors'
 
 const OPENSEA = 'https://opensea.io/collection/clanker-cats'
 
@@ -407,6 +408,7 @@ function EmptyState() {
 export default function Home() {
   const { address, isConnected } = useAccount()
   const { connect, connectors }  = useConnect()
+  const webConnectors = useWebConnectors()
   const [ready, setReady]        = useState(false)
   const [selected, setSelected]  = useState<Cat | null>(null)
   const [cats, setCats]          = useState<Cat[]>([])
@@ -456,7 +458,7 @@ export default function Home() {
           <div style={s.emptyTitle}>Clanker Cats Viewer</div>
           <div style={s.emptySubtitle}>Open in Warpcast to auto-connect,<br />or connect your wallet below.</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
-            {connectors.filter(c => c.id !== 'farcaster-frame').map(c => (
+            {webConnectors.map(c => (
               <button key={c.id} style={s.connectBtn} onClick={() => connect({ connector: c })}>{c.name}</button>
             ))}
           </div>

@@ -44,6 +44,7 @@ import {
 const LINE_MS = 850
 import { APP_URL } from '@/lib/miniapp'
 import { V3_DEPLOYED, RUN_DOOR } from '@/lib/mintv3'
+import { useWebConnectors } from '@/lib/useWebConnectors'
 
 /*
  * THE COUNTDOWN'S BEATS, taken from the game rather than guessed at.
@@ -760,6 +761,7 @@ type RunView = {
 export function Cradle() {
   const { address, isConnected } = useAccount()
   const { connect, connectors } = useConnect()
+  const webConnectors = useWebConnectors()
 
   const [view, setView] = useState<'home' | 'fight' | 'ranks' | 'adopt'>('home')
   const [found, setFound] = useState<Cat[] | null>(null)
@@ -1917,8 +1919,7 @@ export function Cradle() {
                   <p style={{ ...s.fine, marginTop: 14 }}>
                     Open in Farcaster to connect on its own, or pick a wallet:
                   </p>
-                  {connectors
-                    .filter(c => c.id !== 'farcaster-frame')
+                  {webConnectors
                     .map(c => (
                       <button key={c.id} style={s.ghost} onClick={() => connect({ connector: c })}>
                         {c.name.toUpperCase()}

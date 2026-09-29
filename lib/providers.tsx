@@ -3,7 +3,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { WagmiProvider, createConfig, http } from 'wagmi'
 import { base } from 'wagmi/chains'
-import { injected, metaMask } from 'wagmi/connectors'
+import { injected } from 'wagmi/connectors'
 import { useState, useEffect } from 'react'
 import { frameConnector } from '@/lib/frameConnector'
 import { robinhood } from '@/lib/chains'
@@ -18,12 +18,25 @@ import { robinhood } from '@/lib/chains'
  * V3 cat is the thing being read or minted.
  */
 const config = createConfig({
+  /*
+   * ssr: true — wagmi waits until the page is mounted before restoring a saved
+   * wallet connection. Without it a returning wallet (Rabby, 2026-09-28) was
+   * "connected" on the browser's first render but not on the server's, so every
+   * page that branches on isConnected threw a hydration error.
+   */
+  ssr: true,
   chains: [base, robinhood],
   transports: {
     [base.id]: http(),
     [robinhood.id]: http(),
   },
-  connectors: [frameConnector(), metaMask(), injected()],
+  /*
+   * NO metaMask() CONNECTOR. wagmi 3's metaMask() needs @metamask/connect-evm,
+   * which is not installed, so every click on it threw "Cannot find module"
+   * (seen live 2026-09-28). The MetaMask extension still appears — it announces
+   * itself through EIP-6963, the same way Rabby and Phantom do.
+   */
+  connectors: [frameConnector(), injected()],
 })
 
 export function Providers({ children }: { children: React.ReactNode }) {
