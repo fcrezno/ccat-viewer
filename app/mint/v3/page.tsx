@@ -69,6 +69,12 @@ export default function MintV3Page() {
   const [burner,    setBurner]    = useState<boolean | null>(null)
   const [terms,     setTerms]     = useState<BurnTerms | null>(null)
   const [typed,     setTyped]     = useState('')
+  /*
+   * IS THE MINT OPEN. The voucher route signs whether or not it is, so without
+   * this a BUN holder could press Claim on a closed mint and watch the wallet
+   * fail it. Read once on load; opening it is a wallet transaction by the owner.
+   */
+  const [open,      setOpen]      = useState<boolean | null>(null)
 
   /*
    * WALLET STATE EXISTS ONLY IN THE BROWSER. wagmi reconnects a returning wallet
@@ -99,6 +105,9 @@ export default function MintV3Page() {
       client.readContract({ address: V3, abi: V3_ABI, functionName: 'bun' }),
     ])
       .then(([price, bun]) => setTerms({ price: price as bigint, bun: bun as `0x${string}` }))
+      .catch(() => {})
+    client.readContract({ address: V3, abi: V3_ABI, functionName: 'mintOpen' })
+      .then(o => setOpen(o as boolean))
       .catch(() => {})
   }, [client])
 
@@ -272,7 +281,11 @@ export default function MintV3Page() {
         <div style={s.notice}>Loading…</div>
       ) : !isConnected ? (
         <>
-          <div style={s.notice}>Free to mint, one per wallet. Connect to claim yours.</div>
+          <div style={s.notice}>
+            {open === false
+              ? 'Claiming opens soon. Free for BUN holders, one per wallet.'
+              : 'Free to mint, one per wallet. Connect to claim yours.'}
+          </div>
           {webConnectors.map(c => (
             <button key={c.uid} style={s.secondaryBtn} onClick={() => connect({ connector: c })}>
               {c.name.toUpperCase()}
@@ -285,7 +298,10 @@ export default function MintV3Page() {
         </>
       ) : (
         <>
-          {hasMinted === false && catId === null && (
+          {hasMinted === false && catId === null && open === false && (
+            <div style={s.notice}>Claiming is not open yet. It opens soon.</div>
+          )}
+          {hasMinted === false && catId === null && open === true && (
             <button style={{ ...s.primaryBtn, opacity: busy ? 0.6 : 1 }} onClick={claim} disabled={!!busy}>
               {busy ?? 'Claim your cat — free'}
             </button>

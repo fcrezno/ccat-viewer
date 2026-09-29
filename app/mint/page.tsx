@@ -15,6 +15,15 @@ export default function MintPage() {
   const webConnectors = useWebConnectors()
 
   const [ready,  setReady]  = useState(false)
+  /*
+   * INSIDE FARCASTER OR NOT. A V2 cat is tied to a Farcaster account: the voucher
+   * is signed for an FID that only Quick Auth can prove. In a plain browser tab
+   * sdk.quickAuth.getToken() posts to a host that is not there and NEVER returns,
+   * so "Mint my cat" sat on "Checking your account…" for good (JP, 2026-09-28:
+   * "this mint page does not work"). On the web this page now says where the
+   * mint lives instead of offering wallet buttons that cannot mint.
+   */
+  const [inApp,  setInApp]  = useState<boolean | null>(null)
   const [phase,  setPhase]  = useState<Phase>('idle')
   const [error,  setError]  = useState<string | null>(null)
   const [gate,   setGate]   = useState<{ minScore: number; phase: string } | null>(null)
@@ -27,6 +36,7 @@ export default function MintPage() {
   useEffect(() => {
     try { sdk.actions.ready() } catch {}
     setReady(true)
+    sdk.isInMiniApp().then(setInApp).catch(() => setInApp(false))
     const fc = connectors.find(c => c.id === 'farcaster-frame')
     if (fc) connect({ connector: fc })
 
@@ -79,7 +89,11 @@ export default function MintPage() {
     try {
       // 1. Prove who this Farcaster user is. The FID never comes from the client.
       setPhase('authorising')
-      const { token } = await sdk.quickAuth.getToken()
+      // A host that never answers must not hang the button forever.
+      const { token } = await Promise.race([
+        sdk.quickAuth.getToken(),
+        new Promise<never>((_, no) => setTimeout(() => no(new Error('quickauth_timeout')), 30_000)),
+      ])
 
       // 2. Exchange it for a voucher signed by the backend.
       const res = await fetch('/api/mint-voucher', {
@@ -114,7 +128,9 @@ export default function MintPage() {
       setPhase('confirming')
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : ''
-      setError(/user rejected|denied/i.test(msg) ? 'Transaction cancelled.' : 'Mint failed. Try again.')
+      setError(/user rejected|denied/i.test(msg) ? 'Transaction cancelled.'
+        : msg === 'quickauth_timeout' ? 'Farcaster did not answer the sign-in. Try again.'
+        : 'Mint failed. Try again.')
       setPhase('error')
     }
   }, [address, writeContractAsync])
@@ -166,7 +182,16 @@ export default function MintPage() {
             </div>
           )}
 
-          {phase === 'done' ? (
+          {inApp === null ? null : !inApp ? (
+            <div style={s.webBox}>
+              <div style={s.notice}>
+                Base cats are tied to a Farcaster account, so they mint inside Farcaster.
+                Open Clanker Cats there to mint one.
+              </div>
+              <a href="/mint/v3" style={s.primaryLink}>Claim a Robinhood cat, free for BUN holders</a>
+              <a href="/" style={s.secondaryBtn}>Play the game, free, no wallet</a>
+            </div>
+          ) : phase === 'done' ? (
             <div style={s.successBox}>
               <div style={{ fontSize: 40 }}>✅</div>
               <div style={{ fontSize: 16, fontWeight: 'bold' }}>Your cat is minted</div>
@@ -174,8 +199,8 @@ export default function MintPage() {
               <a href="/cats" style={s.secondaryBtn}>View my cats</a>
             </div>
           ) : !isConnected ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
-              <div style={s.notice}>Open in Farcaster to mint, or connect a wallet.</div>
+            <div style={s.webBox}>
+              <div style={s.notice}>Connect a wallet to mint.</div>
               {webConnectors.map(c => (
                 <button key={c.id} style={s.secondaryBtn} onClick={() => connect({ connector: c })}>{c.name}</button>
               ))}
@@ -214,6 +239,9 @@ const s: Record<string, React.CSSProperties> = {
   barFill:      { height: '100%', background: '#7c3aed', borderRadius: 6, transition: 'width 0.4s ease' },
   primaryBtn:   { width: '100%', maxWidth: 320, padding: '14px 24px', borderRadius: 12, background: '#7c3aed', color: 'white', border: 'none', cursor: 'pointer', fontSize: 15, fontWeight: 'bold' },
   secondaryBtn: { width: '100%', maxWidth: 320, padding: '12px 24px', borderRadius: 12, background: '#1e1e2e', color: '#ccc', border: 'none', cursor: 'pointer', fontSize: 14, textAlign: 'center', textDecoration: 'none' },
+  primaryLink:  { width: '100%', maxWidth: 320, boxSizing: 'border-box', padding: '14px 24px', borderRadius: 12, background: '#7c3aed', color: 'white', fontSize: 15, textAlign: 'center', textDecoration: 'none' },
+  // Centred: the column was full width with no alignItems, so its 320px buttons hugged the left edge.
+  webBox:       { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, width: '100%' },
   successBox:   { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, width: '100%', maxWidth: 320 },
   notice:       { fontSize: 13, color: '#666', textAlign: 'center', padding: '12px 0' },
   gateBadge:    { fontSize: 11, color: '#7c3aed', border: '1px solid #2a2a4e', background: '#12122a', padding: '5px 12px', borderRadius: 20, letterSpacing: 0.4, marginTop: -4 },
