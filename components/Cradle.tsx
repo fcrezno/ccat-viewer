@@ -1565,7 +1565,7 @@ export function Cradle() {
 
   async function lookUpFriend() {
     const raw = friendId.trim()
-    const m = raw.match(/^(?:(v1|v2):)?(\d+)$/i)
+    const m = raw.match(/^(?:(v1|v2|v3):)?(\d+)$/i)
     if (!m) { setError('give a token id, or v2:412'); return }
     const col = (m[1] ?? 'v2').toLowerCase()
     const id = m[2]

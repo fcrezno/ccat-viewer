@@ -115,7 +115,7 @@ export async function GET(
 function unrevealed(tokenId: number) {
   return NextResponse.json(
     {
-      name:        `Clanker Cats V3 #${tokenId}`,
+      name:        `Clanker Cat #${tokenId}`,
       description: 'Unrevealed. Each cat reveals the moment it is minted.',
       image:       `${APP_URL}/v3/placeholder.png`,
       edition:     tokenId,

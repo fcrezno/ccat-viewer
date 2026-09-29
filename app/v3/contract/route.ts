@@ -36,8 +36,8 @@ const RECEIVER = process.env.NEXT_PUBLIC_ROYALTY_RECEIVER ?? ''
 export async function GET() {
   return NextResponse.json(
     {
-      name:        'Clanker Cats V3',
-      description: 'Clanker Cats V3 on Robinhood Chain. Free for BUN holders, one per wallet. Burn 111 BUN through your cat and it becomes a BunBurner for good. Play the game free at clankercats.com.',
+      name:        'Clanker Cats: Robinhood',
+      description: 'Clanker Cats on Robinhood Chain. Free for BUN holders, one per wallet. Burn 111 BUN through your cat and it becomes a BunBurner for good. Play the game free at clankercats.com.',
       image:       `${APP_URL}/icon.png`,
       // hero.png is the V2 card ("1111 CATS, free on Base"); cradle.png says CLANKER CATS.
       banner_image_url: `${APP_URL}/cradle.png`,

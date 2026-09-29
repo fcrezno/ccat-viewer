@@ -12,7 +12,7 @@ import { V3, V3_DEPLOYED } from './mintv3'
  * Metadata is hosted (Arweave JSON → highlight.xyz PNG), not on-chain SVG.
  * Neither collection is enumerable, so ownership is resolved by scanning ownerOf().
  */
-export type CollectionKey = 'v1' | 'v2'
+export type CollectionKey = 'v1' | 'v2' | 'v3'
 
 export type CollectionDef = {
   key:     CollectionKey
@@ -83,6 +83,24 @@ export const COLLECTIONS: CollectionDef[] = [
     metaBase: 'https://ccat-viewer.vercel.app/v2/metadata/',
     supply:   1111,
   },
+  /*
+   * V3 — Robinhood Chain, free for BUN holders. Present only once the address is
+   * set (NEXT_PUBLIC_V3_ADDRESS), so a build without it never scans a missing
+   * contract. The 2026-09-08 commit imported V3 here but never added this entry,
+   * so until 2026-09-28 a V3 cat would not have shown up in the game at all.
+   *
+   * metaBase mirrors the contract's baseURI, which is the reveal-aware route.
+   */
+  ...(V3_DEPLOYED ? [{
+    key:      'v3' as const,
+    address:  V3,
+    chain:    robinhood,
+    label:    'Clanker Cats: Robinhood',
+    opensea:  `https://opensea.io/assets/robinhood/${V3}`,
+    pixelArt: true,
+    metaBase: 'https://ccat-viewer.vercel.app/v3/cat/',
+    supply:   1111,
+  }] : []),
 ]
 
 /** sharp resize kernel appropriate to a collection's art style. */
