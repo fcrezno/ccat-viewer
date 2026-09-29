@@ -5,11 +5,11 @@ import { useAccount, useConnect } from 'wagmi'
 import sdk from '@farcaster/miniapp-sdk'
 import { COLLECTIONS, getCollection, parseUid, type Cat } from '@/lib/collection'
 import type { FightResult, LogLine } from '@/lib/arena'
-import { GameBar } from '@/components/GameBar'
 import { useSound } from '@/lib/useSound'
 import { trackForRound } from '@/lib/music'
 import { BitmapText } from '@/components/BitmapText'
 import { FxLabel } from '@/components/FxButton'
+import { FightStage } from '@/components/FightStage'
 import { noteWin, noteLoss, type Beat } from '@/lib/streak'
 import { NO_CHAIN } from '@/lib/appmode'
 import { catsForWins } from '@/lib/season'
@@ -104,29 +104,9 @@ function unlockedSpeeds(cat: Cat | null): readonly number[] {
   return titleOf(cat) ? SPEEDS : [BASE_SPEED]
 }
 
-/*
- * LOW HEALTH, the way render.mjs does it. Below a fifth a cat gets a blinking
- * CAUTION!, and on its last point that becomes PERIL!. The BAR does not pulse —
- * a pulsing fill fought with the damage trail for the same pixels, so the game
- * states the case in a word instead.
- */
-const LOW = 0.2
-const PERIL = 1
-const CAUTION_INK = '#e02020'
-const warnFor = (hp: number, max: number) =>
-  hp <= 0 ? null : hp === PERIL ? 'PERIL!' : hp / max <= LOW ? 'CAUTION!' : null
-
 const PAPER = '#f2eee3'
 
-/** The zones the game loops behind a fight, one per turf: "the forest" is `forest`. */
-const ZONES = ['caves', 'forest', 'mountain', 'temple', 'town']
-const zoneOf = (turf: string) => turf.replace(/^the /, '')
 const INK = '#1a1a1a'
-
-const KIND_INK: Record<LogLine['kind'], string> = {
-  info: '#6b6b60', move: INK, miss: '#6b6b60', crit: '#c2410c',
-  weak: '#3f6ea8', perk: '#2f7a44', ko: '#a01b1b', win: '#a06a10',
-}
 
 /**
  * YOUR FIGHTER, BESIDE THE MENU.
@@ -145,77 +125,6 @@ function FighterPortrait({ name, src, pixel = true }: { name: string; src?: stri
       {src
         ? <img src={src} alt={name} style={{ ...s.fighterPic, imageRendering: pixel ? 'pixelated' : 'auto' }} />
         : <div style={{ ...s.fighterPic, ...s.placeholder }}>🐱</div>}
-    </div>
-  )
-}
-
-function Fighter({ cat, hp, ghost, side, swinging, struck, beat, speed }: {
-  cat: FightResult['you']; hp: number; ghost: number
-  side: 'left' | 'right'; swinging: boolean
-  /*
-   * The kind of blow this cat is TAKING right now, or null.
-   *
-   * Separate from `swinging`, because on any given line one cat is doing and the
-   * other is being done to — and until now only the doing was drawn. The
-   * attacker leaned in at a cat standing perfectly still, which is what made a
-   * hit look like a lunge at nothing.
-   */
-  struck: 'crit' | 'weak' | 'hit' | null
-  beat: number; speed: number
-}) {
-  // Alternate the animation NAME to replay it. Remounting would restart the
-  // element and kill the health bar's clip-path transition with it.
-  const alt = beat % 2 === 1 ? '-b' : ''
-  const warn = warnFor(hp, cat.maxHp)
-  return (
-    <div style={{ flex: 1, minWidth: 0, textAlign: side === 'right' ? 'right' : 'left' }}>
-      <img
-        src={cat.art}
-        alt=""
-        style={{
-          width: '100%', aspectRatio: '250 / 199', objectFit: 'cover',
-          display: 'block', marginBottom: 8, borderRadius: 8,
-          imageRendering: 'pixelated',
-          border: cat.mine ? '2px solid #ffd166' : '2px solid #21212f',
-          background: '#0b0b13',
-          opacity: hp > 0 ? 1 : 0.35,
-          filter: hp > 0 ? 'none' : 'grayscale(1)',
-          transition: 'opacity 0.3s ease',
-          animation: struck
-            /*
-             * FITTED TO THE LINE, not to the renderer's clock. Beat.FlinchSecs is
-             * a full second and a log line here lasts 850ms, so the shake would
-             * still be running when the next blow landed. The curve is unchanged;
-             * only the playback is shortened.
-             */
-            ? `cradle-recoil-${struck}${alt} ${0.6 / speed}s linear`
-            : swinging && hp > 0
-            // LINEAR: Beat.Lunge is already baked into the keyframe stops, so an
-            // easing function here would ease an eased curve.
-            // Scaled with the reveal: a 0.35s lunge inside a 212ms line at x4
-            // would be cut off part-way, which is what made the old countdown
-            // stumble.
-            ? `cradle-lunge-${side}${alt} ${0.35 / speed}s linear, cradle-swing${alt} ${0.35 / speed}s ease-out`
-            : undefined,
-        }}
-      />
-      <div style={{
-        fontSize: 13, marginBottom: 3, whiteSpace: 'nowrap',
-        overflow: 'hidden', textOverflow: 'ellipsis',
-        color: cat.mine ? '#ffd166' : '#f0f0f5',
-      }}>{cat.label}</div>
-      <div style={{
-        fontSize: 9, letterSpacing: 1.5, marginBottom: 6,
-        display: 'flex', gap: 6, justifyContent: side === 'right' ? 'flex-end' : 'flex-start',
-      }}>
-        <span style={{ color: '#7a7a95' }}>{cat.type}</span>
-        {warn && (
-          <span style={{ color: CAUTION_INK, animation: 'cradle-blink 0.37s steps(1, end) infinite' }}>
-            {warn}
-          </span>
-        )}
-      </div>
-      <GameBar hp={hp} ghost={ghost} max={cat.maxHp} side={side} speed={speed} />
     </div>
   )
 }
@@ -892,7 +801,6 @@ export function Cradle() {
   const [count, setCount] = useState<number | null>(null)
   const [speed, setSpeed] = useState(BASE_SPEED)
   const sound = useSound()
-  const logRef = useRef<HTMLDivElement>(null)
   const cardRef = useRef<HTMLElement>(null)
   const counted = useRef<string | null>(null)
   const [, bump] = useState(0)
@@ -964,9 +872,6 @@ export function Cradle() {
     return () => clearTimeout(t)
   }, [result, shown, count, speed])
 
-  useEffect(() => {
-    logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: 'smooth' })
-  }, [shown])
 
   /*
    * ONE CUE PER LINE, mapped the way the game maps them — LogLine.Kind IS the cue
@@ -1543,7 +1448,7 @@ export function Cradle() {
   const retiredCount = (cats ?? []).length - pickable.length
 
   return (
-    <main style={s.page}>
+    <main style={{ ...s.page, ...(view === 'fight' && result ? { background: 'transparent' } : null) }}>
       <header style={s.header}>
         {/* The name of the game, and no "preview" — the same change as the link card. */}
         <h1 style={s.title}>CLANKER CATS</h1>
@@ -1933,61 +1838,29 @@ export function Cradle() {
 
           {result && (
             <>
-              <section
-                style={{
-                  ...s.stage,
-                  animation: at?.kind === 'crit' || at?.kind === 'ko'
-                    ? `cradle-shake${shown % 2 === 1 ? '-b' : ''} ${0.3 / speed}s ease-out`
-                    : undefined,
-                }}
-              >
-                {/*
-                  THE STAGE'S OWN BACKGROUND (JP, 2026-09-29: "lets add the
-                  backgrounds for the stages"). Every fight is already set somewhere
-                  — "the forest" — and the five turfs are the five zones the s&box
-                  game loops behind a fight, the same loops the title screen plays
-                  (scripts/make-title-assets.mjs). It shakes with the stage on a
-                  crit, as the game's whole screen does. The scrim keeps the names
-                  and bars reading over a bright zone.
-                */}
-                {ZONES.includes(zoneOf(result.turf)) && (
-                  <>
-                    <video
-                      key={result.seed}
-                      src={`/title/${zoneOf(result.turf)}.mp4`}
-                      poster={`/title/${zoneOf(result.turf)}.jpg`}
-                      autoPlay muted loop playsInline aria-hidden
-                      style={s.zone}
-                    />
-                    <div style={s.zoneScrim} aria-hidden />
-                  </>
-                )}
-                <div style={s.versus}>
-                  <Fighter
-                    cat={result.you}
-                    hp={at ? at.hpYou : result.you.maxHp}
-                    ghost={prev ? prev.hpYou : result.you.maxHp}
-                    side="left"
-                    swinging={at?.actor === 'you'}
-                    struck={struckSide === 'you' ? hitKind : null}
-                    beat={shown}
-                    speed={speed}
-                  />
-                  <span style={s.vs}>VS</span>
-                  <Fighter
-                    cat={result.foe}
-                    hp={at ? at.hpFoe : result.foe.maxHp}
-                    ghost={prev ? prev.hpFoe : result.foe.maxHp}
-                    side="right"
-                    swinging={at?.actor === 'foe'}
-                    struck={struckSide === 'foe' ? hitKind : null}
-                    beat={shown}
-                    speed={speed}
-                  />
-                </div>
-                <p style={s.turf}>{result.turf}</p>
-
-                {/*
+              {/*
+                THE s&box BATTLE SCREEN (components/FightStage), which replaced two
+                cards and a turf line. The whole screen shakes on a crit or a KO,
+                as the game's does.
+              */}
+              <div style={{
+                animation: at?.kind === 'crit' || at?.kind === 'ko'
+                  ? `cradle-shake${shown % 2 === 1 ? '-b' : ''} ${0.3 / speed}s ease-out`
+                  : undefined,
+              }}>
+                <FightStage
+                  you={result.you}
+                  foe={result.foe}
+                  hp={[at ? at.hpYou : result.you.maxHp, at ? at.hpFoe : result.foe.maxHp]}
+                  ghost={[prev ? prev.hpYou : result.you.maxHp, prev ? prev.hpFoe : result.foe.maxHp]}
+                  turf={result.turf}
+                  swinging={at?.actor === 'you' || at?.actor === 'foe' ? at.actor : null}
+                  struck={struckSide ? { side: struckSide, kind: hitKind } : null}
+                  beat={shown}
+                  speed={speed}
+                  lines={result.log.slice(0, shown)}
+                >
+                  {/*
                   3, 2, 1, FIGHT! over the stage, in the game's font because
                   MyFont has no digits — a countdown is nothing but digits.
                   Keyed on the beat so each one replays the drop.
@@ -2003,23 +1876,10 @@ export function Cradle() {
                     </div>
                   </div>
                 )}
-              </section>
-
-              <div ref={logRef} style={s.log}>
-                {result.log.slice(0, shown).map((l, i) => (
-                  <div key={i} style={{
-                    margin: '0 0 6px',
-                    animation: l.kind === 'crit' ? `cradle-crit ${0.45 / speed}s ease-out` : undefined,
-                  }}>
-                    <BitmapText
-                      text={l.text}
-                      scale={l.style === 'announce' ? 2 : 1}
-                      color={KIND_INK[l.kind] ?? INK}
-                    />
-                  </div>
-                ))}
-                {!done && <span style={s.caret}>▌</span>}
+                </FightStage>
               </div>
+
+              {/* The log is in the battle screen's text box now, as it is in the game. */}
 
               {/*
                 THE RESULTS CARD.
@@ -2443,26 +2303,12 @@ const s: Record<string, React.CSSProperties> = {
   cardRec: { fontSize: 9, padding: '0 4px 5px', color: '#7a7a95' },
   placeholder: { width: '100%', aspectRatio: '1', display: 'grid', placeItems: 'center', fontSize: 22, background: '#0b0b13' },
 
-  // `position: relative` so the countdown can sit over it.
-  stage:  { position: 'relative', overflow: 'hidden', isolation: 'isolate', background: '#12121c', border: '1px solid #21212f', borderRadius: 14, padding: '14px 16px' },
-  // The zone loop fills the stage; 480x320 art, kept square-pixelled. Behind everything on it.
-  zone:      { position: 'absolute', inset: 0, width: '100%', height: '100%', maxWidth: 'none', objectFit: 'cover', imageRendering: 'pixelated', zIndex: -2 },
-  zoneScrim: { position: 'absolute', inset: 0, zIndex: -1, background: 'linear-gradient(180deg, rgba(11,11,19,0.35) 0%, rgba(11,11,19,0.6) 100%)' },
+  // The countdown, over the battle screen (components/FightStage) in its game pixels.
   countWrap: {
     position: 'absolute', inset: 0, display: 'flex',
     alignItems: 'center', justifyContent: 'center',
-    background: 'rgba(11,11,19,0.72)', borderRadius: 14, pointerEvents: 'none',
+    background: 'rgba(11,11,19,0.72)', pointerEvents: 'none',
   },
-  versus: { display: 'flex', alignItems: 'flex-start', gap: 12 },
-  vs:     { color: '#4a4a63', fontSize: 11, letterSpacing: 1, paddingTop: 16 },
-  turf:   { textAlign: 'center', color: '#63637d', fontSize: 11, margin: '12px 0 0' },
-
-  log: {
-    background: PAPER, color: INK, borderRadius: 14, padding: '18px 18px 14px',
-    height: 320, overflowY: 'auto',
-    boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.08)',
-  },
-  caret: { color: '#8a8a7a', fontSize: 14 },
 
   // The results card: the same paper as the log, because in the game it is.
   // NOT `card` — that name already belongs to the cat grid tile above.
