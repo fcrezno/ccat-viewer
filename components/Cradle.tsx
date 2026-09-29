@@ -2315,7 +2315,7 @@ export function Cradle() {
         reach three links is a menu too many.
       */}
       <nav style={s.nav}>
-        <a href="/game" className="fx-host" style={s.navLink}><FxLabel text="IDLE GAME" tone="grey" /></a>
+        {/* The idle game (/game) is unlinked for now (JP, 2026-09-29: "remove the idle game tab for now"). */}
         <a href="/cats" className="fx-host" style={s.navLink}><FxLabel text="YOUR CATS" tone="grey" /></a>
         {/*
           NO WAY TO BUY ANYTHING IN THE APP BUILD.

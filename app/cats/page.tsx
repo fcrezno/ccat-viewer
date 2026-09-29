@@ -447,7 +447,6 @@ export default function Home() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <a href="/mint" style={s.mintLink}>🐱 Mint</a>
-          <a href="/game" style={s.gameLink}>🎮 Idle Clank</a>
           {address && <div style={s.addr}>{address.slice(0,6)}…{address.slice(-4)}</div>}
         </div>
       </div>
@@ -479,14 +478,7 @@ export default function Home() {
             ))}
           </div>
           <div style={s.mintHint}>Tap a cat to see its traits ↑</div>
-          <a href="/game" style={s.gameCard}>
-            <span style={{ fontSize: 28 }}>🎮</span>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 'bold', color: '#ccc' }}>Idle Clank</div>
-              <div style={{ fontSize: 11, color: '#555' }}>Fish · Build · Fight</div>
-            </div>
-            <span style={{ marginLeft: 'auto', fontSize: 18, color: '#7c3aed' }}>→</span>
-          </a>
+          {/* The idle game's card is off for now (JP, 2026-09-29); /game still works by its URL. */}
         </>
       ) : (
         <EmptyState />
