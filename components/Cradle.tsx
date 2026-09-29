@@ -126,6 +126,27 @@ const KIND_INK: Record<LogLine['kind'], string> = {
   weak: '#3f6ea8', perk: '#2f7a44', ko: '#a01b1b', win: '#a06a10',
 }
 
+/**
+ * YOUR FIGHTER, BESIDE THE MENU.
+ *
+ * JP, 2026-09-28: "i would like to have a portrait of your cat fighter next to
+ * these options". His layout rule: the subject gets the room, and the controls
+ * go left and compact. The name sits directly ABOVE the portrait, and the
+ * portrait gets the mount every portrait in the game has: a 4px dark edge inside
+ * a 2px paper ring. Cropped from the top, like the game's portraits, because
+ * that is where a cat's face is.
+ */
+function FighterPortrait({ name, src, pixel = true }: { name: string; src?: string; pixel?: boolean }) {
+  return (
+    <div style={s.fighter}>
+      <p style={s.fighterName}>{name}</p>
+      {src
+        ? <img src={src} alt={name} style={{ ...s.fighterPic, imageRendering: pixel ? 'pixelated' : 'auto' }} />
+        : <div style={{ ...s.fighterPic, ...s.placeholder }}>🐱</div>}
+    </div>
+  )
+}
+
 function Fighter({ cat, hp, ghost, side, swinging, struck, beat, speed }: {
   cat: FightResult['you']; hp: number; ghost: number
   side: 'left' | 'right'; swinging: boolean
@@ -1819,18 +1840,29 @@ export function Cradle() {
                 worse than three that are not there.
               */}
               {picked ? (
-                <div style={s.modes}>
-                  <button style={s.primary} disabled={busy}
-                    onClick={() => startFight({ uid: picked.uid })}>
-                    QUICK FIGHT
-                  </button>
-                  <p style={s.modeFine}>one fight · goes on your record</p>
+                <div style={{ ...s.modes, ...s.fighterRow }}>
+                  <div style={s.fighterOpts}>
+                    <button style={s.primary} disabled={busy}
+                      onClick={() => startFight({ uid: picked.uid })}>
+                      QUICK FIGHT
+                    </button>
+                    <p style={s.modeFine}>one fight · goes on your record</p>
 
-                  <button style={s.gauntlet} disabled={busy}
-                    onClick={() => startGauntlet(false)}>
-                    GAUNTLET
-                  </button>
-                  <p style={s.modeFine}>five cats people own · survive it to be champion</p>
+                    <button style={s.gauntlet} disabled={busy}
+                      onClick={() => startGauntlet(false)}>
+                      GAUNTLET
+                    </button>
+                    <p style={s.modeFine}>five cats people own · survive it to be champion</p>
+
+                    {/* THE YARD AS AN OPTION (JP, 2026-09-28), beside the fights. */}
+                    <a href="/yard" style={s.yardBtn}>THE YARD</a>
+                    <p style={s.modeFine}>your cats and the cats of people you follow</p>
+                  </div>
+                  <FighterPortrait
+                    name={nameFor(picked.uid) ?? picked.meta?.name ?? `#${picked.id}`}
+                    src={picked.meta?.image}
+                    pixel={getCollection(picked.collection).pixelArt}
+                  />
                 </div>
               ) : (
                 <p style={s.fine}>pick a cat to choose a mode</p>
@@ -1849,23 +1881,41 @@ export function Cradle() {
           {!holdsCat && (
             <section style={s.block}>
               <p style={s.label}>{isConnected ? 'NO CAT YET' : 'HAVE A LOOK FIRST'}</p>
-              <button style={s.primary} onClick={() => { setPicked(null); startFight({ demo: true }) }} disabled={busy}>
-                QUICK FIGHT
-              </button>
-              <p style={s.modeFine}>a real fight, with a cat that is not yours — no wallet needed</p>
-
               {/*
-                THE DEMO GETS THE GAUNTLET TOO.
-
-                A demo that plays by different rules is not showing anybody the
-                game. Nothing a demo does is recorded either way, so the only
-                thing being withheld at the end is the title.
+                The guest's fighter is the cat its code rolls: the same picture and
+                name the fight itself draws for it (see guestCat in /api/fight).
               */}
-              <button style={s.gauntlet} disabled={busy}
-                onClick={() => { setPicked(null); startGauntlet(true) }}>
-                GAUNTLET
-              </button>
-              <p style={s.modeFine}>five cats people own · a demo run is never recorded</p>
+              <div style={s.fighterRow}>
+                <div style={s.fighterOpts}>
+                  <button style={s.primary} onClick={() => { setPicked(null); startFight({ demo: true }) }} disabled={busy}>
+                    QUICK FIGHT
+                  </button>
+                  <p style={s.modeFine}>a real fight, with a cat that is not yours — no wallet needed</p>
+
+                  {/*
+                    THE DEMO GETS THE GAUNTLET TOO.
+
+                    A demo that plays by different rules is not showing anybody the
+                    game. Nothing a demo does is recorded either way, so the only
+                    thing being withheld at the end is the title.
+                  */}
+                  <button style={s.gauntlet} disabled={busy}
+                    onClick={() => { setPicked(null); startGauntlet(true) }}>
+                    GAUNTLET
+                  </button>
+                  <p style={s.modeFine}>five cats people own · a demo run is never recorded</p>
+
+                  {/* THE YARD AS AN OPTION (JP, 2026-09-28). /yard shows the demo yard to a guest. */}
+                  <a href="/yard" style={s.yardBtn}>THE YARD</a>
+                  <p style={s.modeFine}>the cats together, when nobody is fighting</p>
+                </div>
+                {myCode > 0 && (
+                  <FighterPortrait
+                    name={nameFor(`guest:${myCode}`) ?? `Guest #${myCode}`}
+                    src={`/api/cat-art?seed=${myCode}`}
+                  />
+                )}
+              </div>
 
               {/*
                 FIGHT A FRIEND — guest PVP, and the reason it needs no database.
@@ -2594,6 +2644,16 @@ const s: Record<string, React.CSSProperties> = {
   modeFine: { color: '#63637d', fontSize: 11, margin: '6px 0 14px', textAlign: 'center', lineHeight: 1.5 },
   /* The gauntlet is the one with something at stake, so it is the one that is gold. */
   gauntlet: { width: '100%', background: 'transparent', color: '#e0a72c', border: '1px solid #7a5c18', borderRadius: 10, padding: '13px 16px', fontSize: 13, letterSpacing: 1, cursor: 'pointer', fontFamily: 'inherit', marginTop: 10 },
+  // The yard's green, the colour this page already uses for good news. A link, drawn as a button.
+  yardBtn:  { display: 'block', boxSizing: 'border-box', width: '100%', background: 'transparent', color: '#7ee081', border: '1px solid #2f5a34', borderRadius: 10, padding: '13px 16px', fontSize: 13, letterSpacing: 1, textAlign: 'center', textDecoration: 'none', fontFamily: 'inherit', marginTop: 10 },
+
+  /* The menu beside your fighter: options LEFT and compact, the cat gets the room. */
+  fighterRow:  { display: 'flex', gap: 16, alignItems: 'flex-start' },
+  fighterOpts: { flex: '1 1 0', minWidth: 0 },
+  fighter:     { flex: '0 0 44%', maxWidth: 240, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginTop: 0 },
+  fighterName: { margin: 0, fontSize: 12, letterSpacing: 1, color: '#f0f0f5', textAlign: 'center', overflowWrap: 'anywhere' },
+  // 4px dark edge inside a 2px paper ring — the ring is a shadow, so it needs the 2px margin to show.
+  fighterPic:  { width: 'calc(100% - 4px)', margin: 2, aspectRatio: '1', objectFit: 'cover', objectPosition: 'top', display: 'block', boxSizing: 'border-box', border: '4px solid #1a1a1a', boxShadow: '0 0 0 2px #fdfdf8', background: '#e6e0d2' },
   /* A picked card keeps the same box so the grid does not move when you choose. */
   /* `border`, not `borderColor` — card sets the shorthand. 2px keeps the box. */
   cardPicked: { border: '2px solid #8b5cf6', boxShadow: '0 0 0 2px rgba(139,92,246,0.35)' },
