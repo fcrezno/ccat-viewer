@@ -7,6 +7,7 @@ import { robinhood } from '@/lib/chains'
 import { MintStage } from '@/components/MintStage'
 import { FxButton } from '@/components/FxButton'
 import { PageBackdrop } from '@/components/PageBackdrop'
+import { useLoadingHold } from '@/lib/loading'
 
 /**
  * THE ROBINHOOD MINT, on the web. app/mint/page.tsx renders this everywhere
@@ -32,6 +33,8 @@ export function RobinhoodMint() {
 
   const minted = supply !== undefined ? Number(supply) : null
   const total  = max    !== undefined ? Number(max)    : null
+  // The loading screen waits for the count, so the hit lands in view (lib/loading.ts).
+  useLoadingHold(V3_DEPLOYED && total === null)
 
   // A random cat takes the hit. Picked after mount, or server and browser differ.
   const [art, setArt] = useState<string | null>(null)

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import sdk from '@farcaster/miniapp-sdk'
+import { useLoadingHold } from '@/lib/loading'
 import { BaseMint } from '@/components/mint/BaseMint'
 import { RobinhoodMint } from '@/components/mint/RobinhoodMint'
 
@@ -24,6 +25,9 @@ export default function MintPage() {
   useEffect(() => {
     sdk.isInMiniApp().then(setInApp).catch(() => setInApp(false))
   }, [])
+
+  // Asking can take up to a second inside a frame; the loading screen waits for the answer.
+  useLoadingHold(inApp === null)
 
   if (inApp === null) return null
   return inApp ? <BaseMint /> : <RobinhoodMint />

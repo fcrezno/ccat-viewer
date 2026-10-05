@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Providers } from '@/lib/providers'
+import { LoadingScreen } from '@/components/LoadingScreen'
 import { embedTags, APP_URL } from '@/lib/miniapp'
 import './globals.css'
 
@@ -60,7 +61,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         is to not have one. globals.css owns the font now, as --font-game.
       */}
       <body style={{ margin: 0, background: '#0a0a14', color: 'white', minHeight: '100vh' }}>
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          {/* After the page, so the page's own loading holds are set before it looks. */}
+          <LoadingScreen />
+        </Providers>
       </body>
     </html>
   )

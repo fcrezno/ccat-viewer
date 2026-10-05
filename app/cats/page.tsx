@@ -11,6 +11,7 @@ import { useWebConnectors } from '@/lib/useWebConnectors'
 import { BitmapText } from '@/components/BitmapText'
 import { FxButton } from '@/components/FxButton'
 import { PageBackdrop } from '@/components/PageBackdrop'
+import { useLoadingHold } from '@/lib/loading'
 
 /**
  * YOUR CATS — made over in the game's own look.
@@ -474,6 +475,8 @@ export default function Home() {
   }, [address])
 
   const count = cats.length
+  // The loading screen waits for this wallet's cats (lib/loading.ts).
+  useLoadingHold(loading)
 
   if (!ready) return null
 

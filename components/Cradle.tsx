@@ -11,6 +11,7 @@ import { BitmapText } from '@/components/BitmapText'
 import { FxLabel } from '@/components/FxButton'
 import { FightStage, KIND_INK } from '@/components/FightStage'
 import { PageBackdrop } from '@/components/PageBackdrop'
+import { useLoadingHold } from '@/lib/loading'
 import { noteWin, noteLoss, type Beat } from '@/lib/streak'
 import { NO_CHAIN } from '@/lib/appmode'
 import { catsForWins } from '@/lib/season'
@@ -1477,6 +1478,8 @@ export function Cradle() {
    * has an answer without a wallet. Offering it to a holder alongside their own
    * cat is offering them a worse version of the thing they already have.
    */
+  // The loading screen waits for a connected wallet's cats (lib/loading.ts).
+  useLoadingHold(isConnected && cats === null)
   const holdsCat = isConnected && (cats?.length ?? 0) > 0
 
   const pickable = (cats ?? []).filter(c => !recordFor(c.uid).retired)

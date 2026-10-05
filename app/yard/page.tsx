@@ -6,6 +6,7 @@ import { Yard } from '@/components/Yard'
 import { FxButton } from '@/components/FxButton'
 import { useYardResidents } from '@/lib/useYardResidents'
 import { PageBackdrop } from '@/components/PageBackdrop'
+import { useLoadingHold } from '@/lib/loading'
 
 /**
  * THE YARD — ITS OWN PAGE, AND THE ONLY PLACE IT LIVES.
@@ -25,6 +26,8 @@ import { PageBackdrop } from '@/components/PageBackdrop'
  */
 export default function YardPage() {
   const { cats, busy } = useYardResidents()
+  // The loading screen waits for the yard's residents (lib/loading.ts).
+  useLoadingHold(busy && cats.length === 0)
 
   // Tell the Farcaster client the screen is ready, exactly as the other pages do.
   useEffect(() => { sdk.actions.ready().catch(() => {}) }, [])

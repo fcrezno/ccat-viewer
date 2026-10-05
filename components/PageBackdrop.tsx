@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useLoadingHold } from '@/lib/loading'
 
 /**
  * THE TITLE SCREEN'S PAGE BEHIND ANY PAGE.
@@ -21,6 +22,20 @@ export function PageBackdrop({ zone: fixed }: { zone?: string } = {}) {
   useEffect(() => {
     if (!fixed) setZone(ZONES[Math.floor(Math.random() * ZONES.length)])
   }, [fixed])
+
+  /*
+   * A CSS background is not an <img>, so the loading screen cannot see it load.
+   * Hold it until the picture is in, or the page lifts onto a flat backdrop
+   * that then pops in behind everything.
+   */
+  const [ready, setReady] = useState(false)
+  useEffect(() => {
+    if (!zone) return
+    const img = new Image()
+    img.onload = img.onerror = () => setReady(true)
+    img.src = `/title/${zone}.jpg`
+  }, [zone])
+  useLoadingHold(!ready)
 
   return (
     <>
