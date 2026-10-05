@@ -67,7 +67,8 @@ export function RobinhoodMint() {
 const s: Record<string, React.CSSProperties> = {
   page: {
     minHeight: '100dvh', color: '#f0f0f5',
-    padding: '22px 18px 40px', maxWidth: 520, margin: '0 auto',
+    // 760 on a desktop, so the cat on the stage is bigger. JP's friend, 2026-10-05: "why not use up that available width on desktop? The cats look awesome; they would look better if it were bigger" — JP: "make it bigger for desktop". A phone is narrower than any of these, so phones do not change.
+    padding: '22px 18px 40px', maxWidth: 760, margin: '0 auto',
     display: 'flex', flexDirection: 'column', gap: 16,
   },
   header:   { textAlign: 'center', paddingBottom: 4 },

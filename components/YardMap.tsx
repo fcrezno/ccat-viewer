@@ -826,7 +826,8 @@ const s: Record<string, React.CSSProperties> = {
     background: '#e0a72c', border: '1px solid #e0a72c', color: '#1a1a1a',
     font: 'inherit', fontSize: 12, cursor: 'pointer',
   },
-  shelf:    { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, marginTop: 10 },
+  // 2 x 2 on a phone, one row of four on a desktop: as many 150px columns as fit.
+  shelf:    { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8, marginTop: 10 },
   shelfBtn: {
     display: 'flex', alignItems: 'center', gap: 8, minHeight: 56,
     padding: '10px 12px', borderRadius: 12,

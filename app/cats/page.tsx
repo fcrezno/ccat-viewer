@@ -528,7 +528,8 @@ export default function Home() {
 
 /* The front page's values (components/Cradle.tsx), on the title screen's page. */
 const s: Record<string, React.CSSProperties> = {
-  page:      { minHeight: '100dvh', color: '#f0f0f5', padding: '22px 18px 40px', maxWidth: 520, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 },
+  // 900 on a desktop (it was 520). JP's friend, 2026-10-05: "why not use up that available width on desktop? The cats look awesome; they would look better if it were bigger" — JP: "make it bigger for desktop". A phone is narrower than any of these, so phones do not change.
+  page:      { minHeight: '100dvh', color: '#f0f0f5', padding: '22px 18px 40px', maxWidth: 900, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 },
   header:    { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 },
   nav:       { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   navBtn:    { padding: '6px 12px', border: '1px solid #2c2c3c', borderRadius: 10, background: 'rgba(18,18,28,0.6)' },
@@ -540,7 +541,7 @@ const s: Record<string, React.CSSProperties> = {
   stack:     { display: 'flex', flexDirection: 'column', gap: 16 },
   label:     { fontSize: 11, letterSpacing: 2, color: '#9a9ab5', margin: '0 0 12px' },
   fine:      { color: '#9a9ab5', fontSize: 12, margin: '12px 0 0', textAlign: 'center' },
-  grid:      { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 },
+  grid:      { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(30%, 170px), 1fr))', gap: 10 },
   card:      { position: 'relative', display: 'flex', flexDirection: 'column', gap: 6, padding: 6, background: '#0b0b13', border: '1px solid #21212f', borderRadius: 10, cursor: 'pointer', color: 'inherit', font: 'inherit', textAlign: 'center' },
   cardOn:    { border: '1px solid #8b5cf6' },
   cardLabel: { fontSize: 12, color: '#c4c4d8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
@@ -548,7 +549,7 @@ const s: Record<string, React.CSSProperties> = {
   mount:     { boxSizing: 'border-box', padding: 2, background: '#fdfdf8', flexShrink: 0, alignSelf: 'center' },
   mountArt:  { width: '100%', aspectRatio: '1', display: 'block', boxSizing: 'border-box', border: '4px solid #1a1a1a', objectFit: 'cover', objectPosition: 'top', background: '#e6e0d2' },
   ogBadge:   { position: 'absolute', top: 10, right: 10, padding: '2px 6px', borderRadius: 5, background: '#7c3aed', color: '#fff', fontSize: 10, letterSpacing: 1 },
-  traits:    { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 },
+  traits:    { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 8 },
   trait:     { background: '#0b0b13', border: '1px solid #21212f', borderRadius: 8, padding: '8px 10px' },
   traitKey:  { fontSize: 11, color: '#9a9ab5', textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 3 },
   traitVal:  { fontSize: 15, color: '#f0f0f5' },

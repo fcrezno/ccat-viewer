@@ -2371,7 +2371,8 @@ const s: Record<string, React.CSSProperties> = {
   page: {
     // No background of its own: PageBackdrop (or a fight's zone) is behind it.
     minHeight: '100dvh', color: '#f0f0f5',
-    padding: '22px 18px 40px', maxWidth: 520, margin: '0 auto',
+    // 760 on a desktop (it was 520, a phone's column). JP's friend, 2026-10-05: "why not use up that available width on desktop? The cats look awesome; they would look better if it were bigger" — JP: "make it bigger for desktop". A phone is narrower than any of these, so phones do not change.
+    padding: '22px 18px 40px', maxWidth: 760, margin: '0 auto',
     display: 'flex', flexDirection: 'column', gap: 16,
   },
   header: { textAlign: 'center', paddingBottom: 4 },
@@ -2451,7 +2452,7 @@ const s: Record<string, React.CSSProperties> = {
   // Centred, so the cat sits level with the middle option, GAUNTLET (JP, 2026-09-29).
   fighterRow:  { display: 'flex', gap: 16, alignItems: 'center' },
   fighterOpts: { flex: '1 1 0', minWidth: 0 },
-  fighter:     { flex: '0 0 44%', maxWidth: 240, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginTop: 0 },
+  fighter:     { flex: '0 0 44%', maxWidth: 320, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginTop: 0 },
   fighterName: { margin: 0, fontSize: 12, letterSpacing: 1, color: '#f0f0f5', textAlign: 'center', overflowWrap: 'anywhere' },
   // 4px dark edge inside a 2px paper ring — the ring is a shadow, so it needs the 2px margin to show.
   fighterPic:  { width: 'calc(100% - 4px)', margin: 2, aspectRatio: '1', objectFit: 'cover', objectPosition: 'top', display: 'block', boxSizing: 'border-box', border: '4px solid #1a1a1a', boxShadow: '0 0 0 2px #fdfdf8', background: '#e6e0d2' },

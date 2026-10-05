@@ -66,7 +66,8 @@ export default function YardPage() {
 const s: Record<string, React.CSSProperties> = {
   page: {
     minHeight: '100dvh', color: '#f0f0f5',
-    padding: '22px 18px 40px', maxWidth: 560, margin: '0 auto',
+    // 1120, not 560, so a desktop map is twice the size. JP's friend, 2026-10-05: "why not use up that available width on desktop? The cats look awesome; they would look better if it were bigger" — JP: "make it bigger for desktop". A phone is narrower than any of these, so phones do not change.
+    padding: '22px 18px 40px', maxWidth: 1120, margin: '0 auto',
     display: 'flex', flexDirection: 'column', gap: 12,
   },
   // Two rows: a 120px button either side of the title left it 79px on a phone.
