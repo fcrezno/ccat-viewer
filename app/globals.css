@@ -928,3 +928,67 @@ button, input, select, textarea, optgroup {
   0%, 55% { opacity: 1; }
   100%    { opacity: 0; }
 }
+
+/*
+ * WINDOWS 98 WINDOWS for the front page's panels. JP, 2026-10-06: "make the main
+ * windows look like a old windows 98 window". The 98 parts — the grey #c0c0c0
+ * frame with its bevel (white and silver light from the top left, grey and black
+ * shadow to the bottom right), the navy-to-blue title bar in bold Tahoma, the
+ * three grey caption buttons — and, on "give the window the light theme of the
+ * windows 98 look", the light grey body too, with dark text (Cradle's `s` styles).
+ */
+.win98 {
+  position: relative;
+  border: 3px solid #c0c0c0 !important;
+  border-radius: 0 !important;
+  box-shadow:
+    -1px -1px 0 0 #dfdfdf, -2px -2px 0 0 #ffffff,
+    1px 1px 0 0 #808080, 2px 2px 0 0 #0a0a0a,
+    inset 1px 1px 0 0 #808080, inset -1px -1px 0 0 #ffffff,
+    4px 6px 0 0 rgba(10, 10, 30, 0.35);
+}
+.win98::before {
+  content: attr(data-title);
+  display: block;
+  margin: -16px -16px 14px;
+  padding: 3px 64px 3px 8px;
+  border-bottom: 2px solid #c0c0c0;
+  background: linear-gradient(90deg, #000080, #1084d0);
+  color: #ffffff;
+  /* The site's own font — JP: "keep the font the same for the window borders". */
+  font-family: inherit;
+  font-size: 26px;
+  line-height: 32px;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Minimise, maximise, close: three bevelled grey buttons drawn once, as a picture. */
+.win98::after {
+  content: '';
+  position: absolute;
+  top: 12px;
+  right: 5px;
+  width: 52px;
+  height: 14px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='52' height='14' shape-rendering='crispEdges'%3E%3Cg id='b'%3E%3Crect width='16' height='14' fill='%23c0c0c0'/%3E%3Cpath d='M0 0h15M0 0v13' stroke='%23fff'/%3E%3Cpath d='M0 13.5h16M15.5 0v14' stroke='%230a0a0a'/%3E%3Cpath d='M1 12.5h14M14.5 1v12' stroke='%23808080'/%3E%3C/g%3E%3Cuse href='%23b' x='18'/%3E%3Cuse href='%23b' x='36'/%3E%3Cpath d='M4 10h6v2H4z' fill='%23000'/%3E%3Cpath d='M21 3h9v8h-9zM22 5h7v5h-7z' fill='%23000' fill-rule='evenodd'/%3E%3Cpath d='M40 3l7 7M47 3l-7 7M41 3l7 7M48 3l-7 7' stroke='%23000'/%3E%3C/svg%3E") no-repeat;
+  pointer-events: none;
+}
+
+/* 98 controls inside a window: bevelled raised buttons, sunken white fields. */
+.win98 button, .win98 a.fx-host {
+  box-shadow: inset -1px -1px 0 0 #0a0a0a, inset 1px 1px 0 0 #ffffff, inset -2px -2px 0 0 #808080, inset 2px 2px 0 0 #dfdfdf !important;
+  border-radius: 0 !important;
+}
+.win98 button:active:not(:disabled), .win98 a.fx-host:active {
+  box-shadow: inset 1px 1px 0 0 #0a0a0a, inset -1px -1px 0 0 #ffffff, inset 2px 2px 0 0 #808080, inset -2px -2px 0 0 #dfdfdf !important;
+}
+.win98 input {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: inset 1px 1px 0 0 #808080, inset -1px -1px 0 0 #ffffff, inset 2px 2px 0 0 #0a0a0a, inset -2px -2px 0 0 #dfdfdf;
+}
+.win98 input::placeholder { color: #6a6a6a; }

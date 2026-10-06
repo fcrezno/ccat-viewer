@@ -132,9 +132,9 @@ const FIELD_ALPHA = 0.3
 const FIELD_ROW = 78
 const FIELD_CELL = 96
 const FIELD_ICON = 30
-const CHECK = 32
-const CHECK_A = '#d3dceb'
-const CHECK_B = '#c9d3e4'
+export const CHECK = 32
+export const CHECK_A = '#d3dceb'
+export const CHECK_B = '#c9d3e4'
 /** px per ms that the checker and the rows fall: 20 px a second. */
 const FALL = 0.02
 /*
@@ -164,19 +164,33 @@ const ITEMS = ['pizza', 'donut', 'gameboy', 'banana', 'vinyl', 'chips', 'pineapp
  * `left`: where the parent starts on the screen. The layer is pulled back by
  * it, so the pattern is laid on the SCREEN and two pieces line up as one.
  */
-export function Checker({ ms, left = 0 }: { ms: number; left?: number }) {
+/** One turn of the colour wheel, for a checker asked to change colour (`hue`). */
+const HUE_MS = 120_000
+
+export function Checker({ ms, left = 0, width = W, height = H, hue = false }: {
+  ms: number; left?: number
+  /** The area to cover; the ladder's own stage unless said. */
+  width?: number; height?: number
+  /*
+   * The front page's checker changes colour slowly — JP, 2026-10-06: "make the
+   * checkerboard change color slowly". A hue turn over HUE_MS: the blues go
+   * through every pale colour and back. The ladder's stays blue.
+   */
+  hue?: boolean
+}) {
   const tile = CHECK * 2
   const drift = (ms * FALL) % tile
   return (
     <div style={{
       position: 'absolute',
       left: -left - tile * 2, top: -tile * 2,
-      width: W + tile * 4, height: H + tile * 4,
+      width: width + tile * 4, height: height + tile * 4,
       background: `repeating-conic-gradient(${CHECK_A} 0 25%, ${CHECK_B} 0 50%)`,
       backgroundSize: `${tile}px ${tile}px`,
       transform: `translate3d(${-drift}px, ${drift}px, 0)`,
       willChange: 'transform',
       pointerEvents: 'none',
+      filter: hue ? `hue-rotate(${Math.round(((ms % HUE_MS) / HUE_MS) * 360)}deg)` : undefined,
     }} />
   )
 }
@@ -184,7 +198,7 @@ export function Checker({ ms, left = 0 }: { ms: number; left?: number }) {
 /** A 2px ink outline round the title's glyphs: drop-shadows follow the mask. */
 const OUTLINE = 'drop-shadow(2px 0 0 #1a1a1a) drop-shadow(-2px 0 0 #1a1a1a) drop-shadow(0 2px 0 #1a1a1a) drop-shadow(0 -2px 0 #1a1a1a)'
 
-function Field({ ms, width, height }: { ms: number; width: number; height: number }) {
+export function Field({ ms, width, height, hue = false }: { ms: number; width: number; height: number; hue?: boolean }) {
   // One spare row to wrap round, and an even count so the sun-moon / items alternation survives the wrap.
   const rows = Math.ceil(height / FIELD_ROW / 2) * 2 + 2
   const span = rows * FIELD_ROW
@@ -195,7 +209,7 @@ function Field({ ms, width, height }: { ms: number; width: number; height: numbe
   const blend = smooth(clamp(((k % 1) - (1 - MORPH_FADE)) / MORPH_FADE))
   return (
     <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
-      <Checker ms={ms} />
+      <Checker ms={ms} width={width} height={height} hue={hue} />
       {Array.from({ length: rows }, (_, r) => {
         // px per ms: about 12 px a second at the top, 72 at the bottom.
         const v = 0.012 + (0.06 * r) / Math.max(1, rows - 1)

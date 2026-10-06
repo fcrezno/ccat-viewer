@@ -15,7 +15,7 @@ import { MapDive, zoneOfTurf } from '@/components/MapDive'
 import { LadderScreen } from '@/components/LadderScreen'
 import type { Float } from '@/components/FloatWord'
 import { MAX_ENERGY, restLeft, spendEnergy, stamina, type Stamina } from '@/lib/stamina'
-import { PageBackdrop } from '@/components/PageBackdrop'
+import { PageChecker } from '@/components/PageChecker'
 import { useLoadingHold } from '@/lib/loading'
 import { noteWin, noteLoss, type Beat } from '@/lib/streak'
 import { NO_CHAIN } from '@/lib/appmode'
@@ -242,7 +242,7 @@ function StreakLine({ beat }: { beat: Beat }) {
   const best = beat.record && beat.now >= 2
 
   return (
-    <section style={{ ...s.block, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+    <section className="win98" data-title="Clanker Cats" style={{ ...s.block, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
       <BitmapText text={text} scale={2} color={won ? '#5fc27e' : '#d1495b'} fx={best} />
       {best
         ? <BitmapText text="NEW BEST" scale={1} color="#e0a020" />
@@ -538,7 +538,7 @@ function SeasonBoard({ mine }: { mine: Set<string> }) {
 
   if (failed)
     return (
-      <section style={s.block}>
+      <section className="win98" data-title="Clanker Cats" style={s.block}>
         <p style={s.label}>SEASON</p>
         <p style={s.quiet}>could not reach the season board just now.</p>
       </section>
@@ -546,7 +546,7 @@ function SeasonBoard({ mine }: { mine: Set<string> }) {
 
   if (!rows)
     return (
-      <section style={s.block}>
+      <section className="win98" data-title="Clanker Cats" style={s.block}>
         <p style={s.label}>SEASON</p>
         <p style={s.quiet}>reading the season board…</p>
       </section>
@@ -554,7 +554,7 @@ function SeasonBoard({ mine }: { mine: Set<string> }) {
 
   if (rows.length === 0)
     return (
-      <section style={s.block}>
+      <section className="win98" data-title="Clanker Cats" style={s.block}>
         <p style={s.label}>{season ? `SEASON ${season}` : 'SEASON'}</p>
         <p style={s.quiet}>nobody has taken all five yet.</p>
         <p style={s.fine}>Take the gauntlet, cast the run, and this is where it goes.</p>
@@ -567,7 +567,7 @@ function SeasonBoard({ mine }: { mine: Set<string> }) {
   const list   = rest.slice(2)
 
   return (
-    <section style={s.block}>
+    <section className="win98" data-title="Clanker Cats" style={s.block}>
       <p style={s.label}>{season ? `SEASON ${season}` : 'SEASON'}</p>
 
       {/*
@@ -1603,10 +1603,18 @@ export function Cradle() {
   return (
     <main style={s.page}>
       {/* The title screen's page (JP, 2026-09-29). A fight brings the zone it is in. */}
-      {!wide && <PageBackdrop />}
+      {/* The menu stands on the ladder's checker (components/PageChecker); a fight brings its own zone. */}
+      {!wide && <PageChecker />}
       <header style={s.header}>
         {/* The name of the game, and no "preview" — the same change as the link card. */}
-        <h1 style={s.title}>CLANKER CATS</h1>
+        {/*
+          On the light checker the white heading all but vanished, so it is the
+          game's own title now: gold and waving, as the loading screen has it,
+          with a 2px ink outline that holds on any colour the checker turns to.
+        */}
+        <h1 aria-label="CLANKER CATS" style={{ ...s.title, display: 'flex', justifyContent: 'center', filter: 'drop-shadow(2px 0 0 #1a1a1a) drop-shadow(-2px 0 0 #1a1a1a) drop-shadow(0 2px 0 #1a1a1a) drop-shadow(0 -2px 0 #1a1a1a)' }}>
+          <BitmapText text="CLANKER CATS" scale={3} color="#b07a10" fx />
+        </h1>
       </header>
 
       {/*
@@ -1688,7 +1696,7 @@ export function Cradle() {
           {isConnected && cats === null && <p style={s.quiet}>looking for your cats…</p>}
 
           {isConnected && pickable.length > 0 && (
-            <section style={s.block}>
+            <section className="win98" data-title="Clanker Cats" style={s.block}>
               <p style={s.label}>SELECT YOUR CLANKER CAT!</p>
               <div style={s.grid}>
                 {pickable.map(c => {
@@ -1762,7 +1770,7 @@ export function Cradle() {
           )}
 
           {isConnected && cats?.length === 0 && (
-            <section style={s.block}>
+            <section className="win98" data-title="Clanker Cats" style={s.block}>
               <p style={{ margin: '0 0 10px' }}>No Clanker Cat in this wallet.</p>
               <a href="https://opensea.io/collection/clanker-cats" style={s.link}>find one →</a>
             </section>
@@ -1770,7 +1778,7 @@ export function Cradle() {
 
           {/* The demo is for people without a cat. A holder never sees it. */}
           {!holdsCat && (
-            <section style={s.block}>
+            <section className="win98" data-title="Clanker Cats" style={s.block}>
               <p style={s.label}>{isConnected ? 'NO CAT YET' : 'HAVE A LOOK FIRST'}</p>
               {/*
                 The guest's fighter is the cat its code rolls: the same picture and
@@ -1839,9 +1847,9 @@ export function Cradle() {
                   short plain lines rather than one long dim sentence.
                 */}
                 <div style={{ minWidth: 0 }}>
-                  <p style={{ ...s.fine0, fontSize: 13, color: '#bfbfd6', marginBottom: 4 }}>Your cat&rsquo;s code</p>
-                  <BitmapText text={myCode ? String(myCode) : '......'} scale={2} color="#ffd166" />
-                  <p style={{ ...s.fine0, fontSize: 15, lineHeight: 1.45, color: '#d6d6e6', marginTop: 6 }}>
+                  <p style={{ ...s.fine0, fontSize: 21, color: '#000080', marginBottom: 4 }}>Your cat&rsquo;s code</p>
+                  <BitmapText text={myCode ? String(myCode) : '......'} scale={2} color="#b07a10" />
+                  <p style={{ ...s.fine0, fontSize: 21, lineHeight: 1.45, color: '#1a1a1a', marginTop: 6 }}>
                     Give it to a friend, or let them scan the code. Then they can fight your cat.
                   </p>
                 </div>
@@ -1880,7 +1888,7 @@ export function Cradle() {
           )}
 
 
-          <section style={s.block}>
+          <section className="win98" data-title="Clanker Cats" style={s.block}>
             <p style={s.label}>FRIENDS</p>
             <p style={s.fine0}>Adopt a cat by its number, or shuffle through the collection.</p>
             <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
@@ -1919,7 +1927,7 @@ export function Cradle() {
 
       {/* ── ADOPT ────────────────────────────────────────────────────────── */}
       {view === 'adopt' && (
-        <section style={s.block}>
+        <section className="win98" data-title="Clanker Cats" style={s.block}>
           <p style={s.label}>ADOPT</p>
           <p style={s.fine0}>
             Any cat from either drop. Adopt one and it stands beside yours in the rankings.
@@ -1985,7 +1993,7 @@ export function Cradle() {
           */}
           <SeasonBoard mine={new Set((cats ?? []).map(c => c.uid))} />
 
-          <section style={s.block}>
+          <section className="win98" data-title="Clanker Cats" style={s.block}>
             <p style={s.label}>ON THIS DEVICE</p>
             {ranked.length === 0
               ? <p style={s.quiet}>no cats yet — connect a wallet or add a friend.</p>
@@ -2222,7 +2230,7 @@ export function Cradle() {
                 went the distance.
               */}
               {done && run && (
-                <section style={s.block}>
+                <section className="win98" data-title="Clanker Cats" style={s.block}>
                   <RunTrack run={run} perfect={perfect} />
                   <GauntletLadder run={run} />
 
@@ -2365,7 +2373,7 @@ export function Cradle() {
 
               {/* A run has its own ending, and its own buttons, above. */}
               {done && !run && (
-                <section style={s.block}>
+                <section className="win98" data-title="Clanker Cats" style={s.block}>
                   <p style={{ margin: '0 0 4px', fontSize: 16, color: result.youWon ? '#5fc27e' : '#d1495b' }}>
                     {result.youWon ? 'Your cat took it.' : 'Your cat went down.'}
                   </p>
@@ -2534,7 +2542,7 @@ const s: Record<string, React.CSSProperties> = {
   pipPrizeOff: { border: '2px solid #7a5c18', color: '#7a5c18' },
 
   page: {
-    // No background of its own: PageBackdrop (or a fight's zone) is behind it.
+    // No background of its own: PageChecker (or a fight's zone) is behind it.
     minHeight: '100dvh', color: '#f0f0f5',
     // 760 on a desktop (it was 520, a phone's column). JP's friend, 2026-10-05: "why not use up that available width on desktop? The cats look awesome; they would look better if it were bigger" — JP: "make it bigger for desktop". A phone is narrower than any of these, so phones do not change.
     padding: '22px 18px 40px', maxWidth: 760, margin: '0 auto',
@@ -2544,12 +2552,13 @@ const s: Record<string, React.CSSProperties> = {
   title:  { fontSize: 30, letterSpacing: 1, margin: 0, lineHeight: 1.1 },
   sub:    { color: '#7a7a95', fontSize: 13, margin: '4px 0 0' },
 
-  label:  { fontSize: 10, letterSpacing: 2, color: '#7a7a95', margin: '0 0 10px' },
-  quiet:  { color: '#7a7a95', fontSize: 13, margin: 0, textAlign: 'center' },
-  fine:   { color: '#63637d', fontSize: 11, margin: '8px 0 0', textAlign: 'center' },
-  fine0:  { color: '#63637d', fontSize: 11, margin: 0 },
+  label:  { fontSize: 22, letterSpacing: 2, color: '#000080', margin: '0 0 12px' },
+  quiet:  { color: '#1a1a1a', fontSize: 21, margin: 0, textAlign: 'center' },
+  fine:   { color: '#1a1a1a', fontSize: 20, margin: '8px 0 0', textAlign: 'center' },
+  fine0:  { color: '#1a1a1a', fontSize: 20, margin: 0 },
 
-  block:  { background: '#12121c', border: '1px solid #21212f', borderRadius: 14, padding: 16 },
+  // Windows 98, light (JP, 2026-10-06): the grey window body; the frame and title bar are .win98 in globals.css.
+  block:  { background: '#c0c0c0', color: '#000000', border: '1px solid #c0c0c0', borderRadius: 0, padding: 16 },
 
   grid:   { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 },
   card:   { padding: 0, background: '#0b0b13', border: '2px solid #21212f', borderRadius: 10, overflow: 'hidden', cursor: 'pointer', color: 'inherit', fontFamily: 'inherit' },
@@ -2596,10 +2605,10 @@ const s: Record<string, React.CSSProperties> = {
   rankPic: { width: 34, height: 34, borderRadius: 6, objectFit: 'cover', imageRendering: 'pixelated', background: '#0b0b13', flexShrink: 0 },
   tiny: { background: 'transparent', border: 0, color: '#63637d', fontSize: 16, cursor: 'pointer', fontFamily: 'inherit' },
 
-  input: { flex: 1, minWidth: 0, background: '#0b0b13', border: '1px solid #21212f', borderRadius: 10, color: '#f0f0f5', padding: '10px 12px', fontSize: 13, fontFamily: 'inherit' },
+  input: { flex: 1, minWidth: 0, background: '#0b0b13', border: '1px solid #21212f', borderRadius: 10, color: '#f0f0f5', padding: '10px 12px', fontSize: 20, fontFamily: 'inherit' },
 
   primary: { width: '100%', background: '#8b5cf6', color: '#fff', border: 0, borderRadius: 10, padding: '11px 16px', fontSize: 14, letterSpacing: 1, cursor: 'pointer', fontFamily: 'inherit' },
-  ghost:   { width: '100%', background: 'transparent', color: '#7a7a95', border: '1px solid #21212f', borderRadius: 10, padding: '9px 16px', fontSize: 12, letterSpacing: 1, cursor: 'pointer', fontFamily: 'inherit', marginTop: 10 },
+  ghost:   { width: '100%', background: '#c0c0c0', color: '#000000', border: 0, borderRadius: 10, padding: '9px 16px', fontSize: 12, letterSpacing: 1, cursor: 'pointer', fontFamily: 'inherit', marginTop: 10 },
 
   /*
    * THE MODE LIST. Each button carries one line under it saying what the mode
@@ -2607,18 +2616,18 @@ const s: Record<string, React.CSSProperties> = {
    * entirely in what happens afterwards and none of it is visible in the name.
    */
   modes:    { marginTop: 16, borderTop: '1px solid #21212f', paddingTop: 16 },
-  modeFine: { color: '#63637d', fontSize: 11, margin: '6px 0 14px', textAlign: 'center', lineHeight: 1.5 },
+  modeFine: { color: '#1a1a1a', fontSize: 20, margin: '6px 0 14px', textAlign: 'center', lineHeight: 1.5 },
   /* The gauntlet is the one with something at stake, so it is the one that is gold. */
-  gauntlet: { width: '100%', background: 'transparent', color: '#e0a72c', border: '1px solid #7a5c18', borderRadius: 10, padding: '10px 16px', fontSize: 13, letterSpacing: 1, cursor: 'pointer', fontFamily: 'inherit', marginTop: 10 },
+  gauntlet: { width: '100%', background: '#3a2a08', color: '#e0a72c', border: 0, borderRadius: 10, padding: '10px 16px', fontSize: 13, letterSpacing: 1, cursor: 'pointer', fontFamily: 'inherit', marginTop: 10 },
   // The yard's green, the colour this page already uses for good news. A link, drawn as a button.
-  yardBtn:  { display: 'block', boxSizing: 'border-box', width: '100%', background: 'transparent', color: '#7ee081', border: '1px solid #2f5a34', borderRadius: 10, padding: '10px 16px', fontSize: 13, letterSpacing: 1, textAlign: 'center', textDecoration: 'none', fontFamily: 'inherit', marginTop: 10 },
+  yardBtn:  { display: 'block', boxSizing: 'border-box', width: '100%', background: '#173a1d', color: '#7ee081', border: 0, borderRadius: 10, padding: '10px 16px', fontSize: 13, letterSpacing: 1, textAlign: 'center', textDecoration: 'none', fontFamily: 'inherit', marginTop: 10 },
 
   /* The menu beside your fighter: options LEFT and compact, the cat gets the room. */
   // Centred, so the cat sits level with the middle option, GAUNTLET (JP, 2026-09-29).
   fighterRow:  { display: 'flex', gap: 16, alignItems: 'center' },
   fighterOpts: { flex: '1 1 0', minWidth: 0 },
   fighter:     { flex: '0 0 44%', maxWidth: 320, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginTop: 0 },
-  fighterName: { margin: 0, fontSize: 12, letterSpacing: 1, color: '#f0f0f5', textAlign: 'center', overflowWrap: 'anywhere' },
+  fighterName: { margin: 0, fontSize: 24, letterSpacing: 1, color: '#000000', textAlign: 'center', overflowWrap: 'anywhere' },
   // 4px dark edge inside a 2px paper ring — the ring is a shadow, so it needs the 2px margin to show.
   fighterPic:  { width: 'calc(100% - 4px)', margin: 2, aspectRatio: '1', objectFit: 'cover', objectPosition: 'top', display: 'block', boxSizing: 'border-box', border: '4px solid #1a1a1a', boxShadow: '0 0 0 2px #fdfdf8', background: '#e6e0d2' },
   /* A picked card keeps the same box so the grid does not move when you choose. */
@@ -2686,7 +2695,7 @@ const s: Record<string, React.CSSProperties> = {
   boardRowMine: { border: '1px solid #7a5c18', background: 'rgba(224,167,44,0.08)' },
   boardRank:    { width: 22, textAlign: 'center', fontSize: 12, color: '#63637d' },
   boardPts:     { fontSize: 13, color: '#e0a72c', fontVariantNumeric: 'tabular-nums' },
-  link:    { color: '#a78bfa', fontSize: 14 },
+  link:    { color: '#000080', fontSize: 14 },
   soundRow: {
     display: 'flex', alignItems: 'center', gap: 10,
     justifyContent: 'flex-end', marginTop: -8,
@@ -2726,17 +2735,17 @@ function EnergyLine({ st }: { st: Stamina | null }) {
   if (!st) return null
   if (st.resting && st.until) {
     return (
-      <p style={{ margin: '2px 0 0', fontSize: 12, color: '#c9a2ff', textAlign: 'center' }}>
+      <p style={{ margin: '2px 0 0', fontSize: 20, color: '#5a2d91', textAlign: 'center' }}>
         resting · back in {restLeft(st.until)} ·{' '}
-        <a href="/yard" style={{ color: '#9be89b' }}>time in the yard cuts it</a>
+        <a href="/yard" style={{ color: '#1e6b24' }}>time in the yard cuts it</a>
       </p>
     )
   }
   return (
-    <p style={{ margin: '2px 0 0', fontSize: 12, color: '#bfbfd6', textAlign: 'center' }} aria-label={`energy ${st.energy} of ${MAX_ENERGY}`}>
+    <p style={{ margin: '2px 0 0', fontSize: 20, color: '#1a1a1a', textAlign: 'center' }} aria-label={`energy ${st.energy} of ${MAX_ENERGY}`}>
       energy{' '}
-      <span style={{ letterSpacing: 2, color: '#ffd166' }}>{'●'.repeat(st.energy)}</span>
-      <span style={{ letterSpacing: 2, color: '#55556a' }}>{'●'.repeat(MAX_ENERGY - st.energy)}</span>
+      <span style={{ letterSpacing: 2, color: '#b07a10' }}>{'●'.repeat(st.energy)}</span>
+      <span style={{ letterSpacing: 2, color: '#8a8a8a' }}>{'●'.repeat(MAX_ENERGY - st.energy)}</span>
       {' '}· a lost run costs one
     </p>
   )
