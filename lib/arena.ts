@@ -1,6 +1,8 @@
 import { deck, type ScriptLine } from '@/lib/script'
 import { movesFor } from '@/lib/moves'
 import { AWARDS } from '@/lib/score'
+import { STRAY_NAMES } from '@/lib/strayNames'
+export { strayName } from '@/lib/strayNames'
 
 /**
  * A PREVIEW OF THE FIGHT FROM THE MAIN GAME.
@@ -141,14 +143,7 @@ function twoMoves(r: () => number, type: CatType): string[] {
  * Ordinary names on purpose. These sit next to real cats in the same log, and a
  * joke name would make the invented ones the loud ones.
  */
-const STRAY_NAMES = [
-  'Mittens', 'Socks', 'Tabby', 'Smudge', 'Pepper', 'Biscuit', 'Marmalade', 'Nutmeg',
-  'Domino', 'Patches', 'Freckles', 'Bandit', 'Clover', 'Pumpkin', 'Sable', 'Ash',
-  'Willow', 'Juniper', 'Poppy', 'Hazel', 'Olive', 'Maple', 'Cinder', 'Dusty',
-  'Boots', 'Ziggy', 'Pickles', 'Waffles', 'Noodle', 'Dumpling', 'Bean', 'Peanut',
-  'Shadow', 'Midnight', 'Storm', 'Comet', 'Rocket', 'Pebble', 'Flint', 'Slate',
-  'Ginger', 'Saffron', 'Honey', 'Toffee', 'Custard', 'Muffin', 'Crumpet', 'Scone',
-] as const
+/* The names themselves, and a guest's: lib/strayNames — the page needs them, and the page must not load this file. */
 
 /** A cat invented on the spot. Endless opponents, none of them anyone's property. */
 export function randomCat(r: () => number): ArenaCat {

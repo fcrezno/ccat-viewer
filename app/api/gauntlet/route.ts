@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isAddress } from 'viem'
 import { fetchCats } from '@/lib/collection'
-import { ownedCat } from '@/lib/arena'
+import { ownedCat, strayName } from '@/lib/arena'
 import {
   ROUNDS, afterRound, canContinue, isChampion, playRound, runPairs,
   type RunState, type Runner,
@@ -89,10 +89,10 @@ export async function POST(req: NextRequest) {
     /*
      * A GUEST MAY NAME ITS CAT, and the name is cleaned here exactly as a
      * holder's is — it goes into the log and into a cast, so it is never taken
-     * on trust. The number is the fallback, never a blank.
+     * on trust. A stray's name off the code is the fallback, never a blank.
      */
     const given = (name ?? '').replace(/\s+/g, ' ').trim().slice(0, 32)
-    const label = given || `Guest #${id}`
+    const label = given || strayName(id)
     const cat = ownedCat(id, label)
     you = {
       /*

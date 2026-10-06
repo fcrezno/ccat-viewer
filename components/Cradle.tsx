@@ -5,6 +5,7 @@ import { useAccount, useConnect } from 'wagmi'
 import sdk from '@farcaster/miniapp-sdk'
 import { COLLECTIONS, getCollection, parseUid, type Cat } from '@/lib/collection'
 import type { FightResult, LogLine } from '@/lib/arena'
+import { strayName } from '@/lib/strayNames'
 import { useSound } from '@/lib/useSound'
 import { trackForRound } from '@/lib/music'
 import { BitmapText } from '@/components/BitmapText'
@@ -1802,7 +1803,7 @@ export function Cradle() {
                 </div>
                 {myCode > 0 && (
                   <FighterPortrait
-                    name={nameFor(`guest:${myCode}`) ?? `Guest #${myCode}`}
+                    name={nameFor(`guest:${myCode}`) ?? strayName(myCode)}
                     src={`/api/cat-art?seed=${myCode}`}
                   />
                 )}

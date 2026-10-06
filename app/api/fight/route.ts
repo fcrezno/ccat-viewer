@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isAddress } from 'viem'
 import { fetchCats } from '@/lib/collection'
-import { fight, ownedCat, randomCat, seeded, type ArenaCat } from '@/lib/arena'
+import { fight, ownedCat, randomCat, seeded, strayName, type ArenaCat } from '@/lib/arena'
 import { pickRoster } from '@/lib/roster'
 
 /**
@@ -63,7 +63,7 @@ function rivalCode(v: unknown): number | null {
  */
 function guestCat(id: number, label?: string): ArenaCat {
   const given = (label ?? '').replace(/\s+/g, ' ').trim().slice(0, 32)
-  const cat = ownedCat(String(id), given || `Guest #${id}`)
+  const cat = ownedCat(String(id), given || strayName(id))
   cat.mine = false
   cat.art = art(id)
   return cat
@@ -141,7 +141,7 @@ export async function POST(req: NextRequest) {
      */
     const gid = Number.isInteger(guest) && (guest as number) > 0 ? String(guest) : null
     const given = (name ?? '').replace(/\s+/g, ' ').trim().slice(0, 32)
-    const you = gid ? ownedCat(gid, given || `Guest #${gid}`) : randomCat(r)
+    const you = gid ? ownedCat(gid, given || strayName(gid)) : randomCat(r)
     if (!gid) you.label = 'Demo Cat'
     you.mine = true
     you.art = art(gid ? Number(gid) : seed)
