@@ -1839,7 +1839,7 @@ export function Cradle() {
                 one. They do not need to: an exhibition does not count, so they
                 fight for the fight and the record starts when they adopt.
               */}
-              <p style={{ ...s.label, marginTop: 20 }}>FIGHT A FRIEND</p>
+              <p style={{ ...s.label, marginTop: 8 }}>FIGHT A FRIEND</p>
               <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                 {/*
                   THE CODE AS A PICTURE. Reading six digits aloud is the worst part
