@@ -2621,7 +2621,8 @@ const s: Record<string, React.CSSProperties> = {
 
   input: { flex: 1, minWidth: 0, background: '#0b0b13', border: '1px solid #21212f', borderRadius: 10, color: '#f0f0f5', padding: '10px 12px', fontSize: 20, fontFamily: 'inherit' },
 
-  primary: { width: '100%', background: '#8b5cf6', color: '#fff', border: 0, borderRadius: 10, padding: '11px 16px', fontSize: 14, letterSpacing: 1, cursor: 'pointer', fontFamily: 'inherit' },
+  // Hover fills from the Windows 98 palette (JP: "make the colors work better"): navy, maroon, green.
+  primary: { width: '100%', background: '#000080', color: '#fff', border: 0, borderRadius: 10, padding: '11px 16px', fontSize: 14, letterSpacing: 1, cursor: 'pointer', fontFamily: 'inherit' },
   ghost:   { width: '100%', background: '#c0c0c0', color: '#000000', border: 0, borderRadius: 10, padding: '9px 16px', fontSize: 12, letterSpacing: 1, cursor: 'pointer', fontFamily: 'inherit', marginTop: 10 },
 
   /*
@@ -2630,11 +2631,11 @@ const s: Record<string, React.CSSProperties> = {
    * entirely in what happens afterwards and none of it is visible in the name.
    */
   modes:    { marginTop: 16, borderTop: '1px solid #21212f', paddingTop: 16 },
-  modeFine: { color: '#1a1a1a', fontSize: 20, margin: '6px 0 14px', textAlign: 'center', lineHeight: 1.5 },
+  modeFine: { color: '#1a1a1a', fontSize: 20, margin: '6px 0 20px', textAlign: 'center', lineHeight: 1.3, textWrap: 'balance' },
   /* The gauntlet is the one with something at stake, so it is the one that is gold. */
-  gauntlet: { width: '100%', background: '#3a2a08', color: '#e0a72c', border: 0, borderRadius: 10, padding: '10px 16px', fontSize: 13, letterSpacing: 1, cursor: 'pointer', fontFamily: 'inherit', marginTop: 10 },
+  gauntlet: { width: '100%', background: '#800000', color: '#e0a72c', border: 0, borderRadius: 10, padding: '10px 16px', fontSize: 13, letterSpacing: 1, cursor: 'pointer', fontFamily: 'inherit', marginTop: 10 },
   // The yard's green, the colour this page already uses for good news. A link, drawn as a button.
-  yardBtn:  { display: 'block', boxSizing: 'border-box', width: '100%', background: '#173a1d', color: '#7ee081', border: 0, borderRadius: 10, padding: '10px 16px', fontSize: 13, letterSpacing: 1, textAlign: 'center', textDecoration: 'none', fontFamily: 'inherit', marginTop: 10 },
+  yardBtn:  { display: 'block', boxSizing: 'border-box', width: '100%', background: '#004d00', color: '#7ee081', border: 0, borderRadius: 10, padding: '10px 16px', fontSize: 13, letterSpacing: 1, textAlign: 'center', textDecoration: 'none', fontFamily: 'inherit', marginTop: 10 },
 
   /* The menu beside your fighter: options LEFT and compact, the cat gets the room. */
   // Centred, so the cat sits level with the middle option, GAUNTLET (JP, 2026-09-29).
@@ -2749,14 +2750,14 @@ function EnergyLine({ st }: { st: Stamina | null }) {
   if (!st) return null
   if (st.resting && st.until) {
     return (
-      <p style={{ margin: '2px 0 0', fontSize: 20, color: '#5a2d91', textAlign: 'center' }}>
+      <p style={{ margin: '-14px 0 20px', fontSize: 20, color: '#000080', textAlign: 'center', textWrap: 'balance' }}>
         resting · back in {restLeft(st.until)} ·{' '}
         <a href="/yard" style={{ color: '#1e6b24' }}>time in the yard cuts it</a>
       </p>
     )
   }
   return (
-    <p style={{ margin: '2px 0 0', fontSize: 20, color: '#1a1a1a', textAlign: 'center' }} aria-label={`energy ${st.energy} of ${MAX_ENERGY}`}>
+    <p style={{ margin: '-14px 0 20px', fontSize: 20, color: '#1a1a1a', textAlign: 'center' }} aria-label={`energy ${st.energy} of ${MAX_ENERGY}`}>
       energy{' '}
       <span style={{ letterSpacing: 2, color: '#b07a10' }}>{'●'.repeat(st.energy)}</span>
       <span style={{ letterSpacing: 2, color: '#8a8a8a' }}>{'●'.repeat(MAX_ENERGY - st.energy)}</span>

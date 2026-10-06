@@ -992,3 +992,37 @@ button, input, select, textarea, optgroup {
   box-shadow: inset 1px 1px 0 0 #808080, inset -1px -1px 0 0 #ffffff, inset 2px 2px 0 0 #0a0a0a, inset -2px -2px 0 0 #dfdfdf;
 }
 .win98 input::placeholder { color: #6a6a6a; }
+
+/*
+ * 98 BUTTONS AT REST, THEIR OWN COLOUR ON HOVER. JP, 2026-10-06: "the buttons
+ * should be the same as the window unless mouse overed". At rest a button in a
+ * window is plain 98 grey with black lettering; hovered or keyboard-focused, its
+ * own fill and its glowing label (FxLabel's tone) come back. `!important` beats
+ * the glow's animated colour, so on a touch screen — where nothing is hovered
+ * and the labels always animate — the lettering still stays black on grey.
+ */
+.win98 .fx-host:not(:hover):not(:focus-visible),
+.win98 .fx-host:disabled {
+  background: #c0c0c0 !important;
+  color: #000000 !important;
+}
+.win98 .fx-host:not(:hover):not(:focus-visible) .fx-g { background-color: #000000 !important; }
+.win98 .fx-host:disabled .fx-g { background-color: #808080 !important; }
+
+/*
+ * The change of colour, animated — JP: "i would also like a little animation when
+ * u hover over when the color changes". The fill comes in over four quick steps,
+ * the way 98 redrew things, and the button lifts a pixel; it settles back the
+ * same way when the pointer leaves.
+ */
+.win98 .fx-host {
+  transition: background-color 0.16s steps(4, end), transform 0.12s ease-out;
+}
+.win98 .fx-host:hover:not(:disabled),
+.win98 .fx-host:focus-visible {
+  transform: translateY(-1px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .win98 .fx-host { transition: none; }
+  .win98 .fx-host:hover:not(:disabled), .win98 .fx-host:focus-visible { transform: none; }
+}
