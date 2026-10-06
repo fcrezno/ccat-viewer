@@ -140,7 +140,7 @@ const INK = '#1a1a1a'
 const NAME_EDGE = [[2, 0], [-2, 0], [0, 2], [0, -2], [1, 1], [-1, 1], [1, -1], [-1, -1]]
   .map(([x, y]) => `drop-shadow(${x}px ${y}px 0 #000)`).join(' ')
 
-function FighterPortrait({ name, src, pixel = true }: { name: string; src?: string; pixel?: boolean }) {
+function FighterPortrait({ name, src, pixel = true, children }: { name: string; src?: string; pixel?: boolean; children?: React.ReactNode }) {
   return (
     <div style={s.fighter}>
       {src
@@ -158,6 +158,7 @@ function FighterPortrait({ name, src, pixel = true }: { name: string; src?: stri
           <BitmapText text={name} scale={2} color="#ffffff" />
         </div>
       </div>
+      {children}
     </div>
   )
 }
@@ -1775,7 +1776,7 @@ export function Cradle() {
                     name={nameFor(picked.uid) ?? picked.meta?.name ?? `#${picked.id}`}
                     src={picked.meta?.image}
                     pixel={getCollection(picked.collection).pixelArt}
-                  />
+                  ><CatLinks /></FighterPortrait>
                 </div>
               ) : (
                 <p style={s.fine}>pick a cat to choose a mode</p>
@@ -1827,7 +1828,7 @@ export function Cradle() {
                   <FighterPortrait
                     name={nameFor(`guest:${myCode}`) ?? strayName(myCode)}
                     src={`/api/cat-art?seed=${myCode}`}
-                  />
+                  ><CatLinks /></FighterPortrait>
                 )}
               </div>
 
@@ -2504,7 +2505,7 @@ export function Cradle() {
         rather than behind a menu: this is a mini app on a phone, and a menu to
         reach three links is a menu too many.
       */}
-      <nav style={s.nav}>
+      {view !== 'home' && <nav style={s.nav}>
         {/* The idle game (/game) is unlinked for now (JP, 2026-09-29: "remove the idle game tab for now"). */}
         <a href="/cats" className="fx-host" style={s.navLink}><FxLabel text="YOUR CATS" tone="grey" /></a>
         {/*
@@ -2520,7 +2521,7 @@ export function Cradle() {
           in the app binary. It is not in it.
         */}
         {!NO_CHAIN && <a href="/mint" className="fx-host" style={s.navLink}><FxLabel text="MINT" tone="grey" /></a>}
-      </nav>
+      </nav>}
 
       <footer style={s.footer}>Clanker Cats — the full game is being built in s&amp;box</footer>
     </main>
@@ -2639,7 +2640,8 @@ const s: Record<string, React.CSSProperties> = {
 
   /* The menu beside your fighter: options LEFT and compact, the cat gets the room. */
   // Centred, so the cat sits level with the middle option, GAUNTLET (JP, 2026-09-29).
-  fighterRow:  { display: 'flex', gap: 16, alignItems: 'center' },
+  // Top-aligned: with the links under the portrait the right column is the taller one.
+  fighterRow:  { display: 'flex', gap: 16, alignItems: 'flex-start' },
   fighterOpts: { flex: '1 1 0', minWidth: 0 },
   fighter:     { flex: '0 0 44%', maxWidth: 320, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginTop: 0 },
   fighterName: { margin: 0, fontSize: 24, letterSpacing: 1, color: '#000000', textAlign: 'center', overflowWrap: 'anywhere' },
@@ -2739,6 +2741,8 @@ const s: Record<string, React.CSSProperties> = {
     color: '#7a7a95', fontSize: 11, letterSpacing: 1, textDecoration: 'none',
     border: '1px solid #21212f', borderRadius: 999, padding: '3px 14px',
   },
+  // Under the portrait (CatLinks): navy on hover, like QUICK FIGHT.
+  catLink: { flex: 1, display: 'flex', justifyContent: 'center', whiteSpace: 'nowrap', textDecoration: 'none', background: '#000080', padding: '5px 8px' },
   footer:  { marginTop: 12, textAlign: 'center', color: '#3f3f55', fontSize: 10, letterSpacing: 1 },
 }
 
@@ -2763,5 +2767,20 @@ function EnergyLine({ st }: { st: Stamina | null }) {
       <span style={{ letterSpacing: 2, color: '#8a8a8a' }}>{'●'.repeat(MAX_ENERGY - st.energy)}</span>
       {' '}· a lost run costs one
     </p>
+  )
+}
+
+/**
+ * YOUR CATS and MINT under the portrait on the menu — JP, 2026-10-06: "add these
+ * buttons underneath the cat pfp". 98 buttons like the rest of the window: grey
+ * at rest, their colour on hover (.win98 .fx-host). MINT is left out of the app
+ * build exactly as in the nav (NO_CHAIN): cats are won there, not bought.
+ */
+function CatLinks() {
+  return (
+    <div style={{ display: 'flex', gap: 8, marginTop: 12, width: '100%' }}>
+      <a href="/cats" className="fx-host" style={s.catLink}><FxLabel text="YOUR CATS" tone="light" /></a>
+      {!NO_CHAIN && <a href="/mint" className="fx-host" style={s.catLink}><FxLabel text="MINT" tone="light" /></a>}
+    </div>
   )
 }

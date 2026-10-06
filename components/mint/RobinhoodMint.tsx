@@ -82,7 +82,7 @@ const s: Record<string, React.CSSProperties> = {
   // Light Windows 98 windows, as on every page (JP, 2026-10-06).
   label:    { fontSize: 22, letterSpacing: 2, color: '#000080', margin: '0 0 12px' },
   block:    { background: '#c0c0c0', color: '#000000', border: '1px solid #c0c0c0', borderRadius: 0, padding: 16 },
-  count:    { color: '#1a1a1a', fontSize: 21, margin: '10px 0 0', textAlign: 'center' },
+  count:    { color: '#1a1a1a', fontSize: 28, margin: '10px 0 0', textAlign: 'center' },
   countNum: { color: '#000080', fontWeight: 'normal' },
   modeFine: { color: '#1a1a1a', fontSize: 20, margin: '6px 0 20px', textAlign: 'center', lineHeight: 1.3, textWrap: 'balance' },
   primary:  { display: 'block', boxSizing: 'border-box', width: '100%', background: '#000080', color: '#fff', borderRadius: 0, padding: '11px 16px', fontSize: 14, letterSpacing: 1, textAlign: 'center', textDecoration: 'none' },

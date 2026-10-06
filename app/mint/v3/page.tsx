@@ -6,6 +6,7 @@ import { formatUnits, parseEventLogs } from 'viem'
 import { V3, V3_ABI, V3_DEPLOYED, V3_MINT_ERRORS, RUN_DOOR } from '@/lib/mintv3'
 import { robinhood } from '@/lib/chains'
 import { TitleScreen } from '@/components/TitleScreen'
+import { PageChecker } from '@/components/PageChecker'
 import { FxButton } from '@/components/FxButton'
 import { useWebConnectors } from '@/lib/useWebConnectors'
 
@@ -252,6 +253,7 @@ export default function MintV3Page() {
 
   return (
     <div style={s.root}>
+      <PageChecker />
       <div style={s.header}>
         <span />
         <a href="/" style={s.navLink}>← the game</a>
@@ -263,6 +265,9 @@ export default function MintV3Page() {
         CLAIM YOUR CAT where PRESS START blinks. Clicking it brings the claim up.
       */}
       <TitleScreen onStart={() => actionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })} />
+
+      {/* Everything under the title screen in one light Windows 98 window, as on every page (JP, 2026-10-06). */}
+      <section className="win98" data-title="Claim a Robinhood Cat" style={s.window}>
 
       {/* This wallet's own cat, once it has one. */}
       {catId !== null && (
@@ -345,37 +350,40 @@ export default function MintV3Page() {
         <div style={s.howStep}><b style={s.howNum}>3</b> <span><span style={s.howLabel}>Burn (optional).</span> Burn 111 BUN through your cat and it becomes a BunBurner, a trait it keeps for good. 30% goes to the agents, 30% to the creator, 40% is burned.</span></div>
       </div>
 
+      </section>
+
       <div style={s.footnote}>Free · one per wallet · burning BUN is optional</div>
     </div>
   )
 }
 
 const s: Record<string, React.CSSProperties> = {
-  root:         { background: 'transparent', minHeight: '100vh', color: 'white', padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 },
+  window:       { width: '100%', maxWidth: 440, boxSizing: 'border-box', background: '#c0c0c0', color: '#000000', border: '1px solid #c0c0c0', borderRadius: 0, padding: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 },
+  root:         { background: 'transparent', minHeight: '100vh', color: '#000000', padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 },
   header:       { width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  logo:         { fontSize: 16, fontWeight: 'bold', letterSpacing: 1 },
-  navLink:      { fontSize: 12, color: '#7c3aed', textDecoration: 'none' },
+  logo:         { fontSize: 21, fontWeight: 'bold', letterSpacing: 1 },
+  navLink:      { fontSize: 17, color: '#000080', textDecoration: 'none' },
   // 1000x796 art, so 200x159 keeps its shape; nearest-neighbour keeps the pixels.
-  playBtn:      { width: '100%', maxWidth: 360, boxSizing: 'border-box', marginTop: 8, padding: '11px 18px', borderRadius: 12, background: 'transparent', color: '#e0a72c', border: '1px solid #7a5c18', fontSize: 14, letterSpacing: 1, textAlign: 'center', textDecoration: 'none' },
-  how:          { width: '100%', maxWidth: 360, boxSizing: 'border-box', marginTop: 12, padding: 16, borderRadius: 12, border: '1px solid #21212f', background: '#0e0e18', display: 'flex', flexDirection: 'column', gap: 10 },
-  howHead:      { fontSize: 11, letterSpacing: 2, color: '#7a7a95' },
-  howStep:      { display: 'flex', gap: 10, fontSize: 13, color: '#aaa', lineHeight: 1.55, fontWeight: 'normal' },
-  howLabel:     { color: '#e8e8f0' },
-  howNum:       { color: '#e0a72c', fontWeight: 'normal', minWidth: 14 },
-  heroBox:      { width: 200, height: 159, marginTop: 20, borderRadius: 8, overflow: 'hidden', border: '4px solid #21212f', background: '#12121c' },
+  playBtn:      { width: '100%', maxWidth: 360, boxSizing: 'border-box', marginTop: 8, padding: '11px 18px', borderRadius: 0, background: 'transparent', color: '#806000', border: '1px solid #7a5c18', fontSize: 19, letterSpacing: 1, textAlign: 'center', textDecoration: 'none' },
+  how:          { width: '100%', maxWidth: 360, boxSizing: 'border-box', marginTop: 12, padding: 16, borderRadius: 0, border: 0, background: '#ffffff', boxShadow: 'inset 1px 1px 0 0 #808080, inset -1px -1px 0 0 #ffffff, inset 2px 2px 0 0 #0a0a0a, inset -2px -2px 0 0 #dfdfdf', display: 'flex', flexDirection: 'column', gap: 10 },
+  howHead:      { fontSize: 16, letterSpacing: 2, color: '#000080' },
+  howStep:      { display: 'flex', gap: 10, fontSize: 18, color: '#1a1a1a', lineHeight: 1.55, fontWeight: 'normal' },
+  howLabel:     { color: '#000000' },
+  howNum:       { color: '#806000', fontWeight: 'normal', minWidth: 14 },
+  heroBox:      { width: 200, height: 159, marginTop: 20, borderRadius: 8, overflow: 'hidden', border: '4px solid #21212f', background: '#ffffff' },
   heroBurner:   { border: '4px solid #e0a72c', boxShadow: '0 0 18px rgba(224,167,44,0.35)' },
   heroImg:      { width: '100%', height: '100%', display: 'block', imageRendering: 'pixelated' },
-  title:        { fontSize: 20, fontWeight: 'normal', color: '#ddd' },
-  subtitle:     { fontSize: 13, color: '#666', marginBottom: 8 },
-  primaryBtn:   { width: '100%', maxWidth: 360, padding: '11px 24px', borderRadius: 12, background: '#7c3aed', color: 'white', border: 'none', cursor: 'pointer', fontSize: 15, fontWeight: 'normal', textAlign: 'center', textDecoration: 'none' },
-  burnBtn:      { width: '100%', maxWidth: 360, padding: '10px 24px', borderRadius: 12, background: 'transparent', color: '#e0a72c', border: '1px solid #7a5c18', cursor: 'pointer', fontSize: 14, fontWeight: 'normal', textAlign: 'center' },
-  secondaryBtn: { width: '100%', maxWidth: 360, padding: '10px 24px', borderRadius: 12, background: '#1e1e2e', color: '#ccc', border: 'none', cursor: 'pointer', fontSize: 14, textAlign: 'center', textDecoration: 'none' },
-  smallBtn:     { padding: '8px 14px', borderRadius: 10, background: '#1e1e2e', color: '#ccc', border: 'none', cursor: 'pointer', fontSize: 13 },
-  input:        { flex: 1, minWidth: 0, padding: '10px 12px', borderRadius: 10, background: '#12121c', color: 'white', border: '1px solid #2a2a4e', fontSize: 13 },
+  title:        { fontSize: 20, fontWeight: 'normal', color: '#000000' },
+  subtitle:     { fontSize: 18, color: '#404040', marginBottom: 8 },
+  primaryBtn:   { width: '100%', maxWidth: 360, padding: '11px 24px', borderRadius: 0, background: '#000080', color: '#000000', border: 'none', cursor: 'pointer', fontSize: 20, fontWeight: 'normal', textAlign: 'center', textDecoration: 'none' },
+  burnBtn:      { width: '100%', maxWidth: 360, padding: '10px 24px', borderRadius: 0, background: 'transparent', color: '#806000', border: '1px solid #7a5c18', cursor: 'pointer', fontSize: 19, fontWeight: 'normal', textAlign: 'center' },
+  secondaryBtn: { width: '100%', maxWidth: 360, padding: '10px 24px', borderRadius: 0, background: '#c0c0c0', color: '#000000', border: 'none', cursor: 'pointer', fontSize: 19, textAlign: 'center', textDecoration: 'none' },
+  smallBtn:     { padding: '8px 14px', borderRadius: 0, background: '#c0c0c0', color: '#000000', border: 'none', cursor: 'pointer', fontSize: 18 },
+  input:        { flex: 1, minWidth: 0, padding: '10px 12px', borderRadius: 0, background: '#ffffff', color: '#000000', border: '1px solid #808080', fontSize: 18 },
   typedRow:     { display: 'flex', gap: 8, width: '100%', maxWidth: 360 },
-  notice:       { fontSize: 13, color: '#666', textAlign: 'center', padding: '12px 0', maxWidth: 320 },
-  burnerBadge:  { fontSize: 12, color: '#e0a72c', border: '1px solid #7a5c18', background: '#1a1408', padding: '6px 14px', borderRadius: 20, letterSpacing: 1.5, fontWeight: 'bold' },
-  error:        { fontSize: 12, color: '#ef4444', textAlign: 'center', maxWidth: 320 },
-  splitNote:    { fontSize: 11, color: '#555', textAlign: 'center', letterSpacing: 0.3, lineHeight: 1.6 },
-  footnote:     { fontSize: 11, color: '#333', marginTop: 'auto', paddingTop: 24 },
+  notice:       { fontSize: 18, color: '#404040', textAlign: 'center', padding: '12px 0', maxWidth: 320 },
+  burnerBadge:  { fontSize: 17, color: '#806000', border: '1px solid #7a5c18', background: '#ffffe1', padding: '6px 14px', borderRadius: 20, letterSpacing: 1.5, fontWeight: 'bold' },
+  error:        { fontSize: 17, color: '#a01b1b', textAlign: 'center', maxWidth: 320 },
+  splitNote:    { fontSize: 16, color: '#404040', textAlign: 'center', letterSpacing: 0.3, lineHeight: 1.6 },
+  footnote:     { fontSize: 16, color: '#1a1a1a', marginTop: 'auto', paddingTop: 24 },
 }
