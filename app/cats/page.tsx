@@ -75,11 +75,11 @@ function CatCard({ cat, selected, onClick }: { cat: Cat; selected: boolean; onCl
 function StatBar({ label, value, color }: { label: string; value: number; color: string }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#9a9ab5' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, color: '#404040' }}>
         <span style={{ textTransform: 'uppercase', letterSpacing: 1 }}>{label}</span>
         <span>{Math.round(value)}%</span>
       </div>
-      <div style={{ background: '#1a1a2e', borderRadius: 4, height: 8, overflow: 'hidden' }}>
+      <div style={{ background: '#ffffff', borderRadius: 4, height: 8, overflow: 'hidden' }}>
         <div style={{ width: `${value}%`, height: '100%', background: color, borderRadius: 4, transition: 'width 0.4s ease' }} />
       </div>
     </div>
@@ -104,7 +104,7 @@ function TamagotchiPanel({ catId }: { catId: string }) {
   const emoji = moodEmoji(m)
 
   return (
-    <section style={s.block}>
+    <section className="win98" data-title="Your Cats" style={s.block}>
       <p style={s.label}>HOW IT IS</p>
       <div style={s.tamaMessage}>{emoji} &ldquo;{catLine(stats)}&rdquo;</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
@@ -180,29 +180,29 @@ function SendPanel({ cat, onClose }: { cat: Cat; onClose: () => void }) {
 
   if (isSuccess) {
     return (
-      <section style={s.block}>
+      <section className="win98" data-title="Your Cats" style={s.block}>
         <div style={{ fontSize: 36, textAlign: 'center' as const }}>✅</div>
-        <div style={{ fontSize: 16, textAlign: 'center' as const, margin: '6px 0' }}>{meta?.name ?? `Cat #${cat.id}`} sent!</div>
-        <div style={{ fontSize: 12, color: '#9a9ab5', textAlign: 'center' as const, wordBreak: 'break-all' as const, marginBottom: 12 }}>To: {resolved ? '@' + resolved.username : target}</div>
+        <div style={{ fontSize: 20, textAlign: 'center' as const, margin: '6px 0' }}>{meta?.name ?? `Cat #${cat.id}`} sent!</div>
+        <div style={{ fontSize: 16, color: '#404040', textAlign: 'center' as const, wordBreak: 'break-all' as const, marginBottom: 12 }}>To: {resolved ? '@' + resolved.username : target}</div>
         <FxButton style={s.primary} tone="light" onClick={onClose} label="DONE" />
       </section>
     )
   }
 
   return (
-    <section style={s.block}>
+    <section className="win98" data-title="Your Cats" style={s.block}>
       <p style={s.label}>SEND THIS CAT</p>
 
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
         <Portrait src={meta?.image} pixel={col.pixelArt} size={64} />
         <div>
-          <div style={{ fontSize: 16 }}>{meta?.name ?? `Cat #${cat.id}`}</div>
-          <div style={{ fontSize: 12, color: '#9a9ab5' }}>{col.label} · {col.chain.name}</div>
+          <div style={{ fontSize: 20 }}>{meta?.name ?? `Cat #${cat.id}`}</div>
+          <div style={{ fontSize: 16, color: '#404040' }}>{col.label} · {col.chain.name}</div>
         </div>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <label style={{ fontSize: 11, color: '#9a9ab5', textTransform: 'uppercase' as const, letterSpacing: 2 }}>Send to</label>
+        <label style={{ fontSize: 15, color: '#404040', textTransform: 'uppercase' as const, letterSpacing: 2 }}>Send to</label>
         <input
           value={to}
           onChange={e => setTo(e.target.value)}
@@ -213,28 +213,28 @@ function SendPanel({ cat, onClose }: { cat: Cat; onClose: () => void }) {
           autoCapitalize="none"
         />
 
-        {looking && <div style={{ fontSize: 12, color: '#9a9ab5' }}>Looking up…</div>}
+        {looking && <div style={{ fontSize: 16, color: '#404040' }}>Looking up…</div>}
 
         {resolved && (
           <div style={s.resolvedRow}>
             {resolved.pfp && <img src={resolved.pfp} alt="" style={{ width: 22, height: 22, borderRadius: 11 }} />}
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: 13, color: '#e8e8f0' }}>@{resolved.username}</span>
-              <span style={{ fontSize: 11, color: '#9a9ab5' }}>{resolved.address.slice(0, 6)}…{resolved.address.slice(-4)}</span>
+              <span style={{ fontSize: 17, color: '#000000' }}>@{resolved.username}</span>
+              <span style={{ fontSize: 15, color: '#404040' }}>{resolved.address.slice(0, 6)}…{resolved.address.slice(-4)}</span>
             </div>
           </div>
         )}
 
         {/* Custody wallets are often inaccessible in practice — say so plainly. */}
         {resolved && !resolved.verified && (
-          <div style={{ fontSize: 12, color: '#f2d857' }}>
+          <div style={{ fontSize: 16, color: '#806000' }}>
             No verified wallet — this goes to their custody address.
           </div>
         )}
 
-        {lookupError && <div style={{ fontSize: 12, color: '#ff8080' }}>{lookupError}</div>}
+        {lookupError && <div style={{ fontSize: 16, color: '#a01b1b' }}>{lookupError}</div>}
         {to.length > 0 && !asHandle && !isRawAddr && (
-          <div style={{ fontSize: 12, color: '#ff8080' }}>Enter a 0x address or a Farcaster username</div>
+          <div style={{ fontSize: 16, color: '#a01b1b' }}>Enter a 0x address or a Farcaster username</div>
         )}
       </div>
 
@@ -250,12 +250,12 @@ function SendPanel({ cat, onClose }: { cat: Cat; onClose: () => void }) {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={s.warnBox}>
-              <div style={{ color: '#ff8080', marginBottom: 4 }}>⚠️ This cannot be undone</div>
-              Sending <span style={{ color: '#f0f0f5' }}>{meta?.name ?? `Cat #${cat.id}`}</span> to<br />
-              {resolved && <span style={{ color: '#f0f0f5' }}>@{resolved.username}<br /></span>}
+              <div style={{ color: '#a01b1b', marginBottom: 4 }}>⚠️ This cannot be undone</div>
+              Sending <span style={{ color: '#000000' }}>{meta?.name ?? `Cat #${cat.id}`}</span> to<br />
+              {resolved && <span style={{ color: '#000000' }}>@{resolved.username}<br /></span>}
               {/* Always show the address being sent to, even for a handle — this
                   is the last screen before an irreversible transfer. */}
-              <span style={{ fontSize: 11, color: '#9a9ab5', wordBreak: 'break-all' as const }}>{target}</span>
+              <span style={{ fontSize: 15, color: '#404040', wordBreak: 'break-all' as const }}>{target}</span>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <FxButton style={{ ...s.ghost, marginTop: 0, flex: 1 }} tone="grey" onClick={() => setConfirmed(false)} label="CANCEL" />
@@ -267,7 +267,7 @@ function SendPanel({ cat, onClose }: { cat: Cat; onClose: () => void }) {
                 label={isPending ? 'Confirm in wallet…' : isConfirming ? 'Sending…' : 'CONFIRM SEND'}
               />
             </div>
-            {isError && <div style={{ fontSize: 12, color: '#ff8080' }}>{error?.message?.slice(0, 80)}</div>}
+            {isError && <div style={{ fontSize: 16, color: '#a01b1b' }}>{error?.message?.slice(0, 80)}</div>}
           </div>
         )}
       </div>
@@ -312,7 +312,7 @@ function SeasonRecord({ uid }: { uid: string }) {
   const fought = !!rec && rec.wins + rec.losses > 0
 
   return (
-    <section style={s.block}>
+    <section className="win98" data-title="Your Cats" style={s.block}>
       <p style={s.label}>{rec ? `SEASON ${rec.season}` : 'SEASON'}</p>
       <div style={s.traits}>
         <div style={s.trait}>
@@ -339,7 +339,7 @@ function SeasonRecord({ uid }: { uid: string }) {
           </div>
         </div>
       </div>
-      <div style={{ fontSize: 12, color: '#9a9ab5', marginTop: 10, lineHeight: 1.5 }}>
+      <div style={{ fontSize: 16, color: '#404040', marginTop: 10, lineHeight: 1.5 }}>
         {failed
           ? 'could not reach the season board just now'
           : !rec
@@ -383,14 +383,14 @@ function CatDetail({ cat, inApp, onBack }: { cat: Cat; inApp: boolean; onBack: (
     <div style={s.stack}>
       <FxButton style={s.back} tone="grey" onClick={onBack} label="← MY CATS" />
 
-      <section style={{ ...s.block, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+      <section className="win98" data-title="Your Cats" style={{ ...s.block, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
         <Portrait src={meta?.image} pixel={col.pixelArt} size="min(100%, 300px)" />
-        <BitmapText text={meta?.name ?? `Clanker Cat #${cat.id}`} scale={2} color="#f0f0f5" className="fx-btn-text" />
-        <div style={{ fontSize: 13, color: '#9a9ab5', textAlign: 'center' }}>{col.label} · token #{cat.id} on {col.chain.name}</div>
+        <BitmapText text={meta?.name ?? `Clanker Cat #${cat.id}`} scale={2} color="#000080" className="fx-btn-text" />
+        <div style={{ fontSize: 17, color: '#404040', textAlign: 'center' }}>{col.label} · token #{cat.id} on {col.chain.name}</div>
       </section>
 
       {meta?.attributes && meta.attributes.length > 0 && (
-        <section style={s.block}>
+        <section className="win98" data-title="Your Cats" style={s.block}>
           <p style={s.label}>TRAITS</p>
           <div style={s.traits}>
             {meta.attributes.map((a, i) => (
@@ -409,7 +409,7 @@ function CatDetail({ cat, inApp, onBack }: { cat: Cat; inApp: boolean; onBack: (
 
       {showSend && <SendPanel cat={cat} onClose={() => setShowSend(false)} />}
 
-      <section style={{ ...s.block, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <section className="win98" data-title="Your Cats" style={{ ...s.block, display: 'flex', flexDirection: 'column', gap: 10 }}>
         <FxButton href={`/tama/${cat.id}?c=${cat.collection}`} style={s.gold} tone="gold" label="TAMOCATCH" />
         <FxButton style={s.primary} tone="light" onClick={share} label={inApp ? 'CAST THIS CAT' : 'SHARE ON X'} />
         <FxButton style={{ ...s.ghost, marginTop: 0 }} tone="soft" onClick={() => setShowSend(v => !v)} label={showSend ? 'CANCEL THE SEND' : 'SEND THIS CAT'} />
@@ -420,9 +420,9 @@ function CatDetail({ cat, inApp, onBack }: { cat: Cat; inApp: boolean; onBack: (
 
 function EmptyState({ art }: { art: string | null }) {
   return (
-    <section style={{ ...s.block, ...s.center }}>
+    <section className="win98" data-title="Your Cats" style={{ ...s.block, ...s.center }}>
       {art && <Portrait src={art} size={140} />}
-      <BitmapText text="NO CATS YET" scale={2} color="#f0f0f5" className="fx-btn-text" />
+      <BitmapText text="NO CATS YET" scale={2} color="#000080" className="fx-btn-text" />
       {/*
         This page reads EVERY drop — /api/owned scans every collection — so say
         what is actually being checked, and say which wallet, because the usual
@@ -497,7 +497,7 @@ export default function Home() {
       </header>
 
       {!isConnected ? (
-        <section style={{ ...s.block, ...s.center }}>
+        <section className="win98" data-title="Your Cats" style={{ ...s.block, ...s.center }}>
           {art && <Portrait src={art} size={140} />}
           <div style={s.emptySubtitle}>Connect a wallet to see your cats.</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
@@ -509,11 +509,11 @@ export default function Home() {
       ) : selected !== null ? (
         <CatDetail cat={selected} inApp={inApp} onBack={() => setSelected(null)} />
       ) : loading ? (
-        <section style={{ ...s.block, ...s.center }}>
+        <section className="win98" data-title="Your Cats" style={{ ...s.block, ...s.center }}>
           <div style={s.emptySubtitle}>reading your wallet…</div>
         </section>
       ) : cats.length > 0 ? (
-        <section style={s.block}>
+        <section className="win98" data-title="Your Cats" style={s.block}>
           <p style={s.label}>{cats.length} CLANKER CAT{cats.length !== 1 ? 'S' : ''}</p>
           <div style={s.grid}>
             {cats.map(c => (
@@ -533,44 +533,45 @@ export default function Home() {
 /* The front page's values (components/Cradle.tsx), on the title screen's page. */
 const s: Record<string, React.CSSProperties> = {
   // 900 on a desktop (it was 520). JP's friend, 2026-10-05: "why not use up that available width on desktop? The cats look awesome; they would look better if it were bigger" — JP: "make it bigger for desktop". A phone is narrower than any of these, so phones do not change.
-  page:      { minHeight: '100dvh', color: '#f0f0f5', padding: '22px 18px 40px', maxWidth: 900, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 },
+  page:      { minHeight: '100dvh', color: '#000000', padding: '22px 18px 40px', maxWidth: 900, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 },
   header:    { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 },
   nav:       { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   navBtn:    { padding: '6px 12px', border: '1px solid #2c2c3c', borderRadius: 10, background: 'rgba(18,18,28,0.6)' },
-  addr:      { fontSize: 12, color: '#9a9ab5', background: 'rgba(18,18,28,0.7)', padding: '5px 10px', borderRadius: 20 },
+  addr:      { fontSize: 16, color: '#404040', background: 'rgba(18,18,28,0.7)', padding: '5px 10px', borderRadius: 20 },
   title:     { fontSize: 30, letterSpacing: 1, margin: '6px 0 0', lineHeight: 1.1, textAlign: 'center' },
   // Dark ink on the light checker (PageChecker).
   sub:       { color: '#1a1a1a', fontSize: 20, margin: 0 },
-  block:     { background: 'rgba(18,18,28,0.92)', border: '1px solid #21212f', borderRadius: 14, padding: 16 },
+  // Light Windows 98 windows, as on every page (.win98 in globals.css). JP, 2026-10-06: "apply the window and text changes to all windows".
+  block:     { background: '#c0c0c0', color: '#000000', border: '1px solid #c0c0c0', borderRadius: 0, padding: 16 },
   center:    { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' },
   stack:     { display: 'flex', flexDirection: 'column', gap: 16 },
-  label:     { fontSize: 11, letterSpacing: 2, color: '#9a9ab5', margin: '0 0 12px' },
-  fine:      { color: '#9a9ab5', fontSize: 12, margin: '12px 0 0', textAlign: 'center' },
+  label:     { fontSize: 15, letterSpacing: 2, color: '#404040', margin: '0 0 12px' },
+  fine:      { color: '#404040', fontSize: 16, margin: '12px 0 0', textAlign: 'center' },
   grid:      { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(30%, 170px), 1fr))', gap: 10 },
-  card:      { position: 'relative', display: 'flex', flexDirection: 'column', gap: 6, padding: 6, background: '#0b0b13', border: '1px solid #21212f', borderRadius: 10, cursor: 'pointer', color: 'inherit', font: 'inherit', textAlign: 'center' },
+  card:      { position: 'relative', display: 'flex', flexDirection: 'column', gap: 6, padding: 6, background: '#ffffff', border: '1px solid #808080', borderRadius: 10, cursor: 'pointer', color: 'inherit', font: 'inherit', textAlign: 'center' },
   cardOn:    { border: '1px solid #8b5cf6' },
-  cardLabel: { fontSize: 12, color: '#c4c4d8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  cardLabel: { fontSize: 16, color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   // The game's portrait mount: a 2px paper ring round a 4px ink edge, cropped from the top.
   mount:     { boxSizing: 'border-box', padding: 2, background: '#fdfdf8', flexShrink: 0, alignSelf: 'center' },
   mountArt:  { width: '100%', aspectRatio: '1', display: 'block', boxSizing: 'border-box', border: '4px solid #1a1a1a', objectFit: 'cover', objectPosition: 'top', background: '#e6e0d2' },
-  ogBadge:   { position: 'absolute', top: 10, right: 10, padding: '2px 6px', borderRadius: 5, background: '#7c3aed', color: '#fff', fontSize: 10, letterSpacing: 1 },
+  ogBadge:   { position: 'absolute', top: 10, right: 10, padding: '2px 6px', borderRadius: 5, background: '#7c3aed', color: '#fff', fontSize: 14, letterSpacing: 1 },
   traits:    { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 8 },
-  trait:     { background: '#0b0b13', border: '1px solid #21212f', borderRadius: 8, padding: '8px 10px' },
-  traitKey:  { fontSize: 11, color: '#9a9ab5', textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 3 },
-  traitVal:  { fontSize: 15, color: '#f0f0f5' },
-  tamaMessage: { fontSize: 14, color: '#c4c4d8', fontStyle: 'italic', lineHeight: 1.5 },
+  trait:     { background: '#ffffff', border: '1px solid #808080', borderRadius: 8, padding: '8px 10px' },
+  traitKey:  { fontSize: 15, color: '#404040', textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 3 },
+  traitVal:  { fontSize: 19, color: '#000000' },
+  tamaMessage: { fontSize: 18, color: '#1a1a1a', fontStyle: 'italic', lineHeight: 1.5 },
   tamaActions: { display: 'flex', gap: 8, marginTop: 14 },
-  tamaBtn:   { flex: 1, padding: '8px 0', background: '#171722', border: '1px solid #34344a', borderRadius: 10, cursor: 'pointer' },
+  tamaBtn:   { flex: 1, padding: '8px 0', background: '#c0c0c0', border: '1px solid #34344a', borderRadius: 10, cursor: 'pointer' },
   // The front page's button shapes; a glyph row is 24px, so padding is a little under theirs.
   primary:   { width: '100%', background: '#8b5cf6', border: 0, borderRadius: 10, padding: '11px 16px', cursor: 'pointer' },
   gold:      { width: '100%', background: 'transparent', border: '1px solid #7a5c18', borderRadius: 10, padding: '10px 16px', cursor: 'pointer' },
   ghost:     { width: '100%', background: 'transparent', border: '1px solid #2c2c3c', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', marginTop: 10 },
-  ghostWide: { width: '100%', background: '#171722', border: '1px solid #2c2c3c', borderRadius: 10, padding: '10px 16px', cursor: 'pointer' },
+  ghostWide: { width: '100%', background: '#c0c0c0', border: '1px solid #2c2c3c', borderRadius: 10, padding: '10px 16px', cursor: 'pointer' },
   danger:    { background: 'transparent', border: '1px solid #d1495b', borderRadius: 10, padding: '10px 16px', cursor: 'pointer' },
   back:      { alignSelf: 'flex-start', padding: '6px 12px', border: '1px solid #2c2c3c', borderRadius: 10, background: 'rgba(18,18,28,0.6)' },
   // `font` FIRST: the shorthand resets fontSize, the bug CatSheet's close button had.
-  input:     { font: 'inherit', fontSize: 14, background: '#0b0b13', border: '1px solid #2c2c3c', borderRadius: 8, padding: '10px 12px', color: 'white', width: '100%', boxSizing: 'border-box' as const, outline: 'none' },
-  resolvedRow: { display: 'flex', alignItems: 'center', gap: 8, background: '#0b0b13', border: '1px solid #2c2c3c', borderRadius: 8, padding: '7px 10px' },
-  warnBox:   { fontSize: 13, color: '#c4c4d8', background: '#0b0b13', border: '1px solid #2c2c3c', borderRadius: 8, padding: '10px 12px' },
-  emptySubtitle: { fontSize: 15, color: '#c4c4d8', lineHeight: 1.6, margin: 0 },
+  input:     { font: 'inherit', fontSize: 18, background: '#ffffff', border: '1px solid #808080', borderRadius: 0, padding: '10px 12px', color: '#000000', width: '100%', boxSizing: 'border-box' as const, outline: 'none' },
+  resolvedRow: { display: 'flex', alignItems: 'center', gap: 8, background: '#ffffff', border: '1px solid #808080', borderRadius: 0, padding: '7px 10px' },
+  warnBox:   { fontSize: 17, color: '#1a1a1a', background: '#ffffff', border: '1px solid #808080', borderRadius: 0, padding: '10px 12px' },
+  emptySubtitle: { fontSize: 19, color: '#1a1a1a', lineHeight: 1.6, margin: 0 },
 }

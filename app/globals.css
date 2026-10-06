@@ -950,6 +950,11 @@ button, input, select, textarea, optgroup {
 .win98::before {
   content: attr(data-title);
   display: block;
+  /* Full width even in a centred flex column (the cats page's panels), where it would shrink to fit. */
+  width: calc(100% + 32px);
+  box-sizing: border-box;
+  align-self: stretch;
+  text-align: left;
   margin: -16px -16px 14px;
   padding: 3px 64px 3px 8px;
   border-bottom: 2px solid #c0c0c0;
