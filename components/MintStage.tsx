@@ -42,7 +42,8 @@ const gx = (x: number) => CHROME.x + x - CHROME.fromX
 const gy = (y: number) => CHROME.y + y - CHROME.fromY
 
 const PORTRAIT = 84
-const CAT = { x: (W - PORTRAIT) / 2, y: 74 }
+// JP, 2026-10-06: "move the cat pfp a little higher to the center" — 74 left it 14px off the stage's foot.
+const CAT = { x: (W - PORTRAIT) / 2, y: 62 }
 
 const LOW = 0.2
 const ALARM = '#e02020'
