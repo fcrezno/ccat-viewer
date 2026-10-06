@@ -774,7 +774,8 @@ export function Yard({
 
   return (
     <div style={{ position: 'relative' }}>
-      <p style={{ ...fine, fontSize: 24, marginBottom: 12 }}>
+      {/* A 98 status field: "format this and make it bigger" (JP, 2026-10-06). */}
+      <p style={{ ...fine, fontSize: 26, lineHeight: 1.35, marginBottom: 10, padding: '6px 12px', boxShadow: 'inset 1px 1px 0 0 #808080, inset -1px -1px 0 0 #ffffff', background: '#c8c8c8', textWrap: 'balance' }}>
         {state.fresh
           ? `${cats.length} cats in the yard. Come back later and they will have got on with it.`
           : state.hours === 0

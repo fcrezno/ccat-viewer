@@ -799,11 +799,12 @@ const s: Record<string, React.CSSProperties> = {
    */
   propArt:  { width: '82%', height: '82%', objectFit: 'contain', display: 'block', userSelect: 'none' },
   sky: {
-    display: 'flex', alignItems: 'center', gap: 5,
-    marginBottom: 8, fontSize: 19, color: '#1a1a1a',
+    display: 'flex', alignItems: 'center',
+    // The clock as a 98 status field, bigger (JP, 2026-10-06: "format this and make it bigger").
+    marginBottom: 10, fontSize: 24, color: '#1a1a1a', width: 'fit-content', padding: '4px 12px 4px 8px', gap: 8, boxShadow: 'inset 1px 1px 0 0 #808080, inset -1px -1px 0 0 #ffffff', background: '#c8c8c8',
     letterSpacing: 0.5,
   },
-  skyArt:   { width: 20, height: 20, objectFit: 'contain', display: 'block' },
+  skyArt:   { width: 32, height: 32, objectFit: 'contain', display: 'block' },
   // JP, 2026-10-06: "make the images and the icons a little bit bigger so people can know what they are".
   shelfArt: { width: 48, height: 48, objectFit: 'contain', display: 'block', flexShrink: 0 },
   readout:  { marginTop: 10, fontSize: 19, minHeight: 22, lineHeight: 1.45 },
