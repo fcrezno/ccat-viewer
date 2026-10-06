@@ -137,9 +137,14 @@ const CHECK_A = '#d3dceb'
 const CHECK_B = '#c9d3e4'
 /** px per ms that the checker and the rows fall: 20 px a second. */
 const FALL = 0.02
-const MORPH = 1600
+/*
+ * "make the icons fade in and out of each other slower": 3.2 s a swap, and
+ * 60% of it the fade — about 1.9 s of cross-fade, then 1.3 s held. It was
+ * 1.6 s and 35%: a fade of 0.56 s.
+ */
+const MORPH = 3200
 /** The last part of each MORPH spent fading, not holding. */
-const MORPH_FADE = 0.35
+const MORPH_FADE = 0.6
 const SUN = '/yard/items/sun.png'
 const MOON = '/yard/items/moon.png'
 const ITEMS = ['pizza', 'donut', 'gameboy', 'banana', 'vinyl', 'chips', 'pineapple', 'cup', 'walnut', 'beer']
