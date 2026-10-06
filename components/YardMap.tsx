@@ -804,7 +804,8 @@ const s: Record<string, React.CSSProperties> = {
     letterSpacing: 0.5,
   },
   skyArt:   { width: 20, height: 20, objectFit: 'contain', display: 'block' },
-  shelfArt: { width: 30, height: 30, objectFit: 'contain', display: 'block', flexShrink: 0 },
+  // JP, 2026-10-06: "make the images and the icons a little bit bigger so people can know what they are".
+  shelfArt: { width: 48, height: 48, objectFit: 'contain', display: 'block', flexShrink: 0 },
   readout:  { marginTop: 10, fontSize: 19, minHeight: 22, lineHeight: 1.45 },
   /*
    * Gold, and the only gold thing under the map. It is the one row that is not a
@@ -829,7 +830,7 @@ const s: Record<string, React.CSSProperties> = {
   // 2 x 2 on a phone, one row of four on a desktop: as many 150px columns as fit.
   shelf:    { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8, marginTop: 10 },
   shelfBtn: {
-    display: 'flex', alignItems: 'center', gap: 8, minHeight: 56,
+    display: 'flex', alignItems: 'center', gap: 10, minHeight: 72,
     padding: '10px 12px', borderRadius: 12,
     background: '#171722', border: '1px solid #34344a',
     color: '#b4b4ca', fontSize: 12, cursor: 'pointer', textAlign: 'left',

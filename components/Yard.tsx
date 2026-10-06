@@ -473,6 +473,8 @@ export function Yard({
 }) {
   const [state, setState] = useState<Visit | null>(null)
   const [peek, setPeek] = useState<YardCat | null>(null)
+  /** Which buddy-list groups are folded shut (Your Cats, In the Yard, Chatting). */
+  const [shut, setShut] = useState<Record<string, boolean>>({})
   const [picked, setPicked] = useState<string | null>(null)
   /** Which pair's conversation is open. One at a time — this is a log, not a tree. */
   const [talking, setTalking] = useState<string | null>(null)
@@ -731,6 +733,10 @@ export function Yard({
    * page and the yard's own is how tall the box is.
    */
   const shown = recent
+
+  /* Each cat's last deed in the lines typed so far: its status in the buddy list. */
+  const lastDeed = new Map<string, Memory['kind']>()
+  for (const { m } of shown.slice(0, rolled)) { lastDeed.set(m.a, m.kind); lastDeed.set(m.b, m.kind) }
 
   const pickedCat = picked ? byUid.get(picked) ?? null : null
 
@@ -1026,11 +1032,60 @@ export function Yard({
 
         </div>
 
-          {/* THE ROOM'S BUDDY LIST: who is talking to whom, and how it is going. */}
+          {/*
+            THE BUDDY LIST. JP, 2026-10-06: "have like the friends list be like the
+            cats list in here and then have their interactions on the left ...
+            when you can click on their name and you can see a detailed like
+            mouse over still do that". AIM's own groups, each folding: your cats,
+            the rest of the yard, then the pairs talking (which open their
+            conversation as before). A cat's status is the last thing the log
+            shows it doing; one the log has not mentioned is idle, greyed, as AIM
+            greyed an idle buddy. Point at a cat for its card; click for its sheet.
+          */}
           <div style={aim.people}>
-            <div style={aim.peopleHead}>Chatting ({Math.min(pairs.length, 8)})</div>
-            {pairs.length === 0 && <p style={aim.nobody}>Nobody is talking yet.</p>}
-          {pairs.length > 0 && (
+            {([['mine', 'Your Cats', cats.filter(c => c.mine)], ['yard', 'In the Yard', cats.filter(c => !c.mine)]] as const).map(([key, title, list]) => list.length > 0 && (
+              <div key={key}>
+                <button className="plain" style={aim.group} onClick={() => setShut(o => ({ ...o, [key]: !o[key] }))} aria-expanded={!shut[key]}>
+                  {shut[key] ? '▸' : '▾'} {title} ({list.length})
+                </button>
+                {!shut[key] && list.map(c => {
+                  const did = lastDeed.get(c.uid)
+                  return (
+                    <button
+                      key={c.uid}
+                      className="plain"
+                      style={{ ...aim.buddy, opacity: did ? 1 : 0.55 }}
+                      onMouseEnter={() => show(c)}
+                      onMouseLeave={hide}
+                      onFocus={() => show(c)}
+                      onBlur={hide}
+                      onClick={() => {
+                        if (full) {
+                          setPicked(c.uid)
+                          // Time with your own cat cuts a rest (lib/stamina).
+                          if (c.mine) yardAction()
+                        } else show(c)
+                      }}
+                    >
+                      {c.art
+                        ? <img src={c.art} alt="" style={aim.face} />
+                        : <span style={{ ...aim.face, background: '#ddd6c4' }} />}
+                      <span style={{ minWidth: 0 }}>
+                        <span style={{ display: 'block', color: nameInk(c) }}>{c.name}</span>
+                        <span style={{ ...aim.status, color: did ? DEED_INK[did] : '#808080' }}>
+                          {did ? STATUS[did] : 'idle'}
+                        </span>
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            ))}
+            <button className="plain" style={aim.group} onClick={() => setShut(o => ({ ...o, chat: !o.chat }))} aria-expanded={!shut.chat}>
+              {shut.chat ? '▸' : '▾'} Chatting ({Math.min(pairs.length, 8)})
+            </button>
+            {!shut.chat && pairs.length === 0 && <p style={aim.nobody}>Nobody is talking yet.</p>}
+          {!shut.chat && pairs.length > 0 && (
             <>
               {pairs.slice(0, 8).map(({ a, b, n, last }) => {
                 const id = a.uid + b.uid
@@ -1333,11 +1388,18 @@ const pairRow: React.CSSProperties = {
   // A buddy-list entry: the pair, then their status under it.
   display: 'flex', flexDirection: 'column', width: '100%', gap: 2, alignItems: 'flex-start',
   textAlign: 'left',
-  background: 'none', border: 0, padding: '6px 8px', borderBottom: '1px solid #e4e4e4',
+  background: 'none', border: 0, padding: '6px 8px 6px 18px', borderBottom: '1px solid #e4e4e4',
   font: 'inherit', fontSize: 22, color: INK, cursor: 'pointer',
 }
 
 /** THE AIM CHAT ROOM around the yard's log (see where `aim.room` is drawn). */
+/** A cat's status in the buddy list, from the last thing it did. */
+const STATUS: Record<Memory['kind'], string> = {
+  greet: 'saying hi', play: 'playing', share: 'sharing', groom: 'grooming',
+  showoff: 'showing off', snub: 'snubbing someone', squabble: 'arguing',
+  wits: 'thinking', cook: 'cooking', poise: 'posing', tidy: 'tidying up',
+}
+
 const SUNKEN = 'inset 1px 1px 0 0 #808080, inset -1px -1px 0 0 #ffffff, inset 2px 2px 0 0 #0a0a0a, inset -2px -2px 0 0 #dfdfdf'
 const aim: Record<string, React.CSSProperties> = {
   room:   { display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 },
@@ -1345,9 +1407,12 @@ const aim: Record<string, React.CSSProperties> = {
   // Messages, then the buddy list: side by side once there is room, stacked on a phone.
   panes:  { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: 6, alignItems: 'stretch' },
   people: { background: '#ffffff', boxShadow: SUNKEN, padding: 2, maxHeight: 440, overflowY: 'auto', minWidth: 0 },
-  peopleHead: { background: '#c0c0c0', color: '#000080', fontSize: 20, padding: '4px 8px', letterSpacing: 1 },
   nobody: { margin: 0, padding: '8px', fontSize: 20, color: '#404040' },
-  status: { fontSize: 19, color: '#404040' },
+  status: { display: 'block', fontSize: 19, color: '#404040' },
+  // A group's fold bar, as AIM's: ▾ Buddies (4).
+  group:  { display: 'block', width: '100%', textAlign: 'left', background: '#c0c0c0', color: '#000080', border: 0, borderBottom: '1px solid #808080', fontFamily: 'inherit', fontSize: 20, padding: '4px 8px', cursor: 'pointer', letterSpacing: 1 },
+  buddy:  { display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', background: 'none', border: 0, borderBottom: '1px solid #ececec', fontFamily: 'inherit', fontSize: 21, padding: '5px 8px 5px 18px', cursor: 'pointer' },
+  face:   { width: 34, height: 34, flexShrink: 0, objectFit: 'cover', objectPosition: 'top', border: '1px solid #808080', display: 'block' },
   compose: { display: 'flex', gap: 6 },
   input:  { flex: 1, minWidth: 0, fontSize: 20, padding: '6px 8px', fontFamily: 'inherit', background: '#ffffff', border: 0, boxShadow: SUNKEN, color: '#808080' },
   send:   { padding: '6px 18px', fontSize: 20, fontFamily: 'inherit', background: '#c0c0c0', color: '#808080', border: 0, cursor: 'default' },
