@@ -49,7 +49,7 @@ export function RobinhoodMint() {
         <p style={s.sub}>Robinhood Chain · free for BUN holders</p>
       </header>
 
-      <section style={s.block}>
+      <section className="win98" data-title="Robinhood Mint" style={s.block}>
         <p style={s.label}>{open === true ? 'FREE MINT' : 'PREMINT'}</p>
         <MintStage left={minted !== null && total !== null ? total - minted : null} total={total} art={art} />
         {minted !== null && total !== null && (
@@ -57,7 +57,7 @@ export function RobinhoodMint() {
         )}
       </section>
 
-      <section style={s.block}>
+      <section className="win98" data-title="Clanker Cats" style={s.block}>
         <FxButton href="/mint/v3" style={s.primary} tone="light" label="CLAIM A ROBINHOOD CAT" />
         <p style={s.modeFine}>free for BUN holders · one per wallet</p>
         <FxButton href="/" style={s.ghost} tone="grey" label="PLAY THE GAME" />
@@ -79,11 +79,12 @@ const s: Record<string, React.CSSProperties> = {
   title:    { fontSize: 30, letterSpacing: 1, margin: 0, lineHeight: 1.1 },
   // Dark ink on the light checker (PageChecker).
   sub:      { color: '#1a1a1a', fontSize: 20, margin: '6px 0 0' },
-  label:    { fontSize: 10, letterSpacing: 2, color: '#7a7a95', margin: '0 0 10px' },
-  block:    { background: '#12121c', border: '1px solid #21212f', borderRadius: 14, padding: 16 },
-  count:    { color: '#7a7a95', fontSize: 13, margin: '10px 0 0', textAlign: 'center' },
-  countNum: { color: '#f0f0f5', fontWeight: 'normal' },
-  modeFine: { color: '#63637d', fontSize: 11, margin: '6px 0 14px', textAlign: 'center', lineHeight: 1.5 },
-  primary:  { display: 'block', boxSizing: 'border-box', width: '100%', background: '#8b5cf6', color: '#fff', borderRadius: 10, padding: '11px 16px', fontSize: 14, letterSpacing: 1, textAlign: 'center', textDecoration: 'none' },
-  ghost:    { display: 'block', boxSizing: 'border-box', width: '100%', background: 'transparent', color: '#7a7a95', border: '1px solid #21212f', borderRadius: 10, padding: '9px 16px', fontSize: 12, letterSpacing: 1, textAlign: 'center', textDecoration: 'none' },
+  // Light Windows 98 windows, as on every page (JP, 2026-10-06).
+  label:    { fontSize: 22, letterSpacing: 2, color: '#000080', margin: '0 0 12px' },
+  block:    { background: '#c0c0c0', color: '#000000', border: '1px solid #c0c0c0', borderRadius: 0, padding: 16 },
+  count:    { color: '#1a1a1a', fontSize: 21, margin: '10px 0 0', textAlign: 'center' },
+  countNum: { color: '#000080', fontWeight: 'normal' },
+  modeFine: { color: '#1a1a1a', fontSize: 20, margin: '6px 0 20px', textAlign: 'center', lineHeight: 1.3, textWrap: 'balance' },
+  primary:  { display: 'block', boxSizing: 'border-box', width: '100%', background: '#000080', color: '#fff', borderRadius: 0, padding: '11px 16px', fontSize: 14, letterSpacing: 1, textAlign: 'center', textDecoration: 'none' },
+  ghost:    { display: 'block', boxSizing: 'border-box', width: '100%', background: '#c0c0c0', color: '#000000', border: 0, borderRadius: 0, padding: '9px 16px', fontSize: 12, letterSpacing: 1, textAlign: 'center', textDecoration: 'none' },
 }
