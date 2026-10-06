@@ -37,7 +37,8 @@ import type { YardCat } from '@/components/Yard'
  * the type chart. See lib/yard.ts.
  */
 
-const BAR = 46
+// Long enough to read at the sheet's bigger size (AIM warning-level bar).
+const BAR = 140
 
 function Meter({ label, value, of, hint }: { label: string; value: number; of: number; hint: string }) {
   const pct = Math.max(0, Math.min(1, value / of))
@@ -112,7 +113,14 @@ export function CatSheet({
   const byUid = new Map(others.map(o => [o.uid, o]))
 
   return (
-    <div style={s.sheet}>
+    /*
+     * AN AIM BUDDY INFO WINDOW. JP, 2026-10-06: "make this text bigger and easier to
+     * read; also add the AIM style format". The 98 window (.win98) titled for the
+     * cat; its × corner is the close button; the writing sits in white sunken
+     * fields, the way AIM's profile pane did.
+     */
+    <div className="win98" data-title={`Buddy Info: ${cat.name}`} style={s.sheet}>
+      <button onClick={onClose} className="plain" style={s.close} aria-label="close" />
       <div style={s.head}>
         {cat.art
           ? <img src={cat.art} alt="" style={s.art} />
@@ -128,7 +136,6 @@ export function CatSheet({
           </div>
           <div style={s.doing}>{last ? DOING[last.kind] : 'keeping to itself'}</div>
         </div>
-        <button onClick={onClose} style={s.close} aria-label="close">×</button>
       </div>
 
       {/*
@@ -341,55 +348,43 @@ const DEED_INK: Record<string, string> = {
   showoff: '#c2410c', snub: '#6b6b60', squabble: '#a01b1b',
 }
 
+const SUNKEN = 'inset 1px 1px 0 0 #808080, inset -1px -1px 0 0 #ffffff, inset 2px 2px 0 0 #0a0a0a, inset -2px -2px 0 0 #dfdfdf'
+
 const s: Record<string, React.CSSProperties> = {
   sheet: {
-    background: '#f2eee3', color: '#1a1a1a', borderRadius: 14,
-    padding: '14px 16px 16px', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.08)',
-    display: 'flex', flexDirection: 'column', gap: 4,
+    background: '#c0c0c0', color: '#1a1a1a', borderRadius: 0, padding: 16,
+    display: 'flex', flexDirection: 'column', gap: 6,
   },
-  head:  { display: 'flex', gap: 12, alignItems: 'flex-start' },
+  head:  { display: 'flex', gap: 14, alignItems: 'flex-start' },
+  // The buddy icon.
   art:   {
-    width: 72, height: 57, objectFit: 'cover', imageRendering: 'pixelated',
-    borderRadius: 6, border: '1px solid rgba(0,0,0,0.15)', flexShrink: 0,
+    width: 96, height: 76, objectFit: 'cover', imageRendering: 'pixelated',
+    border: '2px solid #808080', boxShadow: '1px 1px 0 #ffffff', flexShrink: 0,
   },
-  name:  { fontSize: 17, display: 'flex', alignItems: 'center', gap: 6 },
-  mood:  { fontSize: 14, fontWeight: 'bold' },
-  owner: { fontSize: 11, color: '#6b6b60', marginTop: 2 },
-  doing: { fontSize: 12, color: '#3a3a30', marginTop: 3 },
+  name:  { fontSize: 24, display: 'flex', alignItems: 'center', gap: 8, color: '#000080' },
+  mood:  { fontSize: 20, fontWeight: 'bold' },
+  owner: { fontSize: 18, color: '#404040', marginTop: 2 },
+  doing: { fontSize: 18, color: '#1a1a1a', marginTop: 3 },
   /*
-   * A REAL TARGET. It was a bare glyph, and its `font: 'inherit'` came AFTER
-   * fontSize 20 — the shorthand resets the size, so it drew at 13px. The
-   * shorthand goes first now, and the box is a thumb's width (JP, 2026-09-29:
-   * "make the buttons bigger and easier to see").
+   * THE WINDOW'S × IS THE CLOSE BUTTON: an invisible target laid over the
+   * caption buttons the window draws, a thumb wide (JP, 2026-09-29: "make the
+   * buttons bigger and easier to see").
    */
   close: {
-    font: 'inherit', fontSize: 22, lineHeight: 1,
-    width: 34, height: 34, flexShrink: 0,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    background: 'rgba(0,0,0,0.05)', border: '1px solid rgba(0,0,0,0.18)', borderRadius: 8,
-    color: '#3a3a30', cursor: 'pointer', padding: 0,
+    position: 'absolute', top: 0, right: 0, width: 64, height: 44, zIndex: 1,
+    background: 'transparent', border: 0, padding: 0, cursor: 'pointer',
   },
 
+  // AIM's profile pane: white, sunk into the window.
   about: {
-    margin: '2px 0 10px',
-    display: 'flex', flexDirection: 'column', gap: 2,
+    margin: '6px 0 4px', padding: '10px 12px', background: '#ffffff', boxShadow: SUNKEN,
+    display: 'flex', flexDirection: 'column', gap: 4,
   },
-  /*
-   * 1.5 line height and no indent. This is a paragraph broken into sentences,
-   * not a list — DF prints it as running text and the sentences are short enough
-   * that bullets would add a mark per line for nothing.
-   *
-   * INK ON PAPER. The first version used #c9c9d8, which is this app's colour for
-   * text on the DARK panels — on the sheet's cream it was a ghost. The sheet is
-   * #f2eee3 and everything on it is dark; `doing` above is #3a3a30 and this
-   * matches it, because it is the same weight of writing.
-   */
-  line: { margin: 0, fontSize: 13, lineHeight: 1.5, color: '#3a3a30' },
+  line: { margin: 0, fontSize: 19, lineHeight: 1.45, color: '#1a1a1a' },
   likes: {
-    marginTop: 7, paddingTop: 7,
-    /* The same rule the sections use, for the same reason: it is a printed sheet. */
-    borderTop: '1px solid rgba(0,0,0,0.10)',
-    display: 'flex', flexDirection: 'column', gap: 2,
+    marginTop: 8, paddingTop: 8,
+    borderTop: '1px solid #c0c0c0',
+    display: 'flex', flexDirection: 'column', gap: 4,
   },
   /*
    * The case. It wraps, because a full bag is eighteen things and a row that
@@ -397,11 +392,11 @@ const s: Record<string, React.CSSProperties> = {
    */
   bag: { display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 },
   slot: {
-    width: 44, height: 44, padding: 4,
+    width: 52, height: 52, padding: 4,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    background: 'rgba(0,0,0,0.05)',
-    border: '2px solid rgba(0,0,0,0.10)',
-    borderRadius: 8, cursor: 'pointer',
+    background: '#ffffff',
+    border: '2px solid #808080',
+    borderRadius: 0, cursor: 'pointer',
   },
   /*
    * The carried one is ringed in the same gold "this one is yours" is drawn in
@@ -409,33 +404,35 @@ const s: Record<string, React.CSSProperties> = {
    * with the longhand across a state change lets React drop one of them.
    */
   slotOn: {
-    background: 'rgba(224,167,44,0.16)',
+    background: '#ffffe1',
     border: '2px solid #a06a10',
   },
   slotArt: { width: '100%', height: '100%', objectFit: 'contain', display: 'block' },
-  carrying: { fontSize: 12, color: '#3a3a30', margin: '7px 0 0', lineHeight: 1.5 },
+  carrying: { fontSize: 18, color: '#1a1a1a', margin: '8px 0 0', lineHeight: 1.45 },
 
-  meters:     { display: 'flex', flexDirection: 'column', gap: 3, marginTop: 10 },
-  meterRow:   { display: 'flex', alignItems: 'center', gap: 8, fontSize: 10, letterSpacing: 1 },
-  meterLabel: { color: '#8a8a7a', width: 52 },
+  // AIM's warning-level bar: a sunken white trough, a navy fill.
+  meters:     { display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 },
+  meterRow:   { display: 'flex', alignItems: 'center', gap: 10, fontSize: 16, letterSpacing: 1 },
+  meterLabel: { color: '#1a1a1a', width: 84 },
   meterTrack: {
-    display: 'inline-block', width: BAR, height: 6, borderRadius: 3,
-    background: 'rgba(0,0,0,0.10)', position: 'relative', overflow: 'hidden',
+    display: 'inline-block', width: BAR, height: 14, borderRadius: 0,
+    background: '#ffffff', boxShadow: SUNKEN, position: 'relative', overflow: 'hidden',
   },
-  meterFill:  { position: 'absolute', left: 0, top: 0, bottom: 0, background: '#7a6a3a', borderRadius: 3 },
-  meterNum:   { color: '#6b6b60', fontSize: 10 },
+  meterFill:  { position: 'absolute', left: 2, top: 2, bottom: 2, background: '#000080', borderRadius: 0 },
+  meterNum:   { color: '#1a1a1a', fontSize: 16 },
 
+  // A section of the window: navy title over an etched rule.
   rule: {
-    fontSize: 10, letterSpacing: 2, color: '#8a8a7a',
-    marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(0,0,0,0.10)',
+    fontSize: 19, letterSpacing: 2, color: '#000080',
+    marginTop: 14, paddingTop: 10, borderTop: '1px solid #808080', boxShadow: 'inset 0 1px 0 #ffffff',
   },
-  list:    { display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6 },
+  list:    { display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6, padding: '8px 12px', background: '#ffffff', boxShadow: SUNKEN },
   /* A hanging indent, so a thought that wraps lines up under itself. */
-  thought: { display: 'flex', gap: 7, fontSize: 13, lineHeight: 1.45, alignItems: 'baseline' },
-  feltRow: { display: 'flex', alignItems: 'baseline', gap: 6, fontSize: 13 },
-  memRow:  { display: 'flex', alignItems: 'baseline', gap: 0, fontSize: 13 },
+  thought: { display: 'flex', gap: 8, fontSize: 19, lineHeight: 1.45, alignItems: 'baseline' },
+  feltRow: { display: 'flex', alignItems: 'baseline', gap: 6, fontSize: 19 },
+  memRow:  { display: 'flex', alignItems: 'baseline', gap: 0, fontSize: 19 },
   /* A leader of dots, the way a printed index runs a name out to its number. */
-  dots:    { flex: 1, borderBottom: '1px dotted rgba(0,0,0,0.22)', margin: '0 6px', minWidth: 12 },
-  ago:     { color: '#8a8a7a', fontSize: 11, whiteSpace: 'nowrap' },
-  none:    { fontSize: 12, color: '#6b6b60', margin: '6px 0 0' },
+  dots:    { flex: 1, borderBottom: '1px dotted rgba(0,0,0,0.35)', margin: '0 8px', minWidth: 12 },
+  ago:     { color: '#404040', fontSize: 16, whiteSpace: 'nowrap' },
+  none:    { fontSize: 18, color: '#404040', margin: '6px 0 0' },
 }
