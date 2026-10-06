@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { BitmapText } from '@/components/BitmapText'
 import { GameBar } from '@/components/GameBar'
 import { loadingHolds, onHoldsChange } from '@/lib/loading'
+import { preloadBattle } from '@/lib/battleAssets'
 
 /**
  * THE LOADING SCREEN — up from the first paint until the page is really there.
@@ -18,6 +19,10 @@ import { loadingHolds, onHoldsChange } from '@/lib/loading'
  *   2. the page's own data is in — see lib/loading.ts, useLoadingHold;
  *   3. the pictures ON SCREEN have loaded. Lazy and off-screen ones are left
  *      out: they are not part of the first look and may never load.
+ *   4. on the front page, where fights happen, the BATTLE SCENE's files too —
+ *      map, VS, chrome, bars, arenas, ladder, every sound and the music
+ *      (lib/battleAssets). JP, 2026-10-06: "make it so the loading screen loads
+ *      everything for the battle scene as well".
  *
  * At least MIN_MS, so a fast page does not flash it; never more than MAX_MS, so
  * a slow server cannot keep anybody behind it.
@@ -26,7 +31,8 @@ import { loadingHolds, onHoldsChange } from '@/lib/loading'
  * something that arrives after the page it is meant to hide.
  */
 const MIN_MS = 500
-const MAX_MS = 8000
+/** About 6.5 MB of battle files ride on the front page's load now, so a slower line gets longer. */
+const MAX_MS = 12000
 const FADE_MS = 400
 
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms))
@@ -83,11 +89,20 @@ export function LoadingScreen() {
       await holdsReleased()
       set(45)
 
-      // What is on screen once the data is in.
+      // What is on screen once the data is in — and, on the front page, where
+      // fights happen, everything the battle scene will draw and play.
       await frame()
       const imgs = [...document.images].filter(i => !i.complete && i.loading !== 'lazy' && onScreen(i))
-      let done = 0
-      await Promise.all(imgs.map(i => loaded(i).then(() => { done++; set(45 + 55 * (done / imgs.length)) })))
+      const battle = location.pathname === '/'
+      let shown = 0, battleDone = 0, battleTotal = 1
+      const progress = () => {
+        const n = imgs.length + (battle ? battleTotal : 0)
+        set(45 + 55 * ((shown + (battle ? battleDone : 0)) / Math.max(1, n)))
+      }
+      await Promise.all([
+        ...imgs.map(i => loaded(i).then(() => { shown++; progress() })),
+        battle ? preloadBattle((d, t) => { battleDone = d; battleTotal = t; progress() }) : null,
+      ])
       set(100)
     })()
 

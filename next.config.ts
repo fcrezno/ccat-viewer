@@ -38,6 +38,22 @@ const nextConfig: NextConfig = {
           { key: "Access-Control-Allow-Origin", value: "*" },
         ],
       },
+      /*
+       * THE BATTLE'S FILES, KEPT AN HOUR. The loading screen fetches all of them
+       * up front (components/LoadingScreen, lib/battleAssets) — JP, 2026-10-06:
+       * "make it so the loading screen loads everything for the battle scene".
+       * Vercel's default for public files is max-age=0, must-revalidate: cached,
+       * but every use asks the server again first, so a preloaded picture still
+       * waited on a round trip when the fight needed it. An hour holds them for a
+       * session; after it, the browser checks in the background while it shows
+       * the copy it has, so a changed file arrives within a visit or two.
+       */
+      ...["/game/:file*", "/title/:file*", "/yard/items/:file*"].map(source => ({
+        source,
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=3600, stale-while-revalidate=86400" },
+        ],
+      })),
     ];
   },
 };

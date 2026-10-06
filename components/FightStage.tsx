@@ -5,6 +5,7 @@ import type { ArenaCat, LogLine } from '@/lib/arena'
 import { BitmapText } from '@/components/BitmapText'
 import { GameBar } from '@/components/GameBar'
 import { Haloed } from '@/components/Haloed'
+import { FloatWord, type Float } from '@/components/FloatWord'
 
 /**
  * THE s&box BATTLE SCREEN, ON THE WEB.
@@ -66,7 +67,7 @@ const ALARM = '#e02020'
 const MINE_INK = '#b07a10'
 
 export function FightStage({
-  you, foe, hp, ghost, turf, swinging, struck, beat, speed, lines, crop = false, catsIn = true, catsFadeMs = 0, children,
+  you, foe, hp, ghost, turf, swinging, struck, beat, speed, lines, crop = false, catsIn = true, catsFadeMs = 0, float = null, children,
 }: {
   you: ArenaCat
   foe: ArenaCat
@@ -99,6 +100,8 @@ export function FightStage({
    */
   catsIn?: boolean
   catsFadeMs?: number
+  /** The line floating off a cat on a crit, a weak hit or a miss (components/FloatWord). */
+  float?: Float | null
   /** Drawn over the stage, like the countdown. */
   children?: ReactNode
 }) {
@@ -224,6 +227,8 @@ export function FightStage({
               <Haloed text={warnFoe} color={ALARM} />
             </div>
           )}
+
+          {float && <FloatWord key={float.key} float={float} secs={1.15 / speed} />}
 
           {!crop && <div ref={log} style={st.log} aria-live="polite">
             {lines.map((l, i) => (

@@ -915,3 +915,16 @@ button, input, select, textarea, optgroup {
   }
 }
 .fx-host:focus-visible { outline: 2px solid #f0d060; outline-offset: 2px; }
+
+/*
+ * THE FLOATING LINE on a crit, a weak hit or a miss (components/FloatWord): the
+ * renderer's floater — 30 px up, ease-out; full strength for 55%, then gone.
+ */
+@keyframes float-rise {
+  from { transform: translateY(0); }
+  to   { transform: translateY(-30px); }
+}
+@keyframes float-fade {
+  0%, 55% { opacity: 1; }
+  100%    { opacity: 0; }
+}

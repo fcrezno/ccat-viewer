@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { MUSIC, MUSIC_DIR, SFX, SFX_DIR } from '@/lib/sfx'
+import { playSfx, unlockSfx } from '@/lib/sfxBank'
 
 /**
  * SOUND FOR THE CRADLE.
@@ -17,6 +18,10 @@ import { MUSIC, MUSIC_DIR, SFX, SFX_DIR } from '@/lib/sfx'
  * page, so nothing is loaded or played until the first fight is started by a tap.
  * That is also when the music begins — attempting it on mount gets the tab
  * blocked and, on iOS, sometimes leaves audio wedged for the whole session.
+ *
+ * THE CUES PLAY THROUGH WEB AUDIO (lib/sfxBank): decoded ahead, started on the
+ * next audio block, at an exact gain — JP, 2026-10-06: "sync the sound effects
+ * better". The pools below are only the fallback for a file not decoded yet.
  *
  * Each cue keeps a small POOL of elements. One `Audio` per cue cannot overlap
  * with itself, so two hits close together would cut the first one off — the
@@ -82,7 +87,11 @@ export function useSound() {
 
   /** Build the pools once, on the first gesture. */
   const prime = useCallback(() => {
-    if (started.current || typeof window === 'undefined') return
+    if (typeof window === 'undefined') return
+    // Every gesture, not just the first: a context the browser suspended (a tab
+    // in the background, iOS after a call) is resumed by the next tap.
+    unlockSfx()
+    if (started.current) return
     started.current = true
 
     for (const [name, cue] of Object.entries(SFX)) {
@@ -106,6 +115,7 @@ export function useSound() {
     // One from each pool, together — the game's two-layer stack.
     for (const layer of cue.layers) {
       const file = layer[Math.floor(Math.random() * layer.length)]
+      if (playSfx(file, Math.min(1, cue.gain * volume))) continue
       const candidates = pool.filter(a => a.src.endsWith(file))
       if (!candidates.length) continue
       const i = (turn.current[name] = (turn.current[name] + 1) % candidates.length)

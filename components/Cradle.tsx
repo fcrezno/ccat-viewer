@@ -12,6 +12,7 @@ import { FxLabel } from '@/components/FxButton'
 import { FightStage, KIND_INK } from '@/components/FightStage'
 import { MapDive, zoneOfTurf } from '@/components/MapDive'
 import { LadderScreen } from '@/components/LadderScreen'
+import type { Float } from '@/components/FloatWord'
 import { PageBackdrop } from '@/components/PageBackdrop'
 import { useLoadingHold } from '@/lib/loading'
 import { noteWin, noteLoss, type Beat } from '@/lib/streak'
@@ -945,14 +946,22 @@ export function Cradle() {
     const carriesItsOwn = next
       && (next.kind === 'miss' || next.kind === 'crit' || next.kind === 'weak')
 
+    /*
+     * A CRIT OR WEAK HIT SOUNDS ON THE SWING, not on the line after it. The bars
+     * now drop on the swing's own beat (see shownHp), so the crit's thump moved
+     * with them — measured, it had been landing 0.89 s after its own damage.
+     * The crit or weak line that follows then stays quiet instead of doubling it.
+     */
+    const prevLine = shown > 1 ? result.log[shown - 2] : null
+    const afterSwing = prevLine?.kind === 'move'
     const cue =
       l.kind === 'ko' ? 'ko'
-      : l.kind === 'crit' ? 'crit'
-      : l.kind === 'weak' ? 'weak'
+      : l.kind === 'crit' ? (afterSwing ? null : 'crit')
+      : l.kind === 'weak' ? (afterSwing ? null : 'weak')
       : l.kind === 'miss' ? 'miss'
       : l.kind === 'perk' ? 'perk'
       : l.kind === 'win' ? 'score'
-      : l.kind === 'move' ? (carriesItsOwn ? null : 'hit')
+      : l.kind === 'move' ? (next?.kind === 'crit' ? 'crit' : next?.kind === 'weak' ? 'weak' : carriesItsOwn ? null : 'hit')
       : null
 
     if (cue) sound.play(cue)
@@ -1060,6 +1069,43 @@ export function Cradle() {
     if (!at || !after) return null
     if (after.hpYou < at.hpYou) return 'you'
     if (after.hpFoe < at.hpFoe) return 'foe'
+    return null
+  })()
+
+  /*
+   * THE BARS DROP ON THE BLOW, NOT A LINE LATER. JP, 2026-10-06: "sync the sound
+   * effects better". The hit sound and the flinch fire on the swing's line, but
+   * the bars read that line's health — from BEFORE the blow (see above) — so the
+   * damage showed one line, ~0.85 s, after the thump that caused it. On a line
+   * that strikes, the bars take the NEXT line's health, and their trail starts
+   * from this one's: sound, flinch and drop land together.
+   */
+  const shownHp = struckSide && result && shown < result.log.length ? result.log[shown] : at
+  const trailHp = shownHp !== at ? at : prev
+
+  /*
+   * THE LINE THAT FLOATS OFF A CAT (components/FloatWord). JP, 2026-10-06: "also
+   * there used to be text on the cat if a attack critted or missed". As the
+   * renderer: a crit or weak hit floats the crit line's own words over the cat
+   * that was struck, on the swing's beat, with the drop and the sound; a miss
+   * floats over the cat that SWUNG, on its own line.
+   */
+  const float: Float | null = (() => {
+    if (!result || !at) return null
+    const next = shown < result.log.length ? result.log[shown] : null
+    const other = (a: 'you' | 'foe' | null) => (a === 'you' ? 'foe' : a === 'foe' ? 'you' : null)
+    if (at.kind === 'move' && next && (next.kind === 'crit' || next.kind === 'weak')) {
+      const side = struckSide ?? other(at.actor)
+      return side ? { text: next.text, side, kind: next.kind, key: shown } : null
+    }
+    if (at.kind === 'miss') {
+      const side = at.actor ?? prev?.actor ?? null
+      return side ? { text: at.text, side, kind: 'miss', key: shown } : null
+    }
+    if ((at.kind === 'crit' || at.kind === 'weak') && prev?.kind !== 'move' && prev) {
+      const side = at.hpYou < prev.hpYou ? 'you' : at.hpFoe < prev.hpFoe ? 'foe' : null
+      return side ? { text: at.text, side, kind: at.kind, key: shown } : null
+    }
     return null
   })()
 
@@ -1934,8 +1980,8 @@ export function Cradle() {
                 <FightStage
                   you={result.you}
                   foe={result.foe}
-                  hp={[at ? at.hpYou : result.you.maxHp, at ? at.hpFoe : result.foe.maxHp]}
-                  ghost={[prev ? prev.hpYou : result.you.maxHp, prev ? prev.hpFoe : result.foe.maxHp]}
+                  hp={[shownHp ? shownHp.hpYou : result.you.maxHp, shownHp ? shownHp.hpFoe : result.foe.maxHp]}
+                  ghost={[trailHp ? trailHp.hpYou : result.you.maxHp, trailHp ? trailHp.hpFoe : result.foe.maxHp]}
                   turf={result.turf}
                   swinging={at?.actor === 'you' || at?.actor === 'foe' ? at.actor : null}
                   struck={struckSide ? { side: struckSide, kind: hitKind } : null}
@@ -1943,6 +1989,7 @@ export function Cradle() {
                   speed={speed}
                   lines={result.log.slice(0, shown)}
                   crop={narrow && !diving && !showLadder}
+                  float={float}
                   catsIn={!diving}
                   catsFadeMs={(3 * BEAT_MS) / speed}
                 >
