@@ -6,9 +6,16 @@
  * JP, 2026-09-28: "use the title screen as the mint page" — "the title screen
  * from the sandbox game". This takes its pieces from the s&box project:
  *
- *   BACKDROPS  Assets/art/bg/<zone>/f000..f149.png, 480x320, played at 15 fps
- *              (BgFps in BattleScreen.razor). Encoded to one small looping MP4
- *              per zone, so the page streams a video instead of 150 images.
+ *   BACKDROPS  At 60 fps, from the renderer's own loops: clanker-arena
+ *              assets/bg/zones/<Zone>/f00000..f01199.png — 10 s at 120 frames a
+ *              second (30 fps footage, each frame held 4, with a ripple that
+ *              moves every frame). Every 2nd frame, so 600 at 60 fps. They used
+ *              to come from the s&box set (f000..f149, BgFps 15 in
+ *              BattleScreen.razor), and at 15 fps the whole arena stepped —
+ *              JP, 2026-10-05: "its still choppy / why is it choppy". The same
+ *              pictures, measured; the files came out no bigger.
+ *              Encoded to one small looping MP4 per zone, so the page streams a
+ *              video instead of hundreds of images.
  *
  *   PORTRAITS  The game's own portraits are res<id>.png, 168x168: a 4px paper
  *              ring, an 8px ink edge, the cat inside. Those are V1/V2 cats; the
@@ -22,8 +29,12 @@ import { join } from 'path'
 
 const SBOX = process.env.SBOX_ARENA ?? 'C:/Users/JPDom/sbox-projects/clanker_arena'
 const BG   = join(SBOX, 'Assets', 'art', 'bg')
+const ARENA = process.env.CLANKER_ARENA ?? 'C:/Users/JPDom/OneDrive/Desktop/clanker-arena'
+const LOOPS = join(ARENA, 'assets', 'bg', 'zones')
 const OUT  = join('public', 'title')
-const FPS  = 15
+/** The loops' own rate, and the rate the page plays them at. */
+const SRC_FPS = 120
+const FPS  = 60
 const PORTRAITS = 64
 
 mkdirSync(join(OUT, 'cats'), { recursive: true })
@@ -31,9 +42,12 @@ mkdirSync(join(OUT, 'cats'), { recursive: true })
 // ── backdrops ────────────────────────────────────────────────────────────────
 const zones = readdirSync(BG).filter(z => existsSync(join(BG, z, 'f000.png')))
 for (const z of zones) {
+  // The loops' folders are capitalised (Forest); the s&box set's are not (forest).
+  const loop = join(LOOPS, z.charAt(0).toUpperCase() + z.slice(1))
   execFileSync('ffmpeg', [
     '-y', '-loglevel', 'error',
-    '-framerate', String(FPS), '-i', join(BG, z, 'f%03d.png'),
+    '-framerate', String(SRC_FPS), '-i', join(loop, 'f%05d.png'),
+    '-vf', `fps=${FPS}`,
     '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '30', '-preset', 'slow', '-tune', 'animation',
     '-movflags', '+faststart', '-an',
     join(OUT, `${z}.mp4`),
