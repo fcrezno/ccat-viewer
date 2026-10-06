@@ -1966,11 +1966,18 @@ export function Cradle() {
                 {count !== null && (
                   <div style={s.countWrap}>
                     <div key={count} style={{ animation: `cradle-count ${0.45 / speed}s ease-out` }}>
-                      <BitmapText
-                        text={count === 0 ? 'FIGHT!' : String(count)}
-                        scale={count === 0 ? 4 : 6}
-                        color={count === 0 ? '#ffd166' : '#f0f0f5'}
-                      />
+                      {/*
+                        "make the 3 2 1 fight text Shake": a tremble for the whole
+                        beat, on its own layer so it never fights the drop's scale.
+                        Stepped, so it jumps pixel to pixel like the game's shakes.
+                      */}
+                      <div style={{ animation: `cradle-shake ${0.16 / speed}s steps(5) infinite` }}>
+                        <BitmapText
+                          text={count === 0 ? 'FIGHT!' : String(count)}
+                          scale={count === 0 ? 4 : 6}
+                          color={count === 0 ? '#ffd166' : '#f0f0f5'}
+                        />
+                      </div>
                     </div>
                   </div>
                 )}

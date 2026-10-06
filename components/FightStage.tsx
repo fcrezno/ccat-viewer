@@ -152,6 +152,12 @@ export function FightStage({
     </div>
   )
 
+  /** A bar's clip while the cats are out, and its opening as they come in. */
+  const fill = (side: 'left' | 'right'): React.CSSProperties => ({
+    clipPath: catsIn ? 'inset(0 0 0 0)' : side === 'left' ? 'inset(0 0 0 100%)' : 'inset(0 100% 0 0)',
+    transition: catsIn ? `clip-path ${catsFadeMs}ms ease-out` : 'none',
+  })
+
   const warnYou = warnFor(hp[0], you.maxHp)
   const warnFoe = warnFor(hp[1], foe.maxHp)
 
@@ -191,10 +197,15 @@ export function FightStage({
             <div style={{ ...st.name, left: 299 }}><Haloed text={foe.label} color={foe.mine ? MINE_INK : '#1a1a1a'} /></div>
           </div>
 
-          <div style={{ ...st.bar, left: 32, top: 21, width: 176 }}>
+          {/*
+           * "have the hp bars filling up as well": with the cats, over the
+           * countdown. The bars drain from the outside in, so they fill from the
+           * centre out — a clip opening, round the bar, not inside its own logic.
+           */}
+          <div style={{ ...st.bar, left: 32, top: 21, width: 176, ...fill('left') }}>
             <GameBar hp={hp[0]} ghost={ghost[0]} max={you.maxHp} side="left" speed={speed} />
           </div>
-          <div style={{ ...st.bar, left: 274, top: 22, width: 172 }}>
+          <div style={{ ...st.bar, left: 274, top: 22, width: 172, ...fill('right') }}>
             <GameBar hp={hp[1]} ghost={ghost[1]} max={foe.maxHp} side="right" speed={speed} />
           </div>
 

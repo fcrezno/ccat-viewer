@@ -155,7 +155,8 @@ const BRAND_ROW = 44
  * "Also color code the text to the area it's in": each place's own colour,
  * sampled off mapscreen.png's icon boxes (the commonest saturated colour in
  * each) and firmed up a step so it holds on the pale checker; the lettering
- * then sits at BRAND_ALPHA, so it stays a backdrop.
+ * then sits at BRAND_ALPHA. "add it to the checkboard text as well": the title's
+ * look — full zone ink and the same hard 2px ink drop shadow.
  *   Town #3878f8 · Temple #c878f8 · Caves #b8b888 · Mountain #d88838 · Forest #087808
  */
 const ZONE_INK: Record<string, string> = {
@@ -165,7 +166,7 @@ const ZONE_INK: Record<string, string> = {
   Mountain: '#c86a28',
   Forest: '#2f8f3a',
 }
-const BRAND_ALPHA = 0.55
+const BRAND_ALPHA = 1
 /** px per ms: 30 px a second. */
 const BRAND_SPEED = 0.03
 
@@ -173,7 +174,7 @@ function Lettering({ ms, left, ink }: { ms: number; left: number; ink: string })
   const rows = Math.ceil(H / BRAND_ROW)
   const copies = Math.ceil(W / BRAND_UNIT) + 2
   return (
-    <div style={{ position: 'absolute', top: 0, left: -left, width: W, height: H, pointerEvents: 'none', opacity: BRAND_ALPHA }}>
+    <div style={{ position: 'absolute', top: 0, left: -left, width: W, height: H, pointerEvents: 'none', opacity: BRAND_ALPHA, filter: 'drop-shadow(2px 2px 0 #1a1a1a)' }}>
       {Array.from({ length: rows }, (_, r) => {
         const dir = r % 2 ? 1 : -1
         // Odd rows half a word over, so the names stagger like bricks.
@@ -292,11 +293,13 @@ export function MapDive({ zone, cast, onDone }: {
         <div style={st.card}>
           {/*
            * "Make the text slightly more animated and give it a shadow": the
-           * game's gold wave and glow (VICTOR's), over a hard 2px ink shadow —
-           * the card's own shadow, at the letters' size.
+           * game's wave, over a hard 2px ink shadow — the card's own shadow, at
+           * the letters' size. Then "make the area title match the color scheme
+           * of the arena": the zone's own ink (ZONE_INK), so the gold glow is
+           * gone — it can only paint gold — and the wave alone moves it.
            */}
           <div style={{ opacity: nameFade, filter: 'drop-shadow(2px 2px 0 #1a1a1a)' }}>
-            <BitmapText text={`THE ${zone.toUpperCase()}`} scale={2} color="#b07a10" fx />
+            <BitmapText text={`THE ${zone.toUpperCase()}`} scale={2} color={ZONE_INK[zone] ?? ZONE_INK.Town} fx="wave" />
           </div>
         </div>
       )}
