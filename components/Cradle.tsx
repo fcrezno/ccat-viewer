@@ -1984,7 +1984,7 @@ export function Cradle() {
                     <div style={s.cardRec}>{already ? 'adopted' : 'adopt'}</div>
                   </button>
                   {/* The token itself on OpenSea — JP, 2026-10-06: "a link to the Open Sea link for the nft". */}
-                  <a href={openSeaItem(c.collection, c.id)} target="_blank" rel="noopener noreferrer" style={s.osLink}>OpenSea ↗</a>
+                  <a href={tokenLink(c.collection, c.id).href} target="_blank" rel="noopener noreferrer" style={s.osLink}>{tokenLink(c.collection, c.id).label} ↗</a>
                   </div>
                 )
               })}
@@ -2797,9 +2797,16 @@ function CatLinks() {
   )
 }
 
-/** A token's own page on OpenSea: Base for the first two drops, Robinhood Chain for V3. */
-function openSeaItem(collection: string | undefined, id: string) {
+/**
+ * Where a token's own page is. OpenSea for V1 (Base) and V3 (Robinhood Chain).
+ * NOT for V2: OpenSea has DELISTED that collection — JP, 2026-10-06, its notice:
+ * "delisted from OpenSea for a suspected violation of our Terms of Service. It
+ * will not be visible or accessible to anyone browsing the site." A link there
+ * is a dead end, so a V2 token goes to its Basescan page, which always works.
+ */
+function tokenLink(collection: string | undefined, id: string): { href: string; label: string } {
   const col = getCollection(collection)
+  if (col.key === 'v2') return { href: `https://basescan.org/nft/${col.address}/${id}`, label: 'Basescan' }
   const chain = col.key === 'v3' ? 'robinhood' : 'base'
-  return `https://opensea.io/assets/${chain}/${col.address}/${id}`
+  return { href: `https://opensea.io/assets/${chain}/${col.address}/${id}`, label: 'OpenSea' }
 }
