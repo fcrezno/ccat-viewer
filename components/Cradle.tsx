@@ -1584,7 +1584,13 @@ export function Cradle() {
         try {
           const res = await fetch(`/api/meta?id=${p.id}&c=${p.col}`)
           if (!res.ok) return null
-          const meta = await res.json()
+          let meta = await res.json()
+          /*
+           * A ROBINHOOD CAT SHOWS ITS ART, not the reveal route's "?". JP,
+           * 2026-10-06: "apply the robin hood cats not the mystery ones". The art
+           * is public already (the title screen's reels are V3 cats).
+           */
+          if (p.col === 'v3') meta = { ...meta, image: `/v3/images/${p.id}.png` }
           return { collection: p.col, id: String(p.id), uid: `${p.col}:${p.id}`, meta } as Cat
         } catch { return null }
       }))
@@ -1945,7 +1951,7 @@ export function Cradle() {
         <section className="win98" data-title="Clanker Cats" style={s.block}>
           <p style={s.label}>ADOPT</p>
           <p style={s.fine0}>
-            Any cat from either drop. Adopt one and it stands beside yours in the rankings.
+            Any cat from any drop. Adopt one and it stands beside yours in the rankings.
           </p>
 
           {finding && <p style={s.quiet}>looking for a cat to adopt…</p>}
@@ -1955,8 +1961,8 @@ export function Cradle() {
               {found.map(c => {
                 const already = friends.some(f => f.uid === c.uid)
                 return (
+                  <div key={c.uid} style={s.cardWrap}>
                   <button
-                    key={c.uid}
                     disabled={already}
                     onClick={() => {
                       setFriends(addFriend({
@@ -1977,6 +1983,9 @@ export function Cradle() {
                     <div style={s.cardLabel}>{c.meta?.name ?? `#${c.id}`}</div>
                     <div style={s.cardRec}>{already ? 'adopted' : 'adopt'}</div>
                   </button>
+                  {/* The token itself on OpenSea — JP, 2026-10-06: "a link to the Open Sea link for the nft". */}
+                  <a href={openSeaItem(c.collection, c.id)} target="_blank" rel="noopener noreferrer" style={s.osLink}>OpenSea ↗</a>
+                  </div>
                 )
               })}
             </div>
@@ -2576,9 +2585,12 @@ const s: Record<string, React.CSSProperties> = {
   block:  { background: '#c0c0c0', color: '#000000', border: '1px solid #c0c0c0', borderRadius: 0, padding: 16 },
 
   grid:   { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 },
-  card:   { padding: 0, background: '#0b0b13', border: '2px solid #21212f', borderRadius: 10, overflow: 'hidden', cursor: 'pointer', color: 'inherit', fontFamily: 'inherit' },
-  cardLabel: { fontSize: 9, padding: '5px 4px 0', color: '#f0f0f5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  cardRec: { fontSize: 9, padding: '0 4px 5px', color: '#7a7a95' },
+  // An adopt card in a 98 window: white, a grey hairline, dark text big enough to read (JP: "fix the text size").
+  cardWrap: { display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 },
+  card:   { padding: 0, background: '#ffffff', border: '1px solid #808080', borderRadius: 0, overflow: 'hidden', cursor: 'pointer', color: 'inherit', fontFamily: 'inherit', width: '100%' },
+  cardLabel: { fontSize: 17, padding: '6px 6px 0', color: '#000000', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  cardRec: { fontSize: 16, padding: '2px 6px 6px', color: '#000080' },
+  osLink: { fontSize: 16, color: '#000080', textAlign: 'center', textDecoration: 'underline' },
   placeholder: { width: '100%', aspectRatio: '1', display: 'grid', placeItems: 'center', fontSize: 22, background: '#0b0b13' },
 
   // The phone's scrolling log (see `narrow`), as it was before the battle screen.
@@ -2783,4 +2795,11 @@ function CatLinks() {
       {!NO_CHAIN && <a href="/mint" className="fx-host" style={s.catLink}><FxLabel text="MINT" tone="light" /></a>}
     </div>
   )
+}
+
+/** A token's own page on OpenSea: Base for the first two drops, Robinhood Chain for V3. */
+function openSeaItem(collection: string | undefined, id: string) {
+  const col = getCollection(collection)
+  const chain = col.key === 'v3' ? 'robinhood' : 'base'
+  return `https://opensea.io/assets/${chain}/${col.address}/${id}`
 }
