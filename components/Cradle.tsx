@@ -10,6 +10,8 @@ import { trackForRound } from '@/lib/music'
 import { BitmapText } from '@/components/BitmapText'
 import { FxLabel } from '@/components/FxButton'
 import { FightStage, KIND_INK } from '@/components/FightStage'
+import { MapDive, zoneOfTurf } from '@/components/MapDive'
+import { LadderScreen } from '@/components/LadderScreen'
 import { PageBackdrop } from '@/components/PageBackdrop'
 import { useLoadingHold } from '@/lib/loading'
 import { noteWin, noteLoss, type Beat } from '@/lib/streak'
@@ -811,6 +813,18 @@ export function Cradle() {
   const [naming, setNaming] = useState(false)
   const [rowsShown, setRowsShown] = useState(0)
   const [count, setCount] = useState<number | null>(null)
+  /*
+   * THE MAP INTO BATTLE (components/MapDive). A fight's result arrives, the map
+   * plays — alarm, dive, the place's name — and its end starts the countdown.
+   * JP, 2026-10-05: "can we still add ... the map screen into battle?"
+   */
+  const [diving, setDiving] = useState(false)
+  /*
+   * THE LADDER AFTER A WON ROUND (components/LadderScreen): the gauntlet as a
+   * tower, your cat climbing a rung. JP, 2026-10-05: "can we still add that
+   * mortal kombat ladder thing after victory that we used to have?"
+   */
+  const [showLadder, setShowLadder] = useState(false)
   const [speed, setSpeed] = useState(BASE_SPEED)
   const sound = useSound()
   const cardRef = useRef<HTMLElement>(null)
@@ -895,11 +909,11 @@ export function Cradle() {
 
   useEffect(() => {
     // Nothing is told until the countdown has finished.
-    if (count !== null) return
+    if (count !== null || diving) return
     if (!result || shown >= result.log.length) return
     const t = setTimeout(() => setShown(n => n + 1), LINE_MS / speed)
     return () => clearTimeout(t)
-  }, [result, shown, count, speed])
+  }, [result, shown, count, speed, diving])
 
   // The phone's paper log follows the newest line down (see `narrow`).
   useEffect(() => {
@@ -993,6 +1007,9 @@ export function Cradle() {
   const done = !!result && shown >= result.log.length
   /** A fight is on screen, so the page takes the fight's width (see WIDE). */
   const wide = view === 'fight' && !!result
+
+  // A won round's log has finished: the ladder comes up over the battle screen.
+  useEffect(() => { if (done && run?.won) setShowLadder(true) }, [done, run])
   const at = result && shown > 0 ? result.log[shown - 1] : null
   const prev = result && shown > 1 ? result.log[shown - 2] : null
   /*
@@ -1131,7 +1148,7 @@ export function Cradle() {
     sound.prime()
     sound.startMusic()
     setBusy(true); setError(null); setNote(null); setConfirmRetire(false)
-    setResult(null); setShown(0); setRowsShown(0); setCount(null); setView('fight')
+    setResult(null); setShown(0); setRowsShown(0); setCount(null); setDiving(false); setShowLadder(false); setView('fight')
     // A single fight is never part of a run, so anything left over goes.
     setRun(null); setRecorded(true); setTag(null)
     try {
@@ -1162,8 +1179,8 @@ export function Cradle() {
       setResult(data)
       setRecorded(data.recorded !== false)
       setTag(data.tag ?? null)
-      // The fight opens on 3, 2, 1, FIGHT! — the log waits for it.
-      setCount(3)
+      // The fight opens on the map, then 3, 2, 1, FIGHT! — the log waits for both.
+      setDiving(true)
     } catch {
       setError('could not reach the arena')
     } finally {
@@ -1185,7 +1202,7 @@ export function Cradle() {
     sound.prime()
     sound.startMusic(trackForRound(1))
     setBusy(true); setError(null); setNote(null); setConfirmRetire(false)
-    setResult(null); setShown(0); setRowsShown(0); setCount(null); setView('fight')
+    setResult(null); setShown(0); setRowsShown(0); setCount(null); setDiving(false); setShowLadder(false); setView('fight')
     setRun(null)
 
     try {
@@ -1242,7 +1259,7 @@ export function Cradle() {
     // is the same track and nothing restarts; see lib/music.ts.
     sound.startMusic(trackForRound(run.roundNo + 1))
     setChoosing(true); setError(null)
-    setResult(null); setShown(0); setRowsShown(0); setCount(null)
+    setResult(null); setShown(0); setRowsShown(0); setCount(null); setDiving(false); setShowLadder(false)
 
     try {
       const res = await fetch('/api/gauntlet/next', {
@@ -1312,8 +1329,8 @@ export function Cradle() {
       over:     data.over,
     })
     setResult(data.round.fight)
-    // Every round opens on 3, 2, 1, FIGHT! — the log waits for it.
-    setCount(3)
+    // Every round opens on the map into its place, then 3, 2, 1, FIGHT!.
+    setDiving(true)
   }
 
   /** Leave a run behind. Used by every way out of the fight view. */
@@ -1915,8 +1932,30 @@ export function Cradle() {
                   beat={shown}
                   speed={speed}
                   lines={result.log.slice(0, shown)}
-                  crop={narrow}
+                  crop={narrow && !diving && !showLadder}
                 >
+                  {showLadder && run && (
+                    <LadderScreen
+                      foes={run.foes.map(f => ({
+                        uid: f.uid,
+                        name: nameFor(f.uid) ?? f.label,
+                        art: f.art ?? '',
+                        pixel: getCollection(f.collection).pixelArt,
+                      }))}
+                      beaten={run.roundNo}
+                      you={{ name: result.you.label, art: result.you.art }}
+                      champion={run.champion}
+                      pot={run.pot}
+                      onDone={() => setShowLadder(false)}
+                    />
+                  )}
+                  {diving && (
+                    <MapDive
+                      zone={zoneOfTurf(result.turf)}
+                      cast={[result.you.art, result.foe.art]}
+                      onDone={() => { setDiving(false); setCount(3) }}
+                    />
+                  )}
                   {/*
                   3, 2, 1, FIGHT! over the stage, in the game's font because
                   MyFont has no digits — a countdown is nothing but digits.
