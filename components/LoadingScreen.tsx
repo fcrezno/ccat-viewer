@@ -30,6 +30,10 @@ import { preloadBattle } from '@/lib/battleAssets'
  * Rendered on the server too, so it is the first thing painted rather than
  * something that arrives after the page it is meant to hide.
  */
+/** The ladder's checker blues (components/LadderScreen). Literals, so this file loads nothing heavy before first paint. */
+const CHECK_A = '#d3dceb'
+const CHECK_B = '#c9d3e4'
+const OUTLINE = 'drop-shadow(2px 0 0 #1a1a1a) drop-shadow(-2px 0 0 #1a1a1a) drop-shadow(0 2px 0 #1a1a1a) drop-shadow(0 -2px 0 #1a1a1a)'
 const MIN_MS = 500
 /** About 6.5 MB of battle files ride on the front page's load now, so a slower line gets longer. */
 const MAX_MS = 12000
@@ -128,16 +132,29 @@ export function LoadingScreen() {
       aria-label="Loading"
       style={{ ...st.screen, opacity: phase === 'fading' ? 0 : 1, pointerEvents: phase === 'fading' ? 'none' : 'auto' }}
     >
-      <BitmapText text="CLANKER CATS" scale={3} color="#b07a10" fx className="fx-btn-text" />
-      {/* The game's own health bar, filling as the page comes in. */}
-      <div style={st.bar}>
-        {/* The empty bar, faint, so there is something to fill: early on the fill alone was a red stub. */}
-        <img src="/game/bar/right-full.png" alt="" style={st.track} />
-        <GameBar hp={pct} ghost={pct} max={100} side="right" />
-      </div>
-      <div style={st.blink}>
-        <BitmapText text="LOADING..." scale={1} color="#c4c4d8" />
-      </div>
+      {/*
+        THE WINDOW AND THE CHECKER, like every page — JP, 2026-10-06: "give this
+        the window and background treatment too". The checker is plain CSS here,
+        moved by a transform: this is painted before any script runs, so it
+        cannot wait for PageChecker's clock.
+      */}
+      <div aria-hidden style={st.clip}><div style={st.checker} /></div>
+      <section className="win98" data-title="Clanker Cats" style={st.window}>
+        <div style={{ filter: OUTLINE }}>
+          <BitmapText text="CLANKER CATS" scale={3} color="#b07a10" fx className="fx-btn-text" />
+        </div>
+        {/* The game's own health bar, filling as the page comes in, in a sunken 98 field. */}
+        <div style={st.field}>
+          <div style={st.bar}>
+            {/* The empty bar, faint, so there is something to fill: early on the fill alone was a red stub. */}
+            <img src="/game/bar/right-full.png" alt="" style={st.track} />
+            <GameBar hp={pct} ghost={pct} max={100} side="right" />
+          </div>
+        </div>
+        <div style={st.blink}>
+          <BitmapText text="LOADING..." scale={2} color="#000080" />
+        </div>
+      </section>
     </div>
   )
 }
@@ -146,12 +163,25 @@ const st: Record<string, React.CSSProperties> = {
   screen: {
     position: 'fixed', inset: 0, zIndex: 1000,
     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 22,
-    background: 'radial-gradient(ellipse at 50% 40%, #1a1630 0%, #0a0a14 70%)',
+    background: CHECK_A,
+    overflow: 'hidden',
     transition: `opacity ${FADE_MS}ms ease-out`,
     padding: 16,
   },
   // right-*.png is 172x13: exactly 2x, square pixels — the width min()s down on a small phone.
-  bar:   { position: 'relative', width: 'min(344px, 80vw)' },
-  track: { position: 'absolute', inset: 0, width: '100%', height: '100%', imageRendering: 'pixelated', filter: 'grayscale(1) brightness(0.45)', opacity: 0.6 },
+  clip:    { position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' },
+  // The ladder's paper-blue checker, one 64px tile down-left per cycle (20 px a second).
+  checker: {
+    position: 'absolute', left: -64, top: -64, right: -64, bottom: -64,
+    background: `repeating-conic-gradient(${CHECK_A} 0 25%, ${CHECK_B} 0 50%)`,
+    backgroundSize: '64px 64px',
+    animation: 'loading-checker 3.2s linear infinite',
+    willChange: 'transform',
+  },
+  window:  { position: 'relative', background: '#c0c0c0', border: '1px solid #c0c0c0', padding: 16, width: 'min(560px, 94vw)', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18 },
+  field:   { width: '100%', boxSizing: 'border-box', padding: 8, background: '#ffffff', boxShadow: 'inset 1px 1px 0 0 #808080, inset -1px -1px 0 0 #ffffff, inset 2px 2px 0 0 #0a0a0a, inset -2px -2px 0 0 #dfdfdf', display: 'flex', justifyContent: 'center' },
+  // right-*.png is 172x13: exactly 2x, square pixels — the width min()s down on a small phone.
+  bar:   { position: 'relative', width: 'min(344px, 72vw)' },
+  track: { position: 'absolute', inset: 0, width: '100%', height: '100%', imageRendering: 'pixelated', filter: 'grayscale(1) brightness(0.7)', opacity: 0.5 },
   blink: { animation: 'cradle-blink 0.74s steps(1, end) infinite' },
 }

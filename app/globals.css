@@ -1032,3 +1032,9 @@ button, input, select, textarea, optgroup {
   .win98 .fx-host { transition: none; }
   .win98 .fx-host:hover:not(:disabled), .win98 .fx-host:focus-visible { transform: none; }
 }
+
+/* The loading screen's checker (components/LoadingScreen): one 64px tile down-left, then again. */
+@keyframes loading-checker {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-64px, 64px, 0); }
+}

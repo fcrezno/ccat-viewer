@@ -2170,7 +2170,7 @@ export function Cradle() {
               {done && (
               <div style={{ ...s.after, width: WIDE }}>
               {done && result.rows.length > 0 && (
-                <section ref={cardRef} style={{ ...s.resultCard, animation: 'results-in 0.45s ease-out both' }}>
+                <section ref={cardRef} className="win98" data-title="Results" style={{ ...s.resultCard, animation: 'results-in 0.45s ease-out both' }}>
                   {/*
                     CONFETTI ONLY WHEN YOU WON — deliberate, and checked.
 
@@ -2616,8 +2616,8 @@ const s: Record<string, React.CSSProperties> = {
   // NOT `card` — that name already belongs to the cat grid tile above.
   resultCard: {
     position: 'relative', overflow: 'hidden',
-    background: PAPER, color: INK, borderRadius: 14, padding: '18px 18px 16px',
-    boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.08)',
+    // A light Windows 98 window like every panel (.win98): grey body, the frame and title bar from CSS.
+    background: '#c0c0c0', color: INK, borderRadius: 0, padding: 16,
   },
   scoreRow: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
