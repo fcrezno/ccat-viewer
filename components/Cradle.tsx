@@ -13,6 +13,7 @@ import { FightStage, KIND_INK } from '@/components/FightStage'
 import { MapDive, zoneOfTurf } from '@/components/MapDive'
 import { LadderScreen } from '@/components/LadderScreen'
 import type { Float } from '@/components/FloatWord'
+import { MAX_ENERGY, restLeft, spendEnergy, stamina, type Stamina } from '@/lib/stamina'
 import { PageBackdrop } from '@/components/PageBackdrop'
 import { useLoadingHold } from '@/lib/loading'
 import { noteWin, noteLoss, type Beat } from '@/lib/streak'
@@ -1179,15 +1180,41 @@ export function Cradle() {
    */
   useEffect(() => { firstCat() }, [])
 
+  /*
+   * STAMINA (lib/stamina): the cat a run is on, and one energy for each lost
+   * round — charged once the round has PLAYED, so nothing on the menu can give
+   * the ending away while the fight is still being told.
+   */
+  const runCat = useRef<string | null>(null)
+  // 0 until mounted: the server has no stamina to read, so the first paint shows none either.
+  const [stTick, staminaTick] = useState(0)
+  useEffect(() => {
+    const on = () => staminaTick(n => n + 1)
+    on()
+    window.addEventListener('cradle-stamina', on)
+    const t = setInterval(on, 30000)
+    return () => { window.removeEventListener('cradle-stamina', on); clearInterval(t) }
+  }, [])
+  const staminaOf = (cat: string): Stamina | null => (stTick === 0 ? null : stamina(cat))
+  const charged = useRef<string | null>(null)
+  useEffect(() => {
+    if (!done || !result || !run || run.won || !runCat.current) return
+    const key = String(result.seed)
+    if (charged.current === key) return
+    charged.current = key
+    spendEnergy(runCat.current)
+  }, [done, result, run])
+
   const [beat, setBeat] = useState<Beat | null>(null)
   const streaked = useRef<string | null>(null)
   useEffect(() => {
-    if (!done || !result) return
+    // A quick fight saves nothing, the streak included: only a run counts.
+    if (!done || !result || !run) return
     const key = String(result.seed)
     if (streaked.current === key) return
     streaked.current = key
     setBeat(result.youWon ? noteWin() : noteLoss())
-  }, [done, result])
+  }, [done, result, run])
 
   useEffect(() => {
     // `recorded` covers the exhibition and the demo run; isDemo covers the demo
@@ -1233,7 +1260,13 @@ export function Cradle() {
       const data = await res.json()
       if (!res.ok) { setError(data.error ?? 'that did not work'); return }
       setResult(data)
-      setRecorded(data.recorded !== false)
+      /*
+       * A QUICK FIGHT SAVES NOTHING. JP, 2026-10-06: "quick fights are stamina
+       * less but save no data". It costs no energy (lib/stamina), so it cannot
+       * be allowed to build a record either: the cat's wins and losses are the
+       * gauntlet's now.
+       */
+      setRecorded(false)
       setTag(data.tag ?? null)
       // The fight opens on the map, then 3, 2, 1, FIGHT! — the log waits for both.
       setDiving(true)
@@ -1255,6 +1288,14 @@ export function Cradle() {
    * the server's `recorded` is what gets stored.
    */
   async function startGauntlet(demo: boolean) {
+    // A tired cat sits it out (lib/stamina). Checked before anything starts.
+    const cat = demo || !picked ? `guest:${guestId()}` : picked.uid
+    const st = stamina(cat)
+    if (st.resting && st.until) {
+      setError(`your cat is resting — back in ${restLeft(st.until)}. Time in the yard cuts it, down to half.`)
+      return
+    }
+    runCat.current = cat
     sound.prime()
     sound.startMusic(trackForRound(1))
     setBusy(true); setError(null); setNote(null); setConfirmRetire(false)
@@ -1694,13 +1735,14 @@ export function Cradle() {
                       onClick={() => startFight({ uid: picked.uid })}>
                       <FxLabel text={"QUICK FIGHT"} tone='light' />
                     </button>
-                    <p style={s.modeFine}>one fight · goes on your record</p>
+                    <p style={s.modeFine}>one fight · just for fun, nothing is saved</p>
 
                     <button className="fx-host" style={s.gauntlet} disabled={busy}
                       onClick={() => startGauntlet(false)}>
                       <FxLabel text={"GAUNTLET"} tone='gold' />
                     </button>
                     <p style={s.modeFine}>five cats people own · survive it to be champion</p>
+                    <EnergyLine st={staminaOf(picked.uid)} />
 
                     {/* THE YARD AS AN OPTION (JP, 2026-09-28), beside the fights. */}
                     <a href="/yard" className="fx-host" style={s.yardBtn}><FxLabel text="THE YARD" tone="green" /></a>
@@ -1752,6 +1794,7 @@ export function Cradle() {
                     <FxLabel text={"GAUNTLET"} tone='gold' />
                   </button>
                   <p style={s.modeFine}>five cats people own · a demo run is never recorded</p>
+                  <EnergyLine st={staminaOf(`guest:${guestId()}`)} />
 
                   {/* THE YARD AS AN OPTION (JP, 2026-09-28). /yard shows the demo yard to a guest. */}
                   <a href="/yard" className="fx-host" style={s.yardBtn}><FxLabel text="THE YARD" tone="green" /></a>
@@ -2665,4 +2708,28 @@ const s: Record<string, React.CSSProperties> = {
     border: '1px solid #21212f', borderRadius: 999, padding: '3px 14px',
   },
   footer:  { marginTop: 12, textAlign: 'center', color: '#3f3f55', fontSize: 10, letterSpacing: 1 },
+}
+
+/**
+ * The cat's energy under the GAUNTLET button: three pips, or how long it rests.
+ * Null on the server, where there is no stamina to read.
+ */
+function EnergyLine({ st }: { st: Stamina | null }) {
+  if (!st) return null
+  if (st.resting && st.until) {
+    return (
+      <p style={{ margin: '2px 0 0', fontSize: 12, color: '#c9a2ff', textAlign: 'center' }}>
+        resting · back in {restLeft(st.until)} ·{' '}
+        <a href="/yard" style={{ color: '#9be89b' }}>time in the yard cuts it</a>
+      </p>
+    )
+  }
+  return (
+    <p style={{ margin: '2px 0 0', fontSize: 12, color: '#bfbfd6', textAlign: 'center' }} aria-label={`energy ${st.energy} of ${MAX_ENERGY}`}>
+      energy{' '}
+      <span style={{ letterSpacing: 2, color: '#ffd166' }}>{'●'.repeat(st.energy)}</span>
+      <span style={{ letterSpacing: 2, color: '#55556a' }}>{'●'.repeat(MAX_ENERGY - st.energy)}</span>
+      {' '}· a lost run costs one
+    </p>
+  )
 }

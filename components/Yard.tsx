@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { yardAction } from '@/lib/stamina'
 import { between, bond, isChore, reads, temperOf, waiting, type ChoreKind, type DeedKind, type Memory, type Resident } from '@/lib/yard'
 import { visit, furnish, DEMO_KEY, KEY, MAX_TICKS, type Visit } from '@/lib/yardstore'
 import { history, record, type Entry } from '@/lib/chronicle'
@@ -670,6 +671,7 @@ export function Yard({
   )
 
   const answer = (uid: string) => {
+    yardAction()
     if (state && raw) {
       settle(state.state, raw)
       /*
@@ -791,8 +793,13 @@ export function Yard({
           mine={cats.filter(c => c.mine).map(c => c.uid)}
           replay
           picked={full ? picked : undefined}
-          onPick={full ? setPicked : undefined}
+          onPick={full ? (uid => {
+            setPicked(uid)
+            // Time with your own cat cuts a rest (lib/stamina).
+            if (uid && cats.some(c => c.uid === uid && c.mine)) yardAction()
+          }) : undefined}
           onFurnish={prop => {
+            yardAction()
             const s = furnish(prop, yardKey)
             // Null only before a first visit has been saved, which cannot be
             // reached from here — the map is not rendered until one has.

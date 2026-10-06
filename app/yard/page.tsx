@@ -7,6 +7,7 @@ import { FxButton } from '@/components/FxButton'
 import { useYardResidents } from '@/lib/useYardResidents'
 import { PageBackdrop } from '@/components/PageBackdrop'
 import { useLoadingHold } from '@/lib/loading'
+import { YardRest } from '@/components/YardRest'
 
 /**
  * THE YARD — ITS OWN PAGE, AND THE ONLY PLACE IT LIVES.
@@ -40,6 +41,7 @@ export default function YardPage() {
         <h1 style={s.title}>THE YARD</h1>
       </header>
       <p style={s.sub}>Your cats and the cats of people you follow, getting on with it.</p>
+      <YardRest />
 
       <section style={s.block}>
         {cats.length === 0 ? (
