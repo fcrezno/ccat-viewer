@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { BitmapText } from '@/components/BitmapText'
-import { checker } from '@/components/LadderScreen'
+import { Checker } from '@/components/LadderScreen'
 import { measure } from '@/lib/font'
 
 /**
@@ -181,7 +181,7 @@ function Lettering({ ms, left, ink }: { ms: number; left: number; ink: string })
         const travel = ms * BRAND_SPEED * dir + (r % 2) * BRAND_UNIT / 2
         const x = ((travel % BRAND_UNIT) + BRAND_UNIT) % BRAND_UNIT - BRAND_UNIT
         return (
-          <div key={r} style={{ position: 'absolute', left: 0, top: r * BRAND_ROW + 10, display: 'flex', gap: BRAND_GAP, transform: `translateX(${x}px)` }}>
+          <div key={r} style={{ position: 'absolute', left: 0, top: r * BRAND_ROW + 10, display: 'flex', gap: BRAND_GAP, transform: `translate3d(${x}px, 0, 0)`, willChange: 'transform' }}>
             {Array.from({ length: copies }, (_, c) => (
               <div key={c} style={{ flexShrink: 0 }}>
                 <BitmapText text={BRAND} scale={BRAND_SCALE} color={ink} />
@@ -327,11 +327,13 @@ export function MapDive({ zone, cast, onDone }: {
       {/* The checker: in over the white, then parting down the middle onto the fight. */}
       {checks > 0 && (
         <>
-          <div style={{ ...st.half, left: 0, opacity: checks, transform: `translateX(${-split * (W / 2 + 4)}px)`, ...checker(ms) }}>
+          <div style={{ ...st.half, left: 0, opacity: checks, transform: `translateX(${-split * (W / 2 + 4)}px)` }}>
+            <Checker ms={ms} left={0} />
             <Lettering ms={ms} left={0} ink={ZONE_INK[zone] ?? ZONE_INK.Town} />
             {split > 0 && <div style={{ ...st.edge, right: 0 }} />}
           </div>
-          <div style={{ ...st.half, left: W / 2, opacity: checks, transform: `translateX(${split * (W / 2 + 4)}px)`, ...checker(ms, W / 2) }}>
+          <div style={{ ...st.half, left: W / 2, opacity: checks, transform: `translateX(${split * (W / 2 + 4)}px)` }}>
+            <Checker ms={ms} left={W / 2} />
             <Lettering ms={ms} left={W / 2} ink={ZONE_INK[zone] ?? ZONE_INK.Town} />
             {split > 0 && <div style={{ ...st.edge, left: 0 }} />}
           </div>

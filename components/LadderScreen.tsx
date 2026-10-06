@@ -153,15 +153,32 @@ const ITEMS = ['pizza', 'donut', 'gameboy', 'banana', 'vinyl', 'chips', 'pineapp
  * The paper-blue checker at time `ms`, drifting down and to the left at FALL.
  * Shared with components/MapDive, whose way into the fight is this same checker
  * splitting open — so the two screens are one family.
+ *
+ * MOVED BY TRANSFORM, NOT BY background-position. JP, 2026-10-05: "make that
+ * checkerboard animate smoother". A background position is snapped to whole
+ * pixels, so at 20 px a second the squares stepped; a transformed layer moves
+ * by fractions of a pixel on the GPU. So the pattern is painted once on a layer
+ * a full tile bigger than the screen on every side, and the LAYER slides,
+ * wrapping every tile. Drop it inside an `overflow: hidden` parent.
+ *
+ * `left`: where the parent starts on the screen. The layer is pulled back by
+ * it, so the pattern is laid on the SCREEN and two pieces line up as one.
  */
-export const checker = (ms: number, left = 0): React.CSSProperties => {
-  const drift = (ms * FALL) % (CHECK * 2)
-  return {
-    background: `repeating-conic-gradient(${CHECK_A} 0 25%, ${CHECK_B} 0 50%)`,
-    backgroundSize: `${CHECK * 2}px ${CHECK * 2}px`,
-    // `left`: where the element starts on the screen, so two pieces of it line up as one.
-    backgroundPosition: `${-drift - left}px ${drift}px`,
-  }
+export function Checker({ ms, left = 0 }: { ms: number; left?: number }) {
+  const tile = CHECK * 2
+  const drift = (ms * FALL) % tile
+  return (
+    <div style={{
+      position: 'absolute',
+      left: -left - tile * 2, top: -tile * 2,
+      width: W + tile * 4, height: H + tile * 4,
+      background: `repeating-conic-gradient(${CHECK_A} 0 25%, ${CHECK_B} 0 50%)`,
+      backgroundSize: `${tile}px ${tile}px`,
+      transform: `translate3d(${-drift}px, ${drift}px, 0)`,
+      willChange: 'transform',
+      pointerEvents: 'none',
+    }} />
+  )
 }
 
 /** A 2px ink outline round the title's glyphs: drop-shadows follow the mask. */
@@ -178,7 +195,7 @@ function Field({ ms, width, height }: { ms: number; width: number; height: numbe
   const blend = smooth(clamp(((k % 1) - (1 - MORPH_FADE)) / MORPH_FADE))
   return (
     <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
-      <div style={{ position: 'absolute', inset: 0, ...checker(ms) }} />
+      <Checker ms={ms} />
       {Array.from({ length: rows }, (_, r) => {
         // px per ms: about 12 px a second at the top, 72 at the bottom.
         const v = 0.012 + (0.06 * r) / Math.max(1, rows - 1)
@@ -200,7 +217,7 @@ function Field({ ms, width, height }: { ms: number; width: number; height: numbe
          */
         const y = ((r * FIELD_ROW + ms * FALL) % span) - FIELD_ROW
         return (
-          <div key={r} style={{ position: 'absolute', left: 0, top: y, height: FIELD_ROW, transform: `translateX(${x}px)`, display: 'flex', opacity: FIELD_ALPHA }}>
+          <div key={r} style={{ position: 'absolute', left: 0, top: 0, height: FIELD_ROW, transform: `translate3d(${x}px, ${y}px, 0)`, willChange: 'transform', display: 'flex', opacity: FIELD_ALPHA }}>
             {Array.from({ length: cells }, (_, c) => {
               const cell = { width: FIELD_CELL, height: FIELD_ROW, position: 'relative' as const, flexShrink: 0 }
               /*
