@@ -6,7 +6,8 @@ import { V3, V3_ABI, V3_DEPLOYED } from '@/lib/mintv3'
 import { robinhood } from '@/lib/chains'
 import { MintStage } from '@/components/MintStage'
 import { FxButton } from '@/components/FxButton'
-import { PageBackdrop } from '@/components/PageBackdrop'
+import { PageChecker } from '@/components/PageChecker'
+import { PageTitle } from '@/components/PageTitle'
 import { useLoadingHold } from '@/lib/loading'
 
 /**
@@ -42,9 +43,9 @@ export function RobinhoodMint() {
 
   return (
     <main style={s.page}>
-      <PageBackdrop />
+      <PageChecker />
       <header style={s.header}>
-        <h1 style={s.title}>CLANKER CATS</h1>
+        <PageTitle text="CLANKER CATS" />
         <p style={s.sub}>Robinhood Chain · free for BUN holders</p>
       </header>
 
@@ -76,7 +77,8 @@ const s: Record<string, React.CSSProperties> = {
   },
   header:   { textAlign: 'center', paddingBottom: 4 },
   title:    { fontSize: 30, letterSpacing: 1, margin: 0, lineHeight: 1.1 },
-  sub:      { color: '#7a7a95', fontSize: 13, margin: '4px 0 0' },
+  // Dark ink on the light checker (PageChecker).
+  sub:      { color: '#1a1a1a', fontSize: 20, margin: '6px 0 0' },
   label:    { fontSize: 10, letterSpacing: 2, color: '#7a7a95', margin: '0 0 10px' },
   block:    { background: '#12121c', border: '1px solid #21212f', borderRadius: 14, padding: 16 },
   count:    { color: '#7a7a95', fontSize: 13, margin: '10px 0 0', textAlign: 'center' },

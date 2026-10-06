@@ -5,7 +5,8 @@ import sdk from '@farcaster/miniapp-sdk'
 import { Yard } from '@/components/Yard'
 import { FxButton } from '@/components/FxButton'
 import { useYardResidents } from '@/lib/useYardResidents'
-import { PageBackdrop } from '@/components/PageBackdrop'
+import { PageChecker } from '@/components/PageChecker'
+import { PageTitle } from '@/components/PageTitle'
 import { useLoadingHold } from '@/lib/loading'
 import { YardRest } from '@/components/YardRest'
 
@@ -35,15 +36,15 @@ export default function YardPage() {
 
   return (
     <main style={s.page}>
-      <PageBackdrop />
+      <PageChecker />
       <header style={s.head}>
         <FxButton href="/" style={s.back} tone="grey" label="← THE GAME" />
-        <h1 style={s.title}>THE YARD</h1>
+        <PageTitle text="THE YARD" />
       </header>
       <p style={s.sub}>Your cats and the cats of people you follow, getting on with it.</p>
       <YardRest />
 
-      <section style={s.block}>
+      <section className="win98" data-title="The Yard" style={s.block}>
         {cats.length === 0 ? (
           busy ? (
             <p style={s.quiet}>reading the yard…</p>
@@ -79,10 +80,12 @@ const s: Record<string, React.CSSProperties> = {
   head:    { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 },
   back:    { alignSelf: 'flex-start', padding: '7px 12px', border: '1px solid #2c2c3c', borderRadius: 10, background: 'transparent' },
   title:   { fontSize: 30, letterSpacing: 1, margin: 0, textAlign: 'center', lineHeight: 1.1 },
-  sub:     { color: '#c4c4d8', fontSize: 15, margin: 0, textAlign: 'center', lineHeight: 1.4 },
+  // Dark ink on the light checker (PageChecker).
+  sub:     { color: '#1a1a1a', fontSize: 20, margin: 0, textAlign: 'center', lineHeight: 1.4 },
   // Less side padding than the front page's 16, so the map gets the width.
-  block:   { background: '#12121c', border: '1px solid #21212f', borderRadius: 14, padding: '14px 10px' },
-  quiet:   { color: '#c4c4d8', fontSize: 15, margin: 0, lineHeight: 1.6 },
+  // A light Windows 98 window, as on the front page (.win98 in globals.css).
+  block:   { background: '#c0c0c0', color: '#000000', border: '1px solid #c0c0c0', borderRadius: 0, padding: 16 },
+  quiet:   { color: '#1a1a1a', fontSize: 20, margin: 0, lineHeight: 1.5 },
   empty:   { display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-start', margin: '10px 6px' },
   button: {
     marginTop: 6, padding: '9px 20px', borderRadius: 12, background: '#7c3aed',

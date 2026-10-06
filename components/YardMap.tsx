@@ -580,8 +580,8 @@ export function YardMap({
       <div style={s.readout}>
         {sel ? (
           <>
-            <b style={{ color: '#ffffff' }}>{sel.cat.name}</b>
-            <span style={{ color: '#d0d0e0' }}>
+            <b style={{ color: '#000080' }}>{sel.cat.name}</b>
+            <span style={{ color: '#1a1a1a' }}>
               {/*
                 WHOSE IT IS, which used to live in a hover card over the log. The
                 log is drawn in the bitmap font now and cannot carry a handler per
@@ -598,7 +598,7 @@ export function YardMap({
             </span>
           </>
         ) : (
-          <span style={{ color: '#c4c4d8' }}>
+          <span style={{ color: '#1a1a1a' }}>
             {yard.props.length
               ? 'Tap a cat.'
               : 'Tap a cat. Nothing to play with out here yet.'}
@@ -774,7 +774,7 @@ const s: Record<string, React.CSSProperties> = {
      */
     boxShadow: '0 0 0 1px #1a1a1a',
   },
-  fallback: { fontSize: 11, color: '#cfcfe0' },
+  fallback: { fontSize: 15, color: '#1a1a1a' },
   /*
    * SMALL, TOP RIGHT, AND OUTLINED. It sits on top of a full-colour portrait,
    * so a plain glyph would vanish over a pale cat and over a dark one both. The
@@ -800,12 +800,12 @@ const s: Record<string, React.CSSProperties> = {
   propArt:  { width: '82%', height: '82%', objectFit: 'contain', display: 'block', userSelect: 'none' },
   sky: {
     display: 'flex', alignItems: 'center', gap: 5,
-    marginBottom: 8, fontSize: 15, color: '#c4c4d8',
+    marginBottom: 8, fontSize: 19, color: '#1a1a1a',
     letterSpacing: 0.5,
   },
   skyArt:   { width: 20, height: 20, objectFit: 'contain', display: 'block' },
   shelfArt: { width: 30, height: 30, objectFit: 'contain', display: 'block', flexShrink: 0 },
-  readout:  { marginTop: 10, fontSize: 15, minHeight: 22, lineHeight: 1.45 },
+  readout:  { marginTop: 10, fontSize: 19, minHeight: 22, lineHeight: 1.45 },
   /*
    * Gold, and the only gold thing under the map. It is the one row that is not a
    * report — everything else here says what happened, this asks.
@@ -813,18 +813,18 @@ const s: Record<string, React.CSSProperties> = {
   ask: {
     display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
     marginTop: 8, padding: '7px 10px', borderRadius: 8,
-    background: '#1c1a10', border: '1px solid #4a3d16',
+    background: '#ffffe1', border: '1px solid #b07a10',
   },
   askWho: {
     display: 'flex', alignItems: 'baseline', gap: 6,
     background: 'none', border: 0, padding: 0, cursor: 'pointer',
-    font: 'inherit', fontSize: 12, color: '#e0c88a', textAlign: 'left',
+    font: 'inherit', fontSize: 17, color: '#6b4a08', textAlign: 'left',
   },
   askGo: {
     marginLeft: 'auto',
     padding: '5px 12px', borderRadius: 999,
     background: '#e0a72c', border: '1px solid #e0a72c', color: '#1a1a1a',
-    font: 'inherit', fontSize: 12, cursor: 'pointer',
+    font: 'inherit', fontSize: 17, cursor: 'pointer',
   },
   // 2 x 2 on a phone, one row of four on a desktop: as many 150px columns as fit.
   shelf:    { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8, marginTop: 10 },

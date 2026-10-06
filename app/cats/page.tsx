@@ -10,7 +10,8 @@ import { APP_URL } from '@/lib/miniapp'
 import { useWebConnectors } from '@/lib/useWebConnectors'
 import { BitmapText } from '@/components/BitmapText'
 import { FxButton } from '@/components/FxButton'
-import { PageBackdrop } from '@/components/PageBackdrop'
+import { PageChecker } from '@/components/PageChecker'
+import { PageTitle } from '@/components/PageTitle'
 import { useLoadingHold } from '@/lib/loading'
 
 /**
@@ -483,7 +484,7 @@ export default function Home() {
   return (
     <main style={s.page}>
       {/* The title screen's page: a zone, blurred and darkened. */}
-      <PageBackdrop />
+      <PageChecker />
 
       <header style={s.header}>
         <div style={s.nav}>
@@ -491,7 +492,7 @@ export default function Home() {
           {address && <div style={s.addr}>{address.slice(0, 6)}…{address.slice(-4)}</div>}
           <FxButton href="/mint" style={s.navBtn} tone="light" label="MINT" />
         </div>
-        <h1 style={s.title}>CLANKER CATS</h1>
+        <PageTitle text="CLANKER CATS" />
         <p style={s.sub}>{count > 0 ? `your ${count} cat${count !== 1 ? 's' : ''}` : 'your cats'}</p>
       </header>
 
@@ -538,7 +539,8 @@ const s: Record<string, React.CSSProperties> = {
   navBtn:    { padding: '6px 12px', border: '1px solid #2c2c3c', borderRadius: 10, background: 'rgba(18,18,28,0.6)' },
   addr:      { fontSize: 12, color: '#9a9ab5', background: 'rgba(18,18,28,0.7)', padding: '5px 10px', borderRadius: 20 },
   title:     { fontSize: 30, letterSpacing: 1, margin: '6px 0 0', lineHeight: 1.1, textAlign: 'center' },
-  sub:       { color: '#9a9ab5', fontSize: 14, margin: 0 },
+  // Dark ink on the light checker (PageChecker).
+  sub:       { color: '#1a1a1a', fontSize: 20, margin: 0 },
   block:     { background: 'rgba(18,18,28,0.92)', border: '1px solid #21212f', borderRadius: 14, padding: 16 },
   center:    { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' },
   stack:     { display: 'flex', flexDirection: 'column', gap: 16 },

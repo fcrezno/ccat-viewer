@@ -768,7 +768,7 @@ export function Yard({
 
   return (
     <div style={{ position: 'relative' }}>
-      <p style={{ ...fine, marginBottom: 10 }}>
+      <p style={{ ...fine, fontSize: 24, marginBottom: 12 }}>
         {state.fresh
           ? `${cats.length} cats in the yard. Come back later and they will have got on with it.`
           : state.hours === 0
@@ -845,7 +845,17 @@ export function Yard({
         grow control hides itself because there is nothing to grow — so an empty
         sheet of paper rendered under the map.
       */}
+      {/*
+        THE LOG AS AN AIM CHAT ROOM. JP, 2026-10-06: "make this look like a AIM
+        chat room" and "format the text better". The room's bar; the messages in
+        a white, sunken pane on the left; who is talking as the room's buddy list
+        on the right (under it on a phone); and the message box, greyed out —
+        only the cats type in here.
+      */}
       {(shown.length > 0 || pairs.length > 0 || (full && past.length > 0)) && (
+        <div style={aim.room}>
+          <div style={aim.bar}>Chat Room: The Yard</div>
+          <div style={aim.panes}>
         <div
           ref={logRef}
           onWheel={readerMoved}
@@ -1014,9 +1024,14 @@ export function Yard({
             </>
           )}
 
+        </div>
+
+          {/* THE ROOM'S BUDDY LIST: who is talking to whom, and how it is going. */}
+          <div style={aim.people}>
+            <div style={aim.peopleHead}>Chatting ({Math.min(pairs.length, 8)})</div>
+            {pairs.length === 0 && <p style={aim.nobody}>Nobody is talking yet.</p>}
           {pairs.length > 0 && (
             <>
-              <div style={rule}>WHO IS TALKING</div>
               {pairs.slice(0, 8).map(({ a, b, n, last }) => {
                 const id = a.uid + b.uid
                 return (
@@ -1029,25 +1044,34 @@ export function Yard({
                     <button
                       onClick={() => setTalking(id)}
                       aria-haspopup="dialog"
+                      className="plain"
                       style={pairRow}
                     >
+                      {/* Two lines, as a buddy list has them: who, then what and how it is going. */}
                       <Bit runs={[
                         { text: a.name, color: nameInk(a) },
-                        { text: ' and ' },
+                        { text: ' & ' },
                         { text: b.name, color: nameInk(b) },
-                        { text: ' ' + (together(last.kind) ?? ''), color: DEED_INK[last.kind] },
                       ]} />
-                      {/*
-                        The verdict is kept, but demoted to the end of the line
-                        where it belongs — it is the summary, not the news.
-                      */}
-                      <span style={{ color: BOND_INK[reads(n)] ?? INK_FAINT }}>{reads(n)}</span>
+                      <span style={aim.status}>
+                        <span style={{ color: DEED_INK[last.kind] }}>{together(last.kind) ?? ''}</span>
+                        {' · '}
+                        <span style={{ color: BOND_INK[reads(n)] ?? INK_FAINT }}>{reads(n)}</span>
+                      </span>
                     </button>
                   </div>
                 )
               })}
             </>
           )}
+          </div>
+          </div>
+
+          {/* The message box. Greyed out: only the cats type in here. */}
+          <div style={aim.compose}>
+            <input disabled placeholder="only the cats can type in here" style={aim.input} aria-label="message (cats only)" />
+            <button disabled style={aim.send}>Send</button>
+          </div>
         </div>
       )}
 
@@ -1152,7 +1176,7 @@ export function Yard({
                 imageRendering: 'pixelated', borderRadius: 6, border: '1px solid #21212f' }} />
             : <div style={{ width: 64, height: 51, background: '#0b0b13', borderRadius: 6 }} />}
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 13, color: peek.mine ? '#ffd166' : '#f0f0f5' }}>{peek.name}</div>
+            <div style={{ fontSize: 18, color: peek.mine ? '#a06a10' : '#000000' }}>{peek.name}</div>
             <div style={{ ...fine, margin: 0 }}>
               {peek.mine ? 'yours' : peek.owner ? `@${peek.owner.username}` : 'somebody you follow'}
               {' · '}{temperOf(peek.face).label}
@@ -1257,9 +1281,10 @@ const BOND_INK: Record<string, string> = {
   enemies:     '#a01b1b',
 }
 
-const fine: React.CSSProperties = { color: '#c4c4d8', fontSize: 15, margin: 0, lineHeight: 1.5 }
-const say: React.CSSProperties = { color: '#a9a9c0', fontSize: 13, margin: 0, lineHeight: 1.6 }
-const label: React.CSSProperties = { fontSize: 10, letterSpacing: 2, color: '#7a7a95', margin: '4px 0 8px' }
+// Light Windows 98 windows on every page (JP, 2026-10-06): dark ink, sized up for the site font.
+const fine: React.CSSProperties = { color: '#1a1a1a', fontSize: 20, margin: 0, lineHeight: 1.45 }
+const say: React.CSSProperties = { color: '#1a1a1a', fontSize: 18, margin: 0, lineHeight: 1.5 }
+const label: React.CSSProperties = { fontSize: 18, letterSpacing: 2, color: '#000080', margin: '4px 0 10px' }
 
 /*
  * A FIXED BOX THAT SCROLLS, exactly like the fight's log.
@@ -1276,9 +1301,10 @@ const label: React.CSSProperties = { fontSize: 10, letterSpacing: 2, color: '#7a
  * too — the box must not resize under the reader while it is filling.
  */
 const paper: React.CSSProperties = {
-  background: PAPER, color: INK, borderRadius: 14, padding: '16px 16px 14px',
-  boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.08)',
-  marginBottom: 14,
+  // AIM's message pane: white, square, sunk into the window like a 98 field.
+  background: '#ffffff', color: INK, borderRadius: 0, padding: '10px 12px',
+  boxShadow: 'inset 1px 1px 0 0 #808080, inset -1px -1px 0 0 #ffffff, inset 2px 2px 0 0 #0a0a0a, inset -2px -2px 0 0 #dfdfdf',
+  minWidth: 0,
   display: 'flex', flexDirection: 'column', gap: 6,
   /*
    * THE LOG'S SIZE LIVES HERE NOW.
@@ -1287,8 +1313,8 @@ const paper: React.CSSProperties = {
    * 24px cell — which is why the log always read as bigger than the page around
    * it. 13 is the app's own body size, so the log and the chrome finally agree.
    */
-  fontSize: 15,
-  lineHeight: 1.6,
+  fontSize: 22,
+  lineHeight: 1.5,
   /*
    * Shorter than the fight's 320 on the front page, because the yard is a
    * PREVIEW there and sits above everything else on the screen. The yard's own
@@ -1297,22 +1323,39 @@ const paper: React.CSSProperties = {
   overflowY: 'auto',
 }
 
-const line: React.CSSProperties = { color: INK, fontSize: 15, margin: 0, lineHeight: 1.6 }
+const line: React.CSSProperties = { color: INK, fontSize: 22, margin: 0, lineHeight: 1.45 }
 
 /* The same caret the fight log shows while it is still typing. */
-const caret: React.CSSProperties = { color: '#6b6b5c', fontSize: 16, lineHeight: 1 }
+const caret: React.CSSProperties = { color: '#6b6b5c', fontSize: 20, lineHeight: 1 }
 
 /* A pair, as a row you can open. Printed, not chromed — it sits on the paper. */
 const pairRow: React.CSSProperties = {
-  display: 'flex', width: '100%', gap: 10, alignItems: 'baseline',
-  justifyContent: 'space-between', textAlign: 'left',
-  background: 'none', border: 0, padding: '2px 0',
-  font: 'inherit', fontSize: 15, color: INK, cursor: 'pointer',
+  // A buddy-list entry: the pair, then their status under it.
+  display: 'flex', flexDirection: 'column', width: '100%', gap: 2, alignItems: 'flex-start',
+  textAlign: 'left',
+  background: 'none', border: 0, padding: '6px 8px', borderBottom: '1px solid #e4e4e4',
+  font: 'inherit', fontSize: 22, color: INK, cursor: 'pointer',
+}
+
+/** THE AIM CHAT ROOM around the yard's log (see where `aim.room` is drawn). */
+const SUNKEN = 'inset 1px 1px 0 0 #808080, inset -1px -1px 0 0 #ffffff, inset 2px 2px 0 0 #0a0a0a, inset -2px -2px 0 0 #dfdfdf'
+const aim: Record<string, React.CSSProperties> = {
+  room:   { display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 },
+  bar:    { background: 'linear-gradient(90deg, #000080, #1084d0)', color: '#ffffff', fontSize: 22, padding: '4px 10px' },
+  // Messages, then the buddy list: side by side once there is room, stacked on a phone.
+  panes:  { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: 6, alignItems: 'stretch' },
+  people: { background: '#ffffff', boxShadow: SUNKEN, padding: 2, maxHeight: 440, overflowY: 'auto', minWidth: 0 },
+  peopleHead: { background: '#c0c0c0', color: '#000080', fontSize: 20, padding: '4px 8px', letterSpacing: 1 },
+  nobody: { margin: 0, padding: '8px', fontSize: 20, color: '#404040' },
+  status: { fontSize: 19, color: '#404040' },
+  compose: { display: 'flex', gap: 6 },
+  input:  { flex: 1, minWidth: 0, fontSize: 20, padding: '6px 8px', fontFamily: 'inherit', background: '#ffffff', border: 0, boxShadow: SUNKEN, color: '#808080' },
+  send:   { padding: '6px 18px', fontSize: 20, fontFamily: 'inherit', background: '#c0c0c0', color: '#808080', border: 0, cursor: 'default' },
 }
 
 const convoRow: React.CSSProperties = {
   display: 'flex', gap: 10, justifyContent: 'space-between',
-  alignItems: 'baseline', fontSize: 14, lineHeight: 1.5,
+  alignItems: 'baseline', fontSize: 18, lineHeight: 1.45,
 }
 
 
@@ -1478,7 +1521,7 @@ const windowBody: React.CSSProperties = {
 
 /* The divider inside the paper. Ruled, the way a printed sheet would be. */
 const rule: React.CSSProperties = {
-  fontSize: 11, letterSpacing: 2, color: '#6b6b5c',
+  fontSize: 15, letterSpacing: 2, color: '#6b6b5c',
   margin: '8px 0 2px', paddingTop: 10,
   borderTop: '1px solid rgba(0,0,0,0.10)',
 }
@@ -1503,7 +1546,8 @@ const card: React.CSSProperties = {
   marginTop: 12, marginBottom: 4,
   width: 'fit-content', maxWidth: '100%',
   display: 'flex', gap: 10, alignItems: 'center',
-  background: '#12121c', border: '1px solid #21212f', borderRadius: 10, padding: 8,
+  // A 98 tooltip: pale yellow, a black hairline, a hard shadow.
+  background: '#ffffe1', border: '1px solid #000000', borderRadius: 0, padding: 8,
   // It floats over the log when pinned, so it needs its own ground and a lift.
-  boxShadow: '0 4px 14px rgba(0,0,0,0.45)',
+  boxShadow: '2px 2px 0 rgba(0,0,0,0.45)',
 }

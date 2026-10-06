@@ -39,7 +39,7 @@ export function YardRest() {
   const atFloor = next.until <= next.floor + 1000
 
   return (
-    <div role="status" style={st.box}>
+    <div role="status" className="win98" data-title="Resting" style={st.box}>
       <p style={st.head}>
         {rest.length === 1 ? 'Your cat is resting' : `${rest.length} of your cats are resting`} · back in {restLeft(next.until)}
       </p>
@@ -53,7 +53,8 @@ export function YardRest() {
 }
 
 const st: Record<string, React.CSSProperties> = {
-  box:  { margin: '0 auto 14px', maxWidth: 560, padding: '10px 14px', borderRadius: 10, background: 'rgba(30, 24, 52, 0.85)', border: '2px solid #6b4fa8', textAlign: 'center' },
-  head: { margin: 0, color: '#e6dcff', fontSize: 15, fontWeight: 600 },
-  fine: { margin: '4px 0 0', color: '#bfb3dd', fontSize: 12 },
+  // A small light Windows 98 window (.win98), like every panel.
+  box:  { margin: '0 auto 14px', maxWidth: 560, padding: 16, borderRadius: 0, background: '#c0c0c0', border: '1px solid #c0c0c0', textAlign: 'center' },
+  head: { margin: 0, color: '#000080', fontSize: 21 },
+  fine: { margin: '6px 0 0', color: '#1a1a1a', fontSize: 18, textWrap: 'balance' },
 }

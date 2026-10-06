@@ -977,11 +977,12 @@ button, input, select, textarea, optgroup {
 }
 
 /* 98 controls inside a window: bevelled raised buttons, sunken white fields. */
-.win98 button, .win98 a.fx-host {
+/* `.plain` opts a button out: a row in a list, not a control (the yard's chat buddy list). */
+.win98 button:not(.plain), .win98 a.fx-host {
   box-shadow: inset -1px -1px 0 0 #0a0a0a, inset 1px 1px 0 0 #ffffff, inset -2px -2px 0 0 #808080, inset 2px 2px 0 0 #dfdfdf !important;
   border-radius: 0 !important;
 }
-.win98 button:active:not(:disabled), .win98 a.fx-host:active {
+.win98 button:not(.plain):active:not(:disabled), .win98 a.fx-host:active {
   box-shadow: inset 1px 1px 0 0 #0a0a0a, inset -1px -1px 0 0 #ffffff, inset 2px 2px 0 0 #808080, inset -2px -2px 0 0 #dfdfdf !important;
 }
 .win98 input {
