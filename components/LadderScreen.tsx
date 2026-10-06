@@ -186,10 +186,16 @@ function Field({ ms, width, height }: { ms: number; width: number; height: numbe
           <div key={r} style={{ position: 'absolute', left: 0, top: y, height: FIELD_ROW, transform: `translateX(${x}px)`, display: 'flex', opacity: FIELD_ALPHA }}>
             {Array.from({ length: cells }, (_, c) => {
               const cell = { width: FIELD_CELL, height: FIELD_ROW, position: 'relative' as const, flexShrink: 0 }
+              /*
+               * "add it for all the icons not just son and moon": every item
+               * cross-fades into the next one in ITEMS, on the sun and moon's clock.
+               */
               if (r % 2) {
+                const now = (c + r * 3 + Math.floor(k)) % ITEMS.length
                 return (
                   <div key={c} style={cell}>
-                    <img src={ITEMS[(c + r * 3) % ITEMS.length]} alt="" style={st.icon} />
+                    <img src={ITEMS[now]} alt="" style={{ ...st.icon, opacity: 1 - blend }} />
+                    <img src={ITEMS[(now + 1) % ITEMS.length]} alt="" style={{ ...st.icon, opacity: blend }} />
                   </div>
                 )
               }
