@@ -5,7 +5,6 @@ import sdk from '@farcaster/miniapp-sdk'
 import { Yard } from '@/components/Yard'
 import { FxButton } from '@/components/FxButton'
 import { useYardResidents } from '@/lib/useYardResidents'
-import { PageChecker } from '@/components/PageChecker'
 import { PageTitle } from '@/components/PageTitle'
 import { useLoadingHold } from '@/lib/loading'
 import { YardRest } from '@/components/YardRest'
@@ -36,7 +35,6 @@ export default function YardPage() {
 
   return (
     <main style={s.page}>
-      <PageChecker />
       <header style={s.head}>
         <FxButton href="/" style={s.back} tone="grey" label="← THE GAME" />
         <PageTitle text="THE YARD" />

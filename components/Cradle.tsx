@@ -15,7 +15,6 @@ import { MapDive, zoneOfTurf } from '@/components/MapDive'
 import { LadderScreen } from '@/components/LadderScreen'
 import type { Float } from '@/components/FloatWord'
 import { MAX_ENERGY, restLeft, spendEnergy, stamina, type Stamina } from '@/lib/stamina'
-import { PageChecker } from '@/components/PageChecker'
 import { useLoadingHold } from '@/lib/loading'
 import { noteWin, noteLoss, type Beat } from '@/lib/streak'
 import { NO_CHAIN } from '@/lib/appmode'
@@ -1624,8 +1623,6 @@ export function Cradle() {
   return (
     <main style={s.page}>
       {/* The title screen's page (JP, 2026-09-29). A fight brings the zone it is in. */}
-      {/* The menu stands on the ladder's checker (components/PageChecker); a fight brings its own zone. */}
-      {!wide && <PageChecker />}
       <header style={s.header}>
         {/* The name of the game, and no "preview" — the same change as the link card. */}
         {/*

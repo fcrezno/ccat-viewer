@@ -128,10 +128,9 @@ const END_HOLD = 1200
  * hard ink shadow — the game's chrome.
  */
 const FIELD_ALPHA = 0.3
-// Sparse: four rows, a picture every 96 px.
-const FIELD_ROW = 78
-const FIELD_CELL = 96
-const FIELD_ICON = 30
+/** The icon lattice: one per GRID px each way (two checker tiles), every icon the same size. */
+const GRID = 128
+const FIELD_ICON = 40
 export const CHECK = 32
 export const CHECK_A = '#d3dceb'
 export const CHECK_B = '#c9d3e4'
@@ -199,67 +198,58 @@ export function Checker({ ms, left = 0, width = W, height = H, hue = false }: {
 const OUTLINE = 'drop-shadow(2px 0 0 #1a1a1a) drop-shadow(-2px 0 0 #1a1a1a) drop-shadow(0 2px 0 #1a1a1a) drop-shadow(0 -2px 0 #1a1a1a)'
 
 export function Field({ ms, width, height, hue = false }: { ms: number; width: number; height: number; hue?: boolean }) {
-  // One spare row to wrap round, and an even count so the sun-moon / items alternation survives the wrap.
-  const rows = Math.ceil(height / FIELD_ROW / 2) * 2 + 2
-  const span = rows * FIELD_ROW
-  const cells = Math.ceil(width / FIELD_CELL) + 2
-  // Which of the two is up, and how far into the fade to the other.
+  /*
+   * ONE EVEN GRID, LOCKED TO THE CHECKER. JP, 2026-10-06: "fix the background
+   * icons; they should be more uniform". The rows used to slide at their own
+   * speeds (the parallax), which read as a mess. Now every icon has a fixed
+   * place on a lattice in the field's own space — one per GRID px, alternate
+   * rows half a step over like brickwork — in the middle of a checker square,
+   * and the whole lattice drifts down-left with the checker at FALL. So the
+   * icons never move against the squares or each other.
+   *
+   * Drawn by WORLD position: the cells on screen are worked out from how far
+   * the field has drifted, keyed by their world index, so one only appears or
+   * leaves off the edge, never jumps. A cell's picture belongs to its world
+   * index, which keeps the cross-fades in place as everything moves.
+   */
+  const d = ms * FALL
   const k = ms / MORPH
   const state = Math.floor(k) % 2
   const blend = smooth(clamp(((k % 1) - (1 - MORPH_FADE)) / MORPH_FADE))
+  const mod = (n: number, m: number) => ((n % m) + m) % m
+  const jMin = Math.floor((-d - GRID) / GRID), jMax = Math.ceil((-d + height + GRID) / GRID)
+  const iMin = Math.floor((d - GRID * 2) / GRID), iMax = Math.ceil((d + width + GRID) / GRID)
+  const cells: React.ReactNode[] = []
+  for (let j = jMin; j <= jMax; j++) {
+    const off = mod(j, 2) * GRID / 2
+    for (let i = iMin; i <= iMax; i++) {
+      // The middle of a checker square: the squares are CHECK wide, lined up with these.
+      const x = i * GRID + off - d + CHECK * 1.5 - FIELD_ICON / 2
+      const y = j * GRID + d + CHECK * 1.5 - FIELD_ICON / 2
+      if (x < -FIELD_ICON || x > width || y < -FIELD_ICON || y > height) continue
+      const place: React.CSSProperties = { ...st.icon, left: 0, top: 0, transform: `translate3d(${x}px, ${y}px, 0)` }
+      if (mod(j, 2)) {
+        // Every item cross-fades into the next one in ITEMS, on the sun and moon's clock.
+        const now = mod(i + j * 3 + Math.floor(k), ITEMS.length)
+        cells.push(
+          <img key={`${i}:${j}:a`} src={ITEMS[now]} alt="" style={{ ...place, opacity: FIELD_ALPHA * (1 - blend) }} />,
+          <img key={`${i}:${j}:b`} src={ITEMS[(now + 1) % ITEMS.length]} alt="" style={{ ...place, opacity: FIELD_ALPHA * blend }} />,
+        )
+      } else {
+        // The checker of suns and moons: this one's moon-ness now, and after the swap.
+        const was = mod(i + state, 2)
+        const moon = was + ((1 - was) - was) * blend
+        cells.push(
+          <img key={`${i}:${j}:s`} src={SUN} alt="" style={{ ...place, opacity: FIELD_ALPHA * (1 - moon) }} />,
+          <img key={`${i}:${j}:m`} src={MOON} alt="" style={{ ...place, opacity: FIELD_ALPHA * moon }} />,
+        )
+      }
+    }
+  }
   return (
     <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
       <Checker ms={ms} width={width} height={height} hue={hue} />
-      {Array.from({ length: rows }, (_, r) => {
-        // px per ms: about 12 px a second at the top, 72 at the bottom.
-        const v = 0.012 + (0.06 * r) / Math.max(1, rows - 1)
-        // Odd rows half a cell over, so the field is a lattice, not columns.
-        const travel = ms * v + (r % 2) * FIELD_CELL / 2
-        /*
-         * The row slides one cell, then jumps back by one. The cells' pictures
-         * must step on by one at that same moment, or every slot swaps to its
-         * neighbour's picture in one frame — JP: "the image change is instant;
-         * it should fade out". So the pictures follow the DISTANCE travelled
-         * (`step`), not the cell's place in the row.
-         */
-        const step = Math.floor(travel / FIELD_CELL)
-        const x = -(travel - step * FIELD_CELL)
-        /*
-         * DIAGONAL — "also make them move diagonally". Every row also falls with
-         * the checker, at ITS speed, so the rows never cross; the sideways speed
-         * is still each row's own, so the parallax holds. Wraps from the bottom.
-         */
-        const y = ((r * FIELD_ROW + ms * FALL) % span) - FIELD_ROW
-        return (
-          <div key={r} style={{ position: 'absolute', left: 0, top: 0, height: FIELD_ROW, transform: `translate3d(${x}px, ${y}px, 0)`, willChange: 'transform', display: 'flex', opacity: FIELD_ALPHA }}>
-            {Array.from({ length: cells }, (_, c) => {
-              const cell = { width: FIELD_CELL, height: FIELD_ROW, position: 'relative' as const, flexShrink: 0 }
-              /*
-               * "add it for all the icons not just son and moon": every item
-               * cross-fades into the next one in ITEMS, on the sun and moon's clock.
-               */
-              if (r % 2) {
-                const now = (c + step + r * 3 + Math.floor(k)) % ITEMS.length
-                return (
-                  <div key={c} style={cell}>
-                    <img src={ITEMS[now]} alt="" style={{ ...st.icon, opacity: 1 - blend }} />
-                    <img src={ITEMS[(now + 1) % ITEMS.length]} alt="" style={{ ...st.icon, opacity: blend }} />
-                  </div>
-                )
-              }
-              // The checker of suns and moons: this cell's moon-ness now, and after the swap.
-              const was = (c + step + r / 2 + state) % 2
-              const moon = was + ((1 - was) - was) * blend
-              return (
-                <div key={c} style={cell}>
-                  <img src={SUN} alt="" style={{ ...st.icon, opacity: 1 - moon }} />
-                  <img src={MOON} alt="" style={{ ...st.icon, opacity: moon }} />
-                </div>
-              )
-            })}
-          </div>
-        )
-      })}
+      {cells}
     </div>
   )
 }
@@ -458,7 +448,7 @@ const st: Record<string, React.CSSProperties> = {
   label:   { position: 'absolute', height: 24, display: 'flex' },
   band:    { position: 'absolute', left: MID - BAND_W / 2, width: BAND_W, height: BAND_H, background: BAND },
   face:    { position: 'absolute', boxSizing: 'border-box', padding: 2, background: '#fdfdf8' },
-  icon:    { position: 'absolute', left: (FIELD_CELL - FIELD_ICON) / 2, top: (FIELD_ROW - FIELD_ICON) / 2, width: FIELD_ICON, height: FIELD_ICON, objectFit: 'contain' },
+  icon:    { position: 'absolute', left: 0, top: 0, width: FIELD_ICON, height: FIELD_ICON, objectFit: 'contain', willChange: 'transform' },
   // The ladder's own paper, over the middle of the field: the rungs run 110..372.
   panel:   { position: 'absolute', left: PANEL_X, top: PANEL_Y, width: W - 2 * PANEL_X, height: PANEL_BOTTOM - PANEL_Y, background: PAPER, border: `${LINE}px solid ${LIVE}`, boxSizing: 'border-box', boxShadow: `4px 4px 0 ${LIVE}` },
   faceArt: { width: '100%', height: '100%', display: 'block', boxSizing: 'border-box', border: '4px solid', objectFit: 'cover', objectPosition: 'top', background: '#e6e0d2' },

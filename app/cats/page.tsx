@@ -10,7 +10,6 @@ import { APP_URL } from '@/lib/miniapp'
 import { useWebConnectors } from '@/lib/useWebConnectors'
 import { BitmapText } from '@/components/BitmapText'
 import { FxButton } from '@/components/FxButton'
-import { PageChecker } from '@/components/PageChecker'
 import { PageTitle } from '@/components/PageTitle'
 import { useLoadingHold } from '@/lib/loading'
 
@@ -484,7 +483,6 @@ export default function Home() {
   return (
     <main style={s.page}>
       {/* The title screen's page: a zone, blurred and darkened. */}
-      <PageChecker />
 
       <header style={s.header}>
         <div style={s.nav}>

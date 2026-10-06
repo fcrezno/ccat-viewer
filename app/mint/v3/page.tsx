@@ -6,7 +6,6 @@ import { formatUnits, parseEventLogs } from 'viem'
 import { V3, V3_ABI, V3_DEPLOYED, V3_MINT_ERRORS, RUN_DOOR } from '@/lib/mintv3'
 import { robinhood } from '@/lib/chains'
 import { TitleScreen } from '@/components/TitleScreen'
-import { PageChecker } from '@/components/PageChecker'
 import { FxButton } from '@/components/FxButton'
 import { useWebConnectors } from '@/lib/useWebConnectors'
 
@@ -253,7 +252,6 @@ export default function MintV3Page() {
 
   return (
     <div style={s.root}>
-      <PageChecker />
       <div style={s.header}>
         <span />
         <a href="/" style={s.navLink}>← the game</a>

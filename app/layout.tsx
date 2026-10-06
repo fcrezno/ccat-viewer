@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Providers } from '@/lib/providers'
 import { LoadingScreen } from '@/components/LoadingScreen'
+import { PageChecker } from '@/components/PageChecker'
 import { embedTags, APP_URL } from '@/lib/miniapp'
 import './globals.css'
 
@@ -62,6 +63,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       */}
       <body style={{ margin: 0, background: '#0a0a14', color: 'white', minHeight: '100vh' }}>
         <Providers>
+          {/*
+            EVERY PAGE STANDS ON THE CHECKER — JP, 2026-10-06: "add it to every
+            page". Once, here, rather than page by page. A fight's arena draws its
+            own backdrop over it (FightStage), later in the page.
+          */}
+          <PageChecker />
           {children}
           {/* After the page, so the page's own loading holds are set before it looks. */}
           <LoadingScreen />

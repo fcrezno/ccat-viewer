@@ -6,7 +6,6 @@ import { V3, V3_ABI, V3_DEPLOYED } from '@/lib/mintv3'
 import { robinhood } from '@/lib/chains'
 import { MintStage } from '@/components/MintStage'
 import { FxButton } from '@/components/FxButton'
-import { PageChecker } from '@/components/PageChecker'
 import { PageTitle } from '@/components/PageTitle'
 import { useLoadingHold } from '@/lib/loading'
 
@@ -43,7 +42,6 @@ export function RobinhoodMint() {
 
   return (
     <main style={s.page}>
-      <PageChecker />
       <header style={s.header}>
         <PageTitle text="CLANKER CATS" />
         <p style={s.sub}>Robinhood Chain · free for BUN holders</p>
