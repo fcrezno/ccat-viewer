@@ -175,7 +175,16 @@ function Field({ ms, width, height }: { ms: number; width: number; height: numbe
         // px per ms: about 12 px a second at the top, 72 at the bottom.
         const v = 0.012 + (0.06 * r) / Math.max(1, rows - 1)
         // Odd rows half a cell over, so the field is a lattice, not columns.
-        const x = -((ms * v + (r % 2) * FIELD_CELL / 2) % FIELD_CELL)
+        const travel = ms * v + (r % 2) * FIELD_CELL / 2
+        /*
+         * The row slides one cell, then jumps back by one. The cells' pictures
+         * must step on by one at that same moment, or every slot swaps to its
+         * neighbour's picture in one frame — JP: "the image change is instant;
+         * it should fade out". So the pictures follow the DISTANCE travelled
+         * (`step`), not the cell's place in the row.
+         */
+        const step = Math.floor(travel / FIELD_CELL)
+        const x = -(travel - step * FIELD_CELL)
         /*
          * DIAGONAL — "also make them move diagonally". Every row also falls with
          * the checker, at ITS speed, so the rows never cross; the sideways speed
@@ -191,7 +200,7 @@ function Field({ ms, width, height }: { ms: number; width: number; height: numbe
                * cross-fades into the next one in ITEMS, on the sun and moon's clock.
                */
               if (r % 2) {
-                const now = (c + r * 3 + Math.floor(k)) % ITEMS.length
+                const now = (c + step + r * 3 + Math.floor(k)) % ITEMS.length
                 return (
                   <div key={c} style={cell}>
                     <img src={ITEMS[now]} alt="" style={{ ...st.icon, opacity: 1 - blend }} />
@@ -200,7 +209,7 @@ function Field({ ms, width, height }: { ms: number; width: number; height: numbe
                 )
               }
               // The checker of suns and moons: this cell's moon-ness now, and after the swap.
-              const was = (c + r / 2 + state) % 2
+              const was = (c + step + r / 2 + state) % 2
               const moon = was + ((1 - was) - was) * blend
               return (
                 <div key={c} style={cell}>
