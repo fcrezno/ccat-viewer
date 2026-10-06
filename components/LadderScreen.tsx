@@ -149,6 +149,21 @@ const SUN = '/yard/items/sun.png'
 const MOON = '/yard/items/moon.png'
 const ITEMS = ['pizza', 'donut', 'gameboy', 'banana', 'vinyl', 'chips', 'pineapple', 'cup', 'walnut', 'beer']
   .map(n => `/yard/items/${n}.png`)
+/**
+ * The paper-blue checker at time `ms`, drifting down and to the left at FALL.
+ * Shared with components/MapDive, whose way into the fight is this same checker
+ * splitting open — so the two screens are one family.
+ */
+export const checker = (ms: number, left = 0): React.CSSProperties => {
+  const drift = (ms * FALL) % (CHECK * 2)
+  return {
+    background: `repeating-conic-gradient(${CHECK_A} 0 25%, ${CHECK_B} 0 50%)`,
+    backgroundSize: `${CHECK * 2}px ${CHECK * 2}px`,
+    // `left`: where the element starts on the screen, so two pieces of it line up as one.
+    backgroundPosition: `${-drift - left}px ${drift}px`,
+  }
+}
+
 /** A 2px ink outline round the title's glyphs: drop-shadows follow the mask. */
 const OUTLINE = 'drop-shadow(2px 0 0 #1a1a1a) drop-shadow(-2px 0 0 #1a1a1a) drop-shadow(0 2px 0 #1a1a1a) drop-shadow(0 -2px 0 #1a1a1a)'
 
@@ -161,16 +176,9 @@ function Field({ ms, width, height }: { ms: number; width: number; height: numbe
   const k = ms / MORPH
   const state = Math.floor(k) % 2
   const blend = smooth(clamp(((k % 1) - (1 - MORPH_FADE)) / MORPH_FADE))
-  // The checker drifts down and to the left, 20 px a second.
-  const drift = (ms * FALL) % (CHECK * 2)
   return (
     <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
-      <div style={{
-        position: 'absolute', inset: 0,
-        background: `repeating-conic-gradient(${CHECK_A} 0 25%, ${CHECK_B} 0 50%)`,
-        backgroundSize: `${CHECK * 2}px ${CHECK * 2}px`,
-        backgroundPosition: `${-drift}px ${drift}px`,
-      }} />
+      <div style={{ position: 'absolute', inset: 0, ...checker(ms) }} />
       {Array.from({ length: rows }, (_, r) => {
         // px per ms: about 12 px a second at the top, 72 at the bottom.
         const v = 0.012 + (0.06 * r) / Math.max(1, rows - 1)

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { BitmapText } from '@/components/BitmapText'
+import { checker } from '@/components/LadderScreen'
 
 /**
  * THE MAP INTO BATTLE — the island, an alarm, a dive, the cast and VS.
@@ -31,8 +32,12 @@ import { BitmapText } from '@/components/BitmapText'
  *                  resting size": k = 1 + 1.6 (1-u)^2.4.
  *   HOLD   1.00 s  red rings blink on the two who are about to fight (a ring,
  *                  "not a flashing portrait": the picture never goes away).
- *   CROSS  0.60 s  a crossfade into the battle screen, (i/n)^0.8 — "the two
- *                  pictures already agree: the cats are in the same boxes".
+ *   WHITE  0.40 s  the whole scene fades to white
+ *   CHECKS 0.35 s  the ladder's paper-blue checker fades in over it
+ *   SPLIT  0.55 s  the checker parts down the middle onto the battle screen
+ *
+ * The camera stops at an even 2x (see ZOOM) and the name sits on a clean paper
+ * card — JP's "clean up the map", Oct 5.
  *
  * Then the countdown. A tap skips straight to it.
  */
@@ -53,11 +58,17 @@ const ZONES: Record<string, Zone> = {
 /** SOLO.textBox.y: the room above the text box, which the renderer frames into. */
 const ROOM = 202
 
-/** MapData.Framing: zoom so the place fills the shot without bursting out of it. */
-function framing(z: Zone, room = ROOM) {
-  const [x0, y0, x1, y1] = z.box
-  const k = Math.max(1.6, Math.min(Math.min((W * 0.62) / (x1 - x0), (room * 0.6) / (y1 - y0)), 7))
-  return { k, fy: room / 2 / H }
+/*
+ * THE ZOOM: an even 2x, every zone. MapData.Framing zoomed each place to fill
+ * the shot — 2.2x to 3.4x — but the map art is only 480x320 (no bigger copy
+ * exists), and at an uneven zoom its pixels come out different sizes, which is
+ * what made the dive look blocky and dirty. At 2x every pixel is 2x2.
+ * JP, 2026-10-05: "clean up the map".
+ */
+const ZOOM = 2
+
+function framing(room = ROOM) {
+  return { k: ZOOM, fy: room / 2 / H }
 }
 
 /**
@@ -88,14 +99,26 @@ const STEP = 200                       // between one cat landing and the next
 const CAST = STEP * 2 + 250
 const SLAM = 350
 const HOLD = 1000
-const CROSS = 600
+/*
+ * THE WAY INTO THE FIGHT. JP, 2026-10-05: "fade into white; then have the
+ * checkerboard fade in and split revealing the fight and transition into that".
+ * The checker is the ladder's own (LadderScreen `checker`), so the two screens
+ * either side of a fight are one family.
+ */
+const WHITE = 400                      // the whole scene fades to white
+const CHECKS = 350                     // the checker fades in over the white
+const SPLIT = 550                      // it parts down the middle, ease-in, onto the fight
 const T_DIVE = ALARM
 const T_NAME = T_DIVE + DIVE
 const T_CAST = T_NAME + NAME
 const T_VS = T_CAST + CAST
 const T_HOLD = T_VS + SLAM
-const T_CROSS = T_HOLD + HOLD
-const T_END = T_CROSS + CROSS
+const T_WHITE = T_HOLD + HOLD
+const T_CHECKS = T_WHITE + WHITE
+const T_SPLIT = T_CHECKS + CHECKS
+const T_END = T_SPLIT + SPLIT
+/** The split's cut edges carry the ink line, as every panel does. */
+const INK = '#1a1a1a'
 
 const FRAME_MS = 1000 / 60
 const FLASH_RATE = 7
@@ -127,7 +150,7 @@ export function MapDive({ zone, cast, onDone }: {
   onDone: () => void
 }) {
   const z = ZONES[zone] ?? ZONES.Town
-  const { k: frameK, fy } = framing(z)
+  const { k: frameK, fy } = framing()
   const [ms, setMs] = useState(0)
   const done = useRef(false)
   // In a ref, so a parent re-rendering with a new function does not restart the dive.
@@ -167,18 +190,27 @@ export function MapDive({ zone, cast, onDone }: {
   const vsK = 1 + 1.6 * (1 - vs) ** 2.4
   // Rings blink on the two once both are standing; every 6 frames, as locationCard's `lit`.
   const rings = ms >= T_HOLD && Math.floor(frame / 6) % 2 === 0
-  const fade = ms >= T_CROSS ? clamp((ms - T_CROSS) / CROSS) ** 0.8 : 0
+  const white = clamp((ms - T_WHITE) / WHITE)
+  const checks = clamp((ms - T_CHECKS) / CHECKS)
+  // Ease IN: the halves start slow and leave fast, like the dive.
+  const split = clamp((ms - T_SPLIT) / SPLIT) ** 2
+  /** Once the checker covers it all, the scene under it is gone: the split opens onto the fight. */
+  const scene = ms < T_SPLIT
 
   return (
-    <div style={{ ...st.root, opacity: 1 - fade }} onClick={skip} role="img" aria-label={`The map: the fight is in the ${zone}`}>
-      {/* The map, sized and placed rather than transformed: a point p lands at p*k + off. */}
+    <div style={{ ...st.root, background: scene ? st.root.background : 'transparent' }} onClick={skip} role="img" aria-label={`The map: the fight is in the ${zone}`}>
+      {scene && <>
+      {/*
+       * The map, sized and placed rather than transformed: a point p lands at
+       * p*k + off. ROUNDED, so at rest on the even zoom the pixels sit on the grid.
+       */}
       <img
         src="/game/mapscreen.png"
         alt=""
         style={{
           ...st.map,
           width: W * v.k, height: H * v.k,
-          left: W / 2 - v.cx * v.k, top: H / 2 - v.cy * v.k,
+          left: Math.round(W / 2 - v.cx * v.k), top: Math.round(H / 2 - v.cy * v.k),
         }}
       />
 
@@ -188,14 +220,18 @@ export function MapDive({ zone, cast, onDone }: {
         </div>
       )}
 
+      {/* The place's name, on a clean paper card: the ladder panel's line and hard shadow. */}
       {card && (
-        <>
-          <img src="/game/bar/solobox.png" alt="" style={st.solobox} />
-          <img src="/game/textscreen.png" alt="" style={st.overlay} />
-          <div style={{ ...st.title, opacity: nameFade }}>
-            <BitmapText text={`THE ${zone.toUpperCase()}`} scale={2} color="#b07a10" />
+        <div style={st.card}>
+          {/*
+           * "Make the text slightly more animated and give it a shadow": the
+           * game's gold wave and glow (VICTOR's), over a hard 2px ink shadow —
+           * the card's own shadow, at the letters' size.
+           */}
+          <div style={{ opacity: nameFade, filter: 'drop-shadow(2px 2px 0 #1a1a1a)' }}>
+            <BitmapText text={`THE ${zone.toUpperCase()}`} scale={2} color="#b07a10" fx />
           </div>
-        </>
+        </div>
       )}
 
       {/* THE CAST, dropping into the fight's own boxes. */}
@@ -214,6 +250,17 @@ export function MapDive({ zone, cast, onDone }: {
       {vs > 0.02 && (
         <img src="/game/vs.png" alt="VS" style={{ ...st.vs, transform: `scale(${vsK})` }} />
       )}
+
+      {white > 0 && <div style={{ ...st.white, opacity: white }} />}
+      </>}
+
+      {/* The checker: in over the white, then parting down the middle onto the fight. */}
+      {checks > 0 && (
+        <>
+          <div style={{ ...st.half, left: 0, opacity: checks, transform: `translateX(${-split * (W / 2 + 4)}px)`, boxShadow: split > 0 ? `inset -2px 0 0 ${INK}` : 'none', ...checker(ms) }} />
+          <div style={{ ...st.half, left: W / 2, opacity: checks, transform: `translateX(${split * (W / 2 + 4)}px)`, boxShadow: split > 0 ? `inset 2px 0 0 ${INK}` : 'none', ...checker(ms, W / 2) }} />
+        </>
+      )}
     </div>
   )
 }
@@ -223,11 +270,11 @@ const st: Record<string, React.CSSProperties> = {
   map:     { position: 'absolute', maxWidth: 'none', imageRendering: 'pixelated' },
   // 200 wide and centred on the island's x, so `!!!` centres without measuring it.
   alert:   { position: 'absolute', width: 200, display: 'flex', justifyContent: 'center' },
-  // SOLO.textBox: the paper, then the drawn box over it.
-  solobox: { position: 'absolute', left: 33, top: 207, width: 416, height: 110 },
-  overlay: { position: 'absolute', left: 0, top: 0, width: W, height: H, maxWidth: 'none' },
-  // CARD.name: x 240, baseline 271 at scale 2 — the MapScreen title box, 64..408 from top 234.
-  title:   { position: 'absolute', left: 64, top: 234, width: 344, height: 48, display: 'flex', justifyContent: 'center', alignItems: 'center' },
+  // Under the cats' boxes (they end at y 170), centred on 240.
+  card:    { position: 'absolute', left: 88, top: 214, width: 304, height: 64, boxSizing: 'border-box', background: '#e8eef6', border: '2px solid #1a1a1a', boxShadow: '4px 4px 0 #1a1a1a', display: 'flex', justifyContent: 'center', alignItems: 'center' },
+  white:   { position: 'absolute', inset: 0, background: '#ffffff' },
+  // Each half 240 wide; the right one's checker is offset by its own left, so the two meet seamlessly.
+  half:    { position: 'absolute', top: 0, width: W / 2, height: H },
   // The battle screen's portrait, mount and all (components/FightStage), so the cut moves nothing.
   cat:     { position: 'absolute', width: BOX, height: BOX, boxSizing: 'border-box', padding: 2, background: '#fdfdf8' },
   catArt:  { width: '100%', height: '100%', display: 'block', boxSizing: 'border-box', border: '4px solid #1a1a1a', objectFit: 'cover', objectPosition: 'top', imageRendering: 'pixelated', background: '#e6e0d2' },
