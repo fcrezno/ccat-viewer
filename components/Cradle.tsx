@@ -1832,9 +1832,10 @@ export function Cradle() {
                     style={{ borderRadius: 6, flexShrink: 0, background: '#fff' }}
                   />
                 )}
-                <p style={s.fine0}>
+                {/* JP, 2026-10-06: "make this text a bit bigger" — 11px small print was hard to read beside the QR. */}
+                <p style={{ ...s.fine0, fontSize: 15, lineHeight: 1.45, color: '#9a9ab4' }}>
                   Your cat&rsquo;s code is{' '}
-                  <b style={{ color: '#f0f0f5', letterSpacing: 1 }}>{myCode || '……'}</b>
+                  <b style={{ color: '#f0f0f5', letterSpacing: 1, fontSize: 18 }}>{myCode || '……'}</b>
                   {' '}&mdash; give it to somebody, or let them scan this, and they can
                   fight your cat.
                 </p>
