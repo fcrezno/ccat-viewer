@@ -138,6 +138,9 @@ const INK = '#1a1a1a'
  * a 2px paper ring. Cropped from the top, like the game's portraits, because
  * that is where a cat's face is.
  */
+const NAME_EDGE = [[2, 0], [-2, 0], [0, 2], [0, -2], [1, 1], [-1, 1], [1, -1], [-1, -1]]
+  .map(([x, y]) => `drop-shadow(${x}px ${y}px 0 #000)`).join(' ')
+
 function FighterPortrait({ name, src, pixel = true }: { name: string; src?: string; pixel?: boolean }) {
   return (
     <div style={s.fighter}>
@@ -147,11 +150,14 @@ function FighterPortrait({ name, src, pixel = true }: { name: string; src?: stri
       {/*
         THE NAME AS THE BATTLE SCREEN WRITES IT — JP, 2026-10-06: "the name is too
         small", "make it similar to the game". Under the portrait, in the game's
-        font with its halo, gold because it is YOUR cat (FightStage's MINE_INK),
-        at twice the font's size.
+        font with its halo; then "make the outline for the inside black and the
+        name white": white letters, black edge, at twice the font's size.
       */}
       <div style={{ ...s.fighterName, display: 'flex', justifyContent: 'center', marginTop: 8 }} aria-label={name}>
-        <Haloed text={name} color="#b07a10" scale={2} />
+        {/* "bold the black ness of the name", then "reduce it a bit": a 2px black edge, 1px diagonals. */}
+        <div style={{ filter: NAME_EDGE }}>
+          <BitmapText text={name} scale={2} color="#ffffff" />
+        </div>
       </div>
     </div>
   )
