@@ -827,6 +827,12 @@ export function Cradle() {
    * mortal kombat ladder thing after victory that we used to have?"
    */
   const [showLadder, setShowLadder] = useState(false)
+  /*
+   * The ladder has played and closed. The results card WAITS for it: it scrolls
+   * the page down to itself, and it did that while the ladder was still playing
+   * in the battle screen, so the climb happened half off the top of the page.
+   */
+  const [ladderDone, setLadderDone] = useState(false)
   const [speed, setSpeed] = useState(BASE_SPEED)
   const sound = useSound()
   const cardRef = useRef<HTMLElement>(null)
@@ -985,6 +991,8 @@ export function Cradle() {
     const finished = shown >= result.log.length
     if (!finished) return
     if (rowsShown > result.rows.length) return
+    // A won round: the ladder first, then the card.
+    if (run?.won && !ladderDone) return
 
     /*
      * BRING THE CARD INTO VIEW BEFORE THE FIRST ROW LANDS.
@@ -1004,7 +1012,7 @@ export function Cradle() {
     }, rowsShown === 0 ? 700 : 420)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shown, result, rowsShown])
+  }, [shown, result, rowsShown, run, ladderDone])
 
   const done = !!result && shown >= result.log.length
   /** A fight is on screen, so the page takes the fight's width (see WIDE). */
@@ -1150,7 +1158,7 @@ export function Cradle() {
     sound.prime()
     sound.startMusic()
     setBusy(true); setError(null); setNote(null); setConfirmRetire(false)
-    setResult(null); setShown(0); setRowsShown(0); setCount(null); setDiving(false); setShowLadder(false); setView('fight')
+    setResult(null); setShown(0); setRowsShown(0); setCount(null); setDiving(false); setShowLadder(false); setLadderDone(false); setView('fight')
     // A single fight is never part of a run, so anything left over goes.
     setRun(null); setRecorded(true); setTag(null)
     try {
@@ -1204,7 +1212,7 @@ export function Cradle() {
     sound.prime()
     sound.startMusic(trackForRound(1))
     setBusy(true); setError(null); setNote(null); setConfirmRetire(false)
-    setResult(null); setShown(0); setRowsShown(0); setCount(null); setDiving(false); setShowLadder(false); setView('fight')
+    setResult(null); setShown(0); setRowsShown(0); setCount(null); setDiving(false); setShowLadder(false); setLadderDone(false); setView('fight')
     setRun(null)
 
     try {
@@ -1261,7 +1269,7 @@ export function Cradle() {
     // is the same track and nothing restarts; see lib/music.ts.
     sound.startMusic(trackForRound(run.roundNo + 1))
     setChoosing(true); setError(null)
-    setResult(null); setShown(0); setRowsShown(0); setCount(null); setDiving(false); setShowLadder(false)
+    setResult(null); setShown(0); setRowsShown(0); setCount(null); setDiving(false); setShowLadder(false); setLadderDone(false)
 
     try {
       const res = await fetch('/api/gauntlet/next', {
@@ -1950,7 +1958,7 @@ export function Cradle() {
                       you={{ name: result.you.label, art: result.you.art }}
                       champion={run.champion}
                       pot={run.pot}
-                      onDone={() => setShowLadder(false)}
+                      onDone={() => { setShowLadder(false); setLadderDone(true) }}
                     />
                   )}
                   {diving && (
