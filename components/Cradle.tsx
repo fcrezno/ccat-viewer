@@ -65,6 +65,8 @@ import { useWebConnectors } from '@/lib/useWebConnectors'
  */
 const BEAT_MS = 650
 const GO_MS = BEAT_MS + 600
+/** The countdown's outline and shadow: see the 3, 2, 1, FIGHT! below. */
+const COUNT_INK = 'drop-shadow(3px 0 0 #1a1a1a) drop-shadow(-3px 0 0 #1a1a1a) drop-shadow(0 3px 0 #1a1a1a) drop-shadow(0 -3px 0 #1a1a1a) drop-shadow(4px 4px 0 #1a1a1a)'
 
 /*
  * PLAYBACK SPEED, WHICH IS A PRIZE RATHER THAN A PREFERENCE.
@@ -1971,7 +1973,13 @@ export function Cradle() {
                         beat, on its own layer so it never fights the drop's scale.
                         Stepped, so it jumps pixel to pixel like the game's shakes.
                       */}
-                      <div style={{ animation: `cradle-shake ${0.16 / speed}s steps(5) infinite` }}>
+                      {/*
+                        "also make the 321 fight text look better; give it a out
+                        line": a 3px ink outline round the glyphs' own shape (four
+                        drop-shadows follow the mask), then a hard 4px ink shadow —
+                        the ladder title's and the place card's look, at this size.
+                      */}
+                      <div style={{ animation: `cradle-shake ${0.16 / speed}s steps(5) infinite`, filter: COUNT_INK }}>
                         <BitmapText
                           text={count === 0 ? 'FIGHT!' : String(count)}
                           scale={count === 0 ? 4 : 6}
