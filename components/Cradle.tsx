@@ -16,6 +16,7 @@ import { LadderScreen } from '@/components/LadderScreen'
 import type { Float } from '@/components/FloatWord'
 import { MAX_ENERGY, restLeft, spendEnergy, stamina, type Stamina } from '@/lib/stamina'
 import { PageChecker } from '@/components/PageChecker'
+import { Haloed } from '@/components/Haloed'
 import { useLoadingHold } from '@/lib/loading'
 import { noteWin, noteLoss, type Beat } from '@/lib/streak'
 import { NO_CHAIN } from '@/lib/appmode'
@@ -140,10 +141,18 @@ const INK = '#1a1a1a'
 function FighterPortrait({ name, src, pixel = true }: { name: string; src?: string; pixel?: boolean }) {
   return (
     <div style={s.fighter}>
-      <p style={s.fighterName}>{name}</p>
       {src
         ? <img src={src} alt={name} style={{ ...s.fighterPic, imageRendering: pixel ? 'pixelated' : 'auto' }} />
         : <div style={{ ...s.fighterPic, ...s.placeholder }}>🐱</div>}
+      {/*
+        THE NAME AS THE BATTLE SCREEN WRITES IT — JP, 2026-10-06: "the name is too
+        small", "make it similar to the game". Under the portrait, in the game's
+        font with its halo, gold because it is YOUR cat (FightStage's MINE_INK),
+        at twice the font's size.
+      */}
+      <div style={{ ...s.fighterName, display: 'flex', justifyContent: 'center', marginTop: 8 }} aria-label={name}>
+        <Haloed text={name} color="#b07a10" scale={2} />
+      </div>
     </div>
   )
 }
