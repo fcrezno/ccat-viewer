@@ -1933,6 +1933,8 @@ export function Cradle() {
                   speed={speed}
                   lines={result.log.slice(0, shown)}
                   crop={narrow && !diving && !showLadder}
+                  catsIn={!diving}
+                  catsFadeMs={(3 * BEAT_MS) / speed}
                 >
                   {showLadder && run && (
                     <LadderScreen

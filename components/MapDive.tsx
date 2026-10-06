@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { BitmapText } from '@/components/BitmapText'
 import { checker } from '@/components/LadderScreen'
+import { measure } from '@/lib/font'
 
 /**
  * THE MAP INTO BATTLE — the island, an alarm, a dive, the cast and VS.
@@ -99,6 +100,8 @@ const STEP = 200                       // between one cat landing and the next
 const CAST = STEP * 2 + 250
 const SLAM = 350
 const HOLD = 1000
+/** How long VS shakes once it has landed. */
+const LAND = 300
 /*
  * THE WAY INTO THE FIGHT. JP, 2026-10-05: "fade into white; then have the
  * checkerboard fade in and split revealing the fight and transition into that".
@@ -133,6 +136,62 @@ const BOX_Y = 64
 const BOX = 106
 /** Where vs.png's mark sits on its 480x320 sheet, read out of the picture (alpha > 40). */
 const VS_CENTRE = '242px 117px'
+
+/*
+ * THE CHECKER'S LETTERING. JP, 2026-10-05: "Have that blue checkerboard have
+ * Clanker Cats in text so it looks cooler". Rows of the name in the game's font,
+ * a shade under the checker, sliding in opposite directions row by row. Laid
+ * out in SCREEN coordinates and drawn inside each half (offset by the half's
+ * own left), so the words split with the checker.
+ */
+// JP: "and make it say" ... "CLANK THAT CAT!"
+const BRAND = 'CLANK THAT CAT!'
+// "make the text on clanker cats smaller and spaced out", then "1.5 size": wide gaps, airy rows.
+const BRAND_SCALE = 1.5
+const BRAND_GAP = 64
+const BRAND_UNIT = measure(BRAND) * BRAND_SCALE + BRAND_GAP
+const BRAND_ROW = 44
+/*
+ * "Also color code the text to the area it's in": each place's own colour,
+ * sampled off mapscreen.png's icon boxes (the commonest saturated colour in
+ * each) and firmed up a step so it holds on the pale checker; the lettering
+ * then sits at BRAND_ALPHA, so it stays a backdrop.
+ *   Town #3878f8 · Temple #c878f8 · Caves #b8b888 · Mountain #d88838 · Forest #087808
+ */
+const ZONE_INK: Record<string, string> = {
+  Town: '#3878f8',
+  Temple: '#b060f0',
+  Caves: '#8f8f5a',
+  Mountain: '#c86a28',
+  Forest: '#2f8f3a',
+}
+const BRAND_ALPHA = 0.55
+/** px per ms: 30 px a second. */
+const BRAND_SPEED = 0.03
+
+function Lettering({ ms, left, ink }: { ms: number; left: number; ink: string }) {
+  const rows = Math.ceil(H / BRAND_ROW)
+  const copies = Math.ceil(W / BRAND_UNIT) + 2
+  return (
+    <div style={{ position: 'absolute', top: 0, left: -left, width: W, height: H, pointerEvents: 'none', opacity: BRAND_ALPHA }}>
+      {Array.from({ length: rows }, (_, r) => {
+        const dir = r % 2 ? 1 : -1
+        // Odd rows half a word over, so the names stagger like bricks.
+        const travel = ms * BRAND_SPEED * dir + (r % 2) * BRAND_UNIT / 2
+        const x = ((travel % BRAND_UNIT) + BRAND_UNIT) % BRAND_UNIT - BRAND_UNIT
+        return (
+          <div key={r} style={{ position: 'absolute', left: 0, top: r * BRAND_ROW + 10, display: 'flex', gap: BRAND_GAP, transform: `translateX(${x}px)` }}>
+            {Array.from({ length: copies }, (_, c) => (
+              <div key={c} style={{ flexShrink: 0 }}>
+                <BitmapText text={BRAND} scale={BRAND_SCALE} color={ink} />
+              </div>
+            ))}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
 
 /** "it lands, settles back, and stops" — ease out with a small overshoot. */
 const back = (t: number) => { const c = 1.70158, k = t - 1; return 1 + (c + 1) * k * k * k + c * k * k }
@@ -188,6 +247,14 @@ export function MapDive({ zone, cast, onDone }: {
   const showCats = ms >= T_CAST ? (ms - T_CAST) / STEP : 0
   const vs = ms >= T_VS ? clamp((ms - T_VS) / SLAM) : 0
   const vsK = 1 + 1.6 * (1 - vs) ** 2.4
+  /*
+   * "make the vs shake when it decends and lands": a small tremble all the way
+   * down, then a hard shake on the landing that dies away over LAND ms. The
+   * alarm's own SHAKE table, whose steps are up to 2 px, scaled by the amount.
+   */
+  const landed = ms - T_HOLD
+  const vsAmp = vs > 0 && vs < 1 ? 1 : landed >= 0 && landed < LAND ? 2.5 * (1 - landed / LAND) : 0
+  const [sx, sy] = SHAKE[Math.floor(frame / SHAKE_RATE) % SHAKE.length]
   // Rings blink on the two once both are standing; every 6 frames, as locationCard's `lit`.
   const rings = ms >= T_HOLD && Math.floor(frame / 6) % 2 === 0
   const white = clamp((ms - T_WHITE) / WHITE)
@@ -248,7 +315,7 @@ export function MapDive({ zone, cast, onDone }: {
 
       {/* VS, slamming in between them: the full sheet, scaled about its mark. */}
       {vs > 0.02 && (
-        <img src="/game/vs.png" alt="VS" style={{ ...st.vs, transform: `scale(${vsK})` }} />
+        <img src="/game/vs.png" alt="VS" style={{ ...st.vs, transform: `translate(${sx * vsAmp}px, ${sy * vsAmp}px) scale(${vsK})` }} />
       )}
 
       {white > 0 && <div style={{ ...st.white, opacity: white }} />}
@@ -257,8 +324,14 @@ export function MapDive({ zone, cast, onDone }: {
       {/* The checker: in over the white, then parting down the middle onto the fight. */}
       {checks > 0 && (
         <>
-          <div style={{ ...st.half, left: 0, opacity: checks, transform: `translateX(${-split * (W / 2 + 4)}px)`, boxShadow: split > 0 ? `inset -2px 0 0 ${INK}` : 'none', ...checker(ms) }} />
-          <div style={{ ...st.half, left: W / 2, opacity: checks, transform: `translateX(${split * (W / 2 + 4)}px)`, boxShadow: split > 0 ? `inset 2px 0 0 ${INK}` : 'none', ...checker(ms, W / 2) }} />
+          <div style={{ ...st.half, left: 0, opacity: checks, transform: `translateX(${-split * (W / 2 + 4)}px)`, ...checker(ms) }}>
+            <Lettering ms={ms} left={0} ink={ZONE_INK[zone] ?? ZONE_INK.Town} />
+            {split > 0 && <div style={{ ...st.edge, right: 0 }} />}
+          </div>
+          <div style={{ ...st.half, left: W / 2, opacity: checks, transform: `translateX(${split * (W / 2 + 4)}px)`, ...checker(ms, W / 2) }}>
+            <Lettering ms={ms} left={W / 2} ink={ZONE_INK[zone] ?? ZONE_INK.Town} />
+            {split > 0 && <div style={{ ...st.edge, left: 0 }} />}
+          </div>
         </>
       )}
     </div>
@@ -274,7 +347,9 @@ const st: Record<string, React.CSSProperties> = {
   card:    { position: 'absolute', left: 88, top: 214, width: 304, height: 64, boxSizing: 'border-box', background: '#e8eef6', border: '2px solid #1a1a1a', boxShadow: '4px 4px 0 #1a1a1a', display: 'flex', justifyContent: 'center', alignItems: 'center' },
   white:   { position: 'absolute', inset: 0, background: '#ffffff' },
   // Each half 240 wide; the right one's checker is offset by its own left, so the two meet seamlessly.
-  half:    { position: 'absolute', top: 0, width: W / 2, height: H },
+  half:    { position: 'absolute', top: 0, width: W / 2, height: H, overflow: 'hidden' },
+  // The cut edge's ink line: over the lettering, so the words end on it.
+  edge:    { position: 'absolute', top: 0, width: 2, height: H, background: INK },
   // The battle screen's portrait, mount and all (components/FightStage), so the cut moves nothing.
   cat:     { position: 'absolute', width: BOX, height: BOX, boxSizing: 'border-box', padding: 2, background: '#fdfdf8' },
   catArt:  { width: '100%', height: '100%', display: 'block', boxSizing: 'border-box', border: '4px solid #1a1a1a', objectFit: 'cover', objectPosition: 'top', imageRendering: 'pixelated', background: '#e6e0d2' },

@@ -66,7 +66,7 @@ const ALARM = '#e02020'
 const MINE_INK = '#b07a10'
 
 export function FightStage({
-  you, foe, hp, ghost, turf, swinging, struck, beat, speed, lines, crop = false, children,
+  you, foe, hp, ghost, turf, swinging, struck, beat, speed, lines, crop = false, catsIn = true, catsFadeMs = 0, children,
 }: {
   you: ArenaCat
   foe: ArenaCat
@@ -91,6 +91,14 @@ export function FightStage({
    * box's drawn edge starts at 207, so 200 cuts between them.
    */
   crop?: boolean
+  /**
+   * THE CATS, AFTER THE ARENA. JP, 2026-10-05: "make it fade in to the arena
+   * background then fade in the cats with the count down". False hides both
+   * portraits and their names, so the map's split opens onto the arena alone;
+   * true fades them in over `catsFadeMs` — the countdown's length.
+   */
+  catsIn?: boolean
+  catsFadeMs?: number
   /** Drawn over the stage, like the countdown. */
   children?: ReactNode
 }) {
@@ -176,8 +184,12 @@ export function FightStage({
           <img src="/game/bar/kohole.png" alt="" style={st.kohole} />
           <img src="/game/battlescreen.png" alt="" style={st.chrome} />
 
-          {portrait(you, 'you', 75, hp[0])}
-          {portrait(foe, 'foe', 299, hp[1])}
+          <div style={{ ...st.cats, opacity: catsIn ? 1 : 0, transition: catsIn ? `opacity ${catsFadeMs}ms ease-in-out` : 'none' }}>
+            {portrait(you, 'you', 75, hp[0])}
+            {portrait(foe, 'foe', 299, hp[1])}
+            <div style={{ ...st.name, left: 75 }}><Haloed text={you.label} color={you.mine ? MINE_INK : '#1a1a1a'} /></div>
+            <div style={{ ...st.name, left: 299 }}><Haloed text={foe.label} color={foe.mine ? MINE_INK : '#1a1a1a'} /></div>
+          </div>
 
           <div style={{ ...st.bar, left: 32, top: 21, width: 176 }}>
             <GameBar hp={hp[0]} ghost={ghost[0]} max={you.maxHp} side="left" speed={speed} />
@@ -201,9 +213,6 @@ export function FightStage({
               <Haloed text={warnFoe} color={ALARM} />
             </div>
           )}
-
-          <div style={{ ...st.name, left: 75 }}><Haloed text={you.label} color={you.mine ? MINE_INK : '#1a1a1a'} /></div>
-          <div style={{ ...st.name, left: 299 }}><Haloed text={foe.label} color={foe.mine ? MINE_INK : '#1a1a1a'} /></div>
 
           {!crop && <div ref={log} style={st.log} aria-live="polite">
             {lines.map((l, i) => (
@@ -239,6 +248,8 @@ const st: Record<string, React.CSSProperties> = {
   kobox:     { position: 'absolute', left: 214, top: 16, width: 50, height: 37 },
   kohole:    { position: 'absolute', left: 242, top: 26, width: 15, height: 11 },
   portrait:  { position: 'absolute', top: 64, width: 106, height: 106 },
+  // The two cats and their names, as one layer: the stage's own coordinates.
+  cats:      { position: 'absolute', inset: 0 },
   // The game's mount: a 2px paper ring round a 4px ink edge, cropped from the top.
   mount:     { width: 106, height: 106, boxSizing: 'border-box', padding: 2, background: '#fdfdf8', transition: 'filter 0.6s steps(10), opacity 0.6s steps(10)' },
   art:       { width: '100%', height: '100%', display: 'block', boxSizing: 'border-box', border: '4px solid #1a1a1a', objectFit: 'cover', objectPosition: 'top', background: '#e6e0d2' },
