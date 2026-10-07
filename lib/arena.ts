@@ -297,7 +297,9 @@ export function fight(you: ArenaCat, foe: ArenaCat, seed: number): FightResult {
     log.push({ text: l.text, kind, style: l.style, hpYou: you.hp, hpFoe: foe.hp, actor, move })
 
   const turf = pick(r, TURFS)
-  add(say(r, 'arena', { turf, cat: you.label }, 'ARENA: {turf}'), 'info')
+  // The arena line is no longer printed (JP, 2026-10-06: the map dive already names the zone).
+  // It is still ROLLED, so the random stream is unchanged and old runs replay the same.
+  say(r, 'arena', { turf, cat: you.label }, 'ARENA: {turf}')
 
   let turn = 0
   const order = you.spd >= foe.spd ? [you, foe] : [foe, you]

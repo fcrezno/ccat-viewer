@@ -2539,8 +2539,8 @@ export function Cradle() {
         rather than behind a menu: this is a mini app on a phone, and a menu to
         reach three links is a menu too many.
       */}
-      {/* Not in a fight at all (JP, 2026-10-06): after one, the links are in their own window beside the results. */}
-      {view !== 'home' && view !== 'fight' && <nav style={s.nav}>{navLinks}</nav>}
+      {/* After a fight the links sit in their own window beside the results instead (navLinksBig). */}
+      {view !== 'home' && !(view === 'fight' && done) && <nav style={s.nav}>{navLinks}</nav>}
 
       <footer style={s.footer}>Clanker Cats — the full game is being built in s&amp;box</footer>
     </main>
