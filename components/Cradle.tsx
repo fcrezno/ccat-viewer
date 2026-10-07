@@ -1620,11 +1620,11 @@ export function Cradle() {
   const pickable = (cats ?? []).filter(c => !recordFor(c.uid).retired)
   const retiredCount = (cats ?? []).length - pickable.length
 
-  /** YOUR CATS and MINT, as 98 buttons (globals.css .btn98). */
-  const navLinks = (
+  /** YOUR CATS and MINT, as 98 buttons (globals.css .btn98); wideNav = in their own window after a fight. */
+  const navFor = (wideNav: boolean) => (
     <>
           {/* The idle game (/game) is unlinked for now (JP, 2026-09-29: "remove the idle game tab for now"). */}
-          <a href="/cats" className="btn98" style={s.navLink}><FxLabel text="YOUR CATS" tone="grey" /></a>
+          <a href="/cats" className="btn98" style={{ ...s.navLink, ...(wideNav ? s.navLinkBig : null) }}><FxLabel text="YOUR CATS" tone="grey" /></a>
           {/*
             NO WAY TO BUY ANYTHING IN THE APP BUILD.
   
@@ -1637,9 +1637,11 @@ export function Cradle() {
             `NO_CHAIN` is inlined at build time, so this link is not merely hidden
             in the app binary. It is not in it.
           */}
-          {!NO_CHAIN && <a href="/mint" className="btn98" style={s.navLink}><FxLabel text="MINT" tone="grey" /></a>}
+          {!NO_CHAIN && <a href="/mint" className="btn98" style={{ ...s.navLink, ...(wideNav ? s.navLinkBig : null) }}><FxLabel text="MINT" tone="grey" /></a>}
       </>
   )
+  const navLinks = navFor(false)
+  const navLinksBig = navFor(true)
 
   return (
     <main style={s.page}>
@@ -2515,7 +2517,10 @@ export function Cradle() {
                 </section>
               )}
               {/* JP, 2026-10-06: YOUR CATS and MINT under the menu, in the space beside the results. */}
-              <nav style={{ ...s.nav, marginTop: 0, paddingTop: 4 }}>{navLinks}</nav>
+              {/* In a 98 window of their own, the two side by side and full size (JP, 2026-10-06). */}
+              <section className="win98" data-title="Clanker Cats" style={s.block}>
+                <nav style={s.navWin}>{navLinksBig}</nav>
+              </section>
               </div>
               </div>
               )}
@@ -2534,8 +2539,8 @@ export function Cradle() {
         rather than behind a menu: this is a mini app on a phone, and a menu to
         reach three links is a menu too many.
       */}
-      {/* After a fight the links sit in the results' right column instead (navLinks). */}
-      {view !== 'home' && !(view === 'fight' && done) && <nav style={s.nav}>{navLinks}</nav>}
+      {/* Not in a fight at all (JP, 2026-10-06): after one, the links are in their own window beside the results. */}
+      {view !== 'home' && view !== 'fight' && <nav style={s.nav}>{navLinks}</nav>}
 
       <footer style={s.footer}>Clanker Cats — the full game is being built in s&amp;box</footer>
     </main>
@@ -2756,6 +2761,9 @@ const s: Record<string, React.CSSProperties> = {
   },
   // A 98 button (globals.css .btn98): grey bevel at rest, navy on hover.
   navLink: { display: 'inline-flex', textDecoration: 'none', padding: '6px 14px' },
+  // The links in their own window after a fight: two equal buttons, as tall as the menu's.
+  navLinkBig: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: '14px 16px' },
+  navWin:  { display: 'flex', gap: 10 },
   // Under the portrait (CatLinks): navy on hover, like QUICK FIGHT.
   catLink: { flex: 1, display: 'flex', justifyContent: 'center', whiteSpace: 'nowrap', textDecoration: 'none', background: '#000080', padding: '5px 8px' },
   footer:  { marginTop: 12, textAlign: 'center', color: '#3f3f55', fontSize: 10, letterSpacing: 1 },
