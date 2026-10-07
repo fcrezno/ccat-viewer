@@ -1060,3 +1060,9 @@ button, input, select, textarea, optgroup {
   from { transform: translate3d(0, 0, 0); }
   to   { transform: translate3d(-64px, 64px, 0); }
 }
+
+/* The countdown dim, fading in under the 3 as the curtain parts (Cradle). */
+@keyframes cradle-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}

@@ -34,8 +34,9 @@ import { measure } from '@/lib/font'
  *   HOLD   1.00 s  red rings blink on the two who are about to fight (a ring,
  *                  "not a flashing portrait": the picture never goes away).
  *   WHITE  0.40 s  the whole scene fades to white
- *   CHECKS 0.35 s  the ladder's paper-blue checker fades in over it
- *   SPLIT  0.55 s  the checker parts down the middle onto the battle screen
+ *   CHECKS 0.45 s  the ladder's paper-blue checker fades in over it
+ *   CURTAIN 0.60 s the closed checker holds ("make the curtain close last a little longer")
+ *   SPLIT  0.80 s  the checker parts down the middle onto the battle screen
  *
  * The camera stops at an even 2x (see ZOOM) and the name sits on a clean paper
  * card — JP's "clean up the map", Oct 5.
@@ -109,8 +110,10 @@ const LAND = 300
  * either side of a fight are one family.
  */
 const WHITE = 400                      // the whole scene fades to white
-const CHECKS = 350                     // the checker fades in over the white
-const SPLIT = 550                      // it parts down the middle, ease-in, onto the fight
+const CHECKS = 450                     // the checker fades in over the white
+/** The closed curtain holds before it parts. JP, 2026-10-06: "make the curtain close last a little longer… its too fast". */
+const CURTAIN = 600
+const SPLIT = 800                      // it parts down the middle, ease-in, onto the fight
 const T_DIVE = ALARM
 const T_NAME = T_DIVE + DIVE
 const T_CAST = T_NAME + NAME
@@ -118,7 +121,7 @@ const T_VS = T_CAST + CAST
 const T_HOLD = T_VS + SLAM
 const T_WHITE = T_HOLD + HOLD
 const T_CHECKS = T_WHITE + WHITE
-const T_SPLIT = T_CHECKS + CHECKS
+const T_SPLIT = T_CHECKS + CHECKS + CURTAIN
 const T_END = T_SPLIT + SPLIT
 /** The split's cut edges carry the ink line, as every panel does. */
 const INK = '#1a1a1a'
@@ -203,8 +206,55 @@ export const zoneOfTurf = (turf: string) => {
   return w.charAt(0).toUpperCase() + w.slice(1)
 }
 
-export function MapDive({ zone, cast, onDone }: {
+/** The announcer's outline and hard shadow: the 3 2 1's (Cradle COUNT_INK). */
+const WORDS_INK = 'drop-shadow(3px 0 0 #1a1a1a) drop-shadow(-3px 0 0 #1a1a1a) drop-shadow(0 3px 0 #1a1a1a) drop-shadow(0 -3px 0 #1a1a1a) drop-shadow(4px 4px 0 #1a1a1a)'
+/** Room for the widest half, inside the stage with its outline. */
+const WORDS_ROOM = 440
+const WORDS_INKS = ['#f0f0f5', '#ffd166']
+
+/**
+ * The announcer's line, drawn ONCE PER HALF of the curtain at the stage's own
+ * coordinates, so each half clips its side of the words and carries it away.
+ * As big as the widest half allows, to 3x, in quarter steps. The shake is driven
+ * off the shared frame, not a CSS loop, so the two halves never drift apart.
+ */
+function Words({ words, up, left, frame }: { words: readonly string[]; up: number; left: number; frame: number }) {
+  // Sized off the WHOLE line, so the first half does not shrink when the second lands.
+  const widest = Math.max(...words.map(w => measure(w)), 1)
+  const scale = Math.min(3, Math.floor((WORDS_ROOM / widest) * 4) / 4)
+  // A light tremble: half a step, every 4 frames (JP: "dont make it shake too much").
+  const [sx, sy] = SHAKE[Math.floor(frame / 4) % SHAKE.length]
+  return (
+    <div style={{ ...st.words, left: -left, transform: `translate(${sx * 0.5}px, ${sy * 0.5}px)` }}>
+      {words.slice(0, up).map((w, i) => (
+        <div key={i} style={{ animation: 'cradle-count 0.45s ease-out', filter: WORDS_INK }}>
+          <BitmapText text={w} scale={scale} color={WORDS_INKS[i % 2]} />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+export function MapDive({ zone, cast, onDone, hold = false, onClosed, words, wordsUp = 0, onTapHeld }: {
   zone: string
+  /**
+   * Keep the curtain CLOSED once it is: the dive stops at the start of the split
+   * until this goes false. JP, 2026-10-06: "have the curtain close then the
+   * announcer speaks then it opens up to the count down".
+   */
+  hold?: boolean
+  /** Called once, when the curtain is closed and holding. */
+  onClosed?: () => void
+  /**
+   * The announcer's words ON the curtain, so they part with it (JP, 2026-10-06:
+   * "make the message also split with the curtain and make it bigger"). The
+   * whole line, so it is sized once.
+   */
+  words?: readonly string[]
+  /** How many of those halves have landed so far. */
+  wordsUp?: number
+  /** A tap while the curtain holds: the parent opens it. */
+  onTapHeld?: () => void
   /** The two about to fight: your cat's picture, then theirs. */
   cast: [string, string]
   onDone: () => void
@@ -216,12 +266,29 @@ export function MapDive({ zone, cast, onDone }: {
   // In a ref, so a parent re-rendering with a new function does not restart the dive.
   const finish = useRef(onDone)
   finish.current = onDone
+  const holding = useRef(hold)
+  holding.current = hold
+  const closed = useRef(onClosed)
+  closed.current = onClosed
+  /** Real time since the dive began: the checker and its lettering keep moving through a hold. */
+  const [clock, setClock] = useState(0)
 
   useEffect(() => {
     let raf = 0
     const t0 = performance.now()
+    let paused = 0                       // ms spent held, taken off the dive's own clock
+    let since: number | null = null      // when the current hold began
+    let told = false
     const tick = () => {
-      const t = performance.now() - t0
+      const now = performance.now()
+      setClock(now - t0)
+      if (since !== null && !holding.current) { paused += now - since; since = null }
+      let t = now - t0 - paused
+      if (t >= T_SPLIT && holding.current) {
+        if (since === null) since = now
+        if (!told) { told = true; closed.current?.() }
+        t = T_SPLIT
+      }
       setMs(t)
       if (t >= T_END) {
         if (!done.current) { done.current = true; finish.current() }
@@ -233,7 +300,14 @@ export function MapDive({ zone, cast, onDone }: {
     return () => cancelAnimationFrame(raf)
   }, [])
 
-  const skip = () => { if (!done.current) { done.current = true; finish.current() } }
+  const msNow = useRef(0)
+  msNow.current = ms
+  const skip = () => {
+    if (hold && msNow.current >= T_SPLIT && onTapHeld) return onTapHeld()
+    if (!done.current) { done.current = true; finish.current() }
+  }
+  /** Real-time frame for the words' shake: the dive's own clock stands still while held. */
+  const liveFrame = Math.floor(clock / FRAME_MS)
 
   const clamp = (n: number) => Math.max(0, Math.min(1, n))
   const p = clamp((ms - T_DIVE) / DIVE)
@@ -264,6 +338,8 @@ export function MapDive({ zone, cast, onDone }: {
   const split = clamp((ms - T_SPLIT) / SPLIT) ** 2
   /** Once the checker covers it all, the scene under it is gone: the split opens onto the fight. */
   const scene = ms < T_SPLIT
+  /** The announcer is speaking over the closed curtain: its own lettering steps back. */
+  const quiet = hold && ms >= T_SPLIT
 
   return (
     <div style={{ ...st.root, background: scene ? st.root.background : 'transparent' }} onClick={skip} role="img" aria-label={`The map: the fight is in the ${zone}`}>
@@ -328,13 +404,19 @@ export function MapDive({ zone, cast, onDone }: {
       {checks > 0 && (
         <>
           <div style={{ ...st.half, left: 0, opacity: checks, transform: `translateX(${-split * (W / 2 + 4)}px)` }}>
-            <Checker ms={ms} left={0} />
-            <Lettering ms={ms} left={0} ink={ZONE_INK[zone] ?? ZONE_INK.Town} />
+            <Checker ms={clock} left={0} />
+            <div style={{ opacity: quiet ? 0.2 : 1, transition: 'opacity 0.25s ease-out' }}>
+              <Lettering ms={clock} left={0} ink={ZONE_INK[zone] ?? ZONE_INK.Town} />
+            </div>
+            {words && wordsUp > 0 && <Words words={words} up={wordsUp} left={0} frame={liveFrame} />}
             {split > 0 && <div style={{ ...st.edge, right: 0 }} />}
           </div>
           <div style={{ ...st.half, left: W / 2, opacity: checks, transform: `translateX(${split * (W / 2 + 4)}px)` }}>
-            <Checker ms={ms} left={W / 2} />
-            <Lettering ms={ms} left={W / 2} ink={ZONE_INK[zone] ?? ZONE_INK.Town} />
+            <Checker ms={clock} left={W / 2} />
+            <div style={{ opacity: quiet ? 0.2 : 1, transition: 'opacity 0.25s ease-out' }}>
+              <Lettering ms={clock} left={W / 2} ink={ZONE_INK[zone] ?? ZONE_INK.Town} />
+            </div>
+            {words && wordsUp > 0 && <Words words={words} up={wordsUp} left={W / 2} frame={liveFrame} />}
             {split > 0 && <div style={{ ...st.edge, left: 0 }} />}
           </div>
         </>
@@ -353,6 +435,8 @@ const st: Record<string, React.CSSProperties> = {
   white:   { position: 'absolute', inset: 0, background: '#ffffff' },
   // Each half 240 wide; the right one's checker is offset by its own left, so the two meet seamlessly.
   half:    { position: 'absolute', top: 0, width: W / 2, height: H, overflow: 'hidden' },
+  // The whole stage, inside one half: placed back by the half's own left.
+  words:   { position: 'absolute', top: 0, width: W, height: H, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, pointerEvents: 'none' },
   // The cut edge's ink line: over the lettering, so the words end on it.
   edge:    { position: 'absolute', top: 0, width: 2, height: H, background: INK },
   // The battle screen's portrait, mount and all (components/FightStage), so the cut moves nothing.

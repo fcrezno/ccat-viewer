@@ -67,6 +67,34 @@ import { useWebConnectors } from '@/lib/useWebConnectors'
  */
 const BEAT_MS = 650
 const GO_MS = BEAT_MS + 600
+/*
+ * THE ANNOUNCER OPENS THE FIGHT. JP, 2026-10-06: "TWO CATS ENTER; ONE CAT LEAVES" —
+ * "the announcer starts the fight". Then "have the curtain close then the announcer
+ * speaks then it opens up to the count down; give the text a lil time to settle":
+ * MapDive holds its checker closed, the halves slam in, the line settles, and the
+ * curtain parts onto 3 2 1.
+ */
+const ANNOUNCERS = [
+  ['TWO CATS ENTER;', 'ONE CAT LEAVES'],
+  // JP, 2026-10-06: make one of the lines "ITS TIME TO CLANK SOME CATS!".
+  ['ITS TIME TO', 'CLANK SOME CATS!'],
+  ['THE CLANG OF DESTINY', 'SHALL CLANK THY DNA'],
+  ['THE WHEEL OF CLANK', 'IS TURNING...'],
+  ['YES, I DO', 'EAT GLUE.'],
+  ['HEY', 'IS THIS ON..?'],
+  // One half only: it slams once, then holds.
+  ['IM MOSHING IT!'],
+  /*
+   * TOKEN SHOUTS, web only. The App Store build (NO_CHAIN) has no way to buy
+   * anything — Guideline 3.1.1 — so these are not in it at all.
+   */
+  ...(NO_CHAIN ? [] : [['BUY $BUN'], ['BUY $BPEPE'], ['BUY $ALF']]),
+] as readonly (readonly string[])[]
+/** One per fight, off its seed: the same fight always opens the same way. */
+const announcerFor = (seed: number) => ANNOUNCERS[Math.abs(seed) % ANNOUNCERS.length]
+const ANNOUNCE_STEP = 600
+/** After the last half lands, the line settles this long before the curtain opens. */
+const ANNOUNCE_SETTLE = 1400
 /** The countdown's outline and shadow: see the 3, 2, 1, FIGHT! below. */
 const COUNT_INK = 'drop-shadow(3px 0 0 #1a1a1a) drop-shadow(-3px 0 0 #1a1a1a) drop-shadow(0 3px 0 #1a1a1a) drop-shadow(0 -3px 0 #1a1a1a) drop-shadow(4px 4px 0 #1a1a1a)'
 
@@ -838,6 +866,10 @@ export function Cradle() {
    * JP, 2026-10-05: "can we still add ... the map screen into battle?"
    */
   const [diving, setDiving] = useState(false)
+  /** The announcer's line, between the dive and the countdown: null, or how many halves are up. */
+  const [announce, setAnnounce] = useState<number | null>(null)
+  /** The curtain (MapDive's checker) holds closed until the announcer has finished. */
+  const [curtainOpen, setCurtainOpen] = useState(false)
   /*
    * THE LADDER AFTER A WON ROUND (components/LadderScreen): the gauntlet as a
    * tower, your cat climbing a rung. JP, 2026-10-05: "can we still add that
@@ -932,13 +964,24 @@ export function Cradle() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [count, speed])
 
+  // The announcer, over the closed curtain: a slam per half, a settle, then the curtain opens. A tap opens it now.
+  useEffect(() => {
+    if (announce === null) return
+    sound.play('ko')
+    const t = result && announce < announcerFor(result.seed).length
+      ? setTimeout(() => setAnnounce(announce + 1), ANNOUNCE_STEP / speed)
+      : setTimeout(() => { setCurtainOpen(true); setCount(c => c ?? 3) }, ANNOUNCE_SETTLE / speed)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [announce, speed])
+
   useEffect(() => {
     // Nothing is told until the countdown has finished.
-    if (count !== null || diving) return
+    if (count !== null || diving || announce !== null) return
     if (!result || shown >= result.log.length) return
     const t = setTimeout(() => setShown(n => n + 1), LINE_MS / speed)
     return () => clearTimeout(t)
-  }, [result, shown, count, speed, diving])
+  }, [result, shown, count, speed, diving, announce])
 
   // The phone's paper log follows the newest line down (see `narrow`).
   useEffect(() => {
@@ -1246,7 +1289,7 @@ export function Cradle() {
     sound.prime()
     sound.startMusic()
     setBusy(true); setError(null); setNote(null); setConfirmRetire(false)
-    setResult(null); setShown(0); setRowsShown(0); setCount(null); setDiving(false); setShowLadder(false); setLadderDone(false); setView('fight')
+    setResult(null); setShown(0); setRowsShown(0); setCount(null); setDiving(false); setAnnounce(null); setCurtainOpen(false); setShowLadder(false); setLadderDone(false); setView('fight')
     // A single fight is never part of a run, so anything left over goes.
     setRun(null); setRecorded(true); setTag(null)
     try {
@@ -1314,7 +1357,7 @@ export function Cradle() {
     sound.prime()
     sound.startMusic(trackForRound(1))
     setBusy(true); setError(null); setNote(null); setConfirmRetire(false)
-    setResult(null); setShown(0); setRowsShown(0); setCount(null); setDiving(false); setShowLadder(false); setLadderDone(false); setView('fight')
+    setResult(null); setShown(0); setRowsShown(0); setCount(null); setDiving(false); setAnnounce(null); setCurtainOpen(false); setShowLadder(false); setLadderDone(false); setView('fight')
     setRun(null)
 
     try {
@@ -1371,7 +1414,7 @@ export function Cradle() {
     // is the same track and nothing restarts; see lib/music.ts.
     sound.startMusic(trackForRound(run.roundNo + 1))
     setChoosing(true); setError(null)
-    setResult(null); setShown(0); setRowsShown(0); setCount(null); setDiving(false); setShowLadder(false); setLadderDone(false)
+    setResult(null); setShown(0); setRowsShown(0); setCount(null); setDiving(false); setAnnounce(null); setCurtainOpen(false); setShowLadder(false); setLadderDone(false)
 
     try {
       const res = await fetch('/api/gauntlet/next', {
@@ -2091,9 +2134,9 @@ export function Cradle() {
                   beat={shown}
                   speed={speed}
                   lines={result.log.slice(0, shown)}
-                  crop={narrow && !diving && !showLadder}
+                  crop={narrow && !diving && announce === null && !showLadder}
                   float={float}
-                  catsIn={!diving}
+                  catsIn={!diving && announce === null}
                   catsFadeMs={(3 * BEAT_MS) / speed}
                 >
                   {showLadder && run && (
@@ -2115,7 +2158,12 @@ export function Cradle() {
                     <MapDive
                       zone={zoneOfTurf(result.turf)}
                       cast={[result.you.art, result.foe.art]}
-                      onDone={() => { setDiving(false); setCount(3) }}
+                      hold={!curtainOpen}
+                      onClosed={() => setAnnounce(1)}
+                      words={announcerFor(result.seed)}
+                      wordsUp={announce ?? 0}
+                      onTapHeld={() => { setCurtainOpen(true); setCount(c => c ?? 3) }}
+                      onDone={() => { setDiving(false); setAnnounce(null); setCurtainOpen(false); setCount(c => c ?? 3) }}
                     />
                   )}
                   {/*
@@ -2124,8 +2172,10 @@ export function Cradle() {
                   Keyed on the beat so each one replays the drop.
                 */}
                 {count !== null && (
-                  <div style={s.countWrap}>
-                    <div key={count} style={{ animation: `cradle-count ${0.45 / speed}s ease-out` }}>
+                  <div style={{ ...s.countWrap, background: 'transparent', zIndex: 6 /* over MapDive's opening curtain (5) */ }}>
+                    {/* The dim fades in under the 3 while the curtain parts: no cut between them. */}
+                    <div aria-hidden style={{ position: 'absolute', inset: 0, background: s.countWrap.background, animation: `cradle-fade-in ${0.8 / speed}s ease-out both` }} />
+                    <div key={count} style={{ position: 'relative', animation: `cradle-count ${0.45 / speed}s ease-out` }}>
                       {/*
                         "make the 3 2 1 fight text Shake": a tremble for the whole
                         beat, on its own layer so it never fights the drop's scale.
