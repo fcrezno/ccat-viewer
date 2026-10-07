@@ -1620,6 +1620,27 @@ export function Cradle() {
   const pickable = (cats ?? []).filter(c => !recordFor(c.uid).retired)
   const retiredCount = (cats ?? []).length - pickable.length
 
+  /** YOUR CATS and MINT, as 98 buttons (globals.css .btn98). */
+  const navLinks = (
+    <>
+          {/* The idle game (/game) is unlinked for now (JP, 2026-09-29: "remove the idle game tab for now"). */}
+          <a href="/cats" className="btn98" style={s.navLink}><FxLabel text="YOUR CATS" tone="grey" /></a>
+          {/*
+            NO WAY TO BUY ANYTHING IN THE APP BUILD.
+  
+            App Review Guideline 3.1.1 forbids "buttons, external links, or other
+            calls to action that direct customers to purchasing mechanisms other
+            than in-app purchase" — and while that half now carves out the US
+            storefront, a link to a mint is the single clearest thing a reviewer
+            would find. It is also pointless here: cats are won, not bought.
+  
+            `NO_CHAIN` is inlined at build time, so this link is not merely hidden
+            in the app binary. It is not in it.
+          */}
+          {!NO_CHAIN && <a href="/mint" className="btn98" style={s.navLink}><FxLabel text="MINT" tone="grey" /></a>}
+      </>
+  )
+
   return (
     <main style={s.page}>
       {/* The title screen's page (JP, 2026-09-29). A fight brings the zone it is in. */}
@@ -2493,6 +2514,8 @@ export function Cradle() {
                   </button>
                 </section>
               )}
+              {/* JP, 2026-10-06: YOUR CATS and MINT under the menu, in the space beside the results. */}
+              <nav style={{ ...s.nav, marginTop: 0, paddingTop: 4 }}>{navLinks}</nav>
               </div>
               </div>
               )}
@@ -2511,23 +2534,8 @@ export function Cradle() {
         rather than behind a menu: this is a mini app on a phone, and a menu to
         reach three links is a menu too many.
       */}
-      {view !== 'home' && <nav style={s.nav}>
-        {/* The idle game (/game) is unlinked for now (JP, 2026-09-29: "remove the idle game tab for now"). */}
-        <a href="/cats" className="fx-host" style={s.navLink}><FxLabel text="YOUR CATS" tone="grey" /></a>
-        {/*
-          NO WAY TO BUY ANYTHING IN THE APP BUILD.
-
-          App Review Guideline 3.1.1 forbids "buttons, external links, or other
-          calls to action that direct customers to purchasing mechanisms other
-          than in-app purchase" — and while that half now carves out the US
-          storefront, a link to a mint is the single clearest thing a reviewer
-          would find. It is also pointless here: cats are won, not bought.
-
-          `NO_CHAIN` is inlined at build time, so this link is not merely hidden
-          in the app binary. It is not in it.
-        */}
-        {!NO_CHAIN && <a href="/mint" className="fx-host" style={s.navLink}><FxLabel text="MINT" tone="grey" /></a>}
-      </nav>}
+      {/* After a fight the links sit in the results' right column instead (navLinks). */}
+      {view !== 'home' && !(view === 'fight' && done) && <nav style={s.nav}>{navLinks}</nav>}
 
       <footer style={s.footer}>Clanker Cats — the full game is being built in s&amp;box</footer>
     </main>
@@ -2746,10 +2754,8 @@ const s: Record<string, React.CSSProperties> = {
     marginTop: 'auto', display: 'flex', justifyContent: 'center', gap: 8,
     flexWrap: 'wrap', paddingTop: 8,
   },
-  navLink: {
-    color: '#7a7a95', fontSize: 11, letterSpacing: 1, textDecoration: 'none',
-    border: '1px solid #21212f', borderRadius: 999, padding: '3px 14px',
-  },
+  // A 98 button (globals.css .btn98): grey bevel at rest, navy on hover.
+  navLink: { display: 'inline-flex', textDecoration: 'none', padding: '6px 14px' },
   // Under the portrait (CatLinks): navy on hover, like QUICK FIGHT.
   catLink: { flex: 1, display: 'flex', justifyContent: 'center', whiteSpace: 'nowrap', textDecoration: 'none', background: '#000080', padding: '5px 8px' },
   footer:  { marginTop: 12, textAlign: 'center', color: '#3f3f55', fontSize: 10, letterSpacing: 1 },

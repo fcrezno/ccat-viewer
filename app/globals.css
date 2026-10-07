@@ -1000,6 +1000,28 @@ button, input, select, textarea, optgroup {
 .win98 input::placeholder { color: #6a6a6a; }
 
 /*
+ * A 98 BUTTON OUTSIDE A WINDOW — the nav under a fight (YOUR CATS, MINT). JP,
+ * 2026-10-06: "make these buttons have the windows treatment as well". Grey and
+ * bevelled with black lettering at rest, navy with white lettering on hover, with
+ * the same four-step change and one-pixel lift as the buttons inside a window.
+ */
+.btn98 {
+  background: #c0c0c0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: inset -1px -1px 0 0 #0a0a0a, inset 1px 1px 0 0 #ffffff, inset -2px -2px 0 0 #808080, inset 2px 2px 0 0 #dfdfdf, 2px 3px 0 0 rgba(10, 10, 30, 0.35);
+  transition: background-color 0.16s steps(4, end), transform 0.12s ease-out;
+}
+.btn98 .fx-g { background-color: #000000 !important; }
+.btn98:hover, .btn98:focus-visible { background: #000080; transform: translateY(-1px); }
+.btn98:hover .fx-g, .btn98:focus-visible .fx-g { background-color: #ffffff !important; }
+.btn98:active { box-shadow: inset 1px 1px 0 0 #0a0a0a, inset -1px -1px 0 0 #ffffff, inset 2px 2px 0 0 #808080, inset -2px -2px 0 0 #dfdfdf; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .btn98 { transition: none; }
+  .btn98:hover, .btn98:focus-visible { transform: none; }
+}
+
+/*
  * 98 BUTTONS AT REST, THEIR OWN COLOUR ON HOVER. JP, 2026-10-06: "the buttons
  * should be the same as the window unless mouse overed". At rest a button in a
  * window is plain 98 grey with black lettering; hovered or keyboard-focused, its

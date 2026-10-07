@@ -167,16 +167,10 @@ export function FightStage({
   return (
     <>
       {/*
-        THE PAGE BEHIND THE FIGHT, as the title screen does it: the same zone,
-        blurred and darkened, so the fight sits in its own world instead of on
-        flat navy. The page's own background is made clear while it shows.
+        No page backdrop of its own: the fight sits on the blue checker like every
+        page (PageChecker, in the layout). JP, 2026-10-06: "add the same background
+        for the battle scene" — the checkerboard, not the blurred zone.
       */}
-      {hasZone && (
-        <>
-          <div aria-hidden style={{ ...st.pageBg, backgroundImage: `url(/title/${zone}.jpg)` }} />
-          <div aria-hidden style={st.pageShade} />
-        </>
-      )}
 
       <div ref={box} style={{ ...st.frame, ...(crop ? st.frameCrop : null), aspectRatio: `${crop ? CROP_W : W} / ${crop ? CROP_H : H}` }}>
         <div style={{ ...st.stage, transform: `${crop ? `translateX(${-CROP_X * k}px) ` : ''}scale(${k})` }}>
@@ -250,8 +244,6 @@ export function FightStage({
 }
 
 const st: Record<string, React.CSSProperties> = {
-  pageBg:    { position: 'fixed', inset: -60, zIndex: -2, backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(28px) saturate(1.15) brightness(0.55)', transform: 'scale(1.1)' },
-  pageShade: { position: 'fixed', inset: 0, zIndex: -1, background: 'radial-gradient(ellipse at 50% 30%, rgba(10,10,20,0.15) 0%, rgba(10,10,20,0.55) 55%, rgba(10,10,20,0.9) 100%)' },
   frame:     { position: 'relative', width: '100%', aspectRatio: `${W} / ${H}`, overflow: 'hidden', borderRadius: 10, background: '#0e0e18', boxShadow: '0 18px 60px rgba(0,0,0,0.55)', border: '2px solid rgba(255,255,255,0.12)' },
   // A phone: edge to edge (the Cradle gives it the full width), so no rounded ends or side rails.
   frameCrop: { borderRadius: 0, borderLeft: 'none', borderRight: 'none' },
