@@ -18,7 +18,8 @@ import { MAX_ENERGY, restLeft, spendEnergy, stamina, type Stamina } from '@/lib/
 import { useLoadingHold } from '@/lib/loading'
 import { noteWin, noteLoss, type Beat } from '@/lib/streak'
 import { NO_CHAIN } from '@/lib/appmode'
-import { announcerFor } from '@/lib/announcers'
+import { announcerFor, announcerIndex, countVoice, voiceFile } from '@/lib/announcers'
+import { VOICE_MS } from '@/lib/announcerVoice'
 import { catsForWins } from '@/lib/season'
 import {
   addFriend, friends as loadFriends, ladder, noteFight, ratio,
@@ -948,13 +949,29 @@ export function Cradle() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [count, speed])
 
+  // The announcer calls the countdown too (JP: "make it say 3 2 1 FIGHT as well").
+  useEffect(() => {
+    if (count !== null) sound.say(countVoice(count), count === 0 ? 900 : 600)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [count])
+
   // The announcer, over the closed curtain: a slam per half, a settle, then the curtain opens. A tap opens it now.
   useEffect(() => {
     if (announce === null) return
     sound.play('ko')
+    // The announcer says the half as it slams in (lib/announcers, the voice files).
+    const line = result ? announcerIndex(result.seed) : 0
+    if (result && announce >= 1) sound.say(voiceFile(line, announce - 1))
+    /*
+     * THE VOICE SETS THE PACE: the next half waits until this one has been SAID
+     * (lib/announcerVoice, measured off the files), and the curtain until the last
+     * word is out. Muted, the old beats stand. The voice is not sped up, so x2/x4
+     * shorten only the beats, never a word.
+     */
+    const said = sound.muted ? 0 : VOICE_MS[line]?.[announce - 1] ?? 0
     const t = result && announce < announcerFor(result.seed).length
-      ? setTimeout(() => setAnnounce(announce + 1), ANNOUNCE_STEP / speed)
-      : setTimeout(() => { setCurtainOpen(true); setCount(c => c ?? 3) }, ANNOUNCE_SETTLE / speed)
+      ? setTimeout(() => setAnnounce(announce + 1), Math.max(ANNOUNCE_STEP / speed, said + 150))
+      : setTimeout(() => { setCurtainOpen(true); setCount(c => c ?? 3) }, Math.max(ANNOUNCE_SETTLE / speed, said + 500))
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [announce, speed])

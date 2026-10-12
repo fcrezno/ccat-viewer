@@ -23,3 +23,18 @@ export const ANNOUNCERS = [
 ] as readonly (readonly string[])[]
 /** One per fight, off its seed: the same fight always opens the same way. */
 export const announcerFor = (seed: number) => ANNOUNCERS[Math.abs(seed) % ANNOUNCERS.length]
+
+/**
+ * THE ANNOUNCER'S VOICE — one file per half, made by clanker-clips/voice/
+ * make_announcer.py (two robot speakers overdubbed; JP, 2026-10-12: "keep it a
+ * duo"). Numbered by the line's place in the FULL list, so the App Store build,
+ * which drops the last lines, still points at the right files.
+ */
+export const announcerIndex = (seed: number) => Math.abs(seed) % ANNOUNCERS.length
+export const voiceFile = (line: number, half: number) => `/game/announcer/${line}-${half}.mp3`
+/** The countdown, said by the same voice: 3, 2, 1, then FIGHT! (count 0). */
+export const countVoice = (n: number) => `/game/announcer/count-${n === 0 ? 'go' : n}.mp3`
+export const VOICE_FILES = [
+  ...ANNOUNCERS.flatMap((l, i) => l.map((_, h) => voiceFile(i, h))),
+  ...[3, 2, 1, 0].map(countVoice),
+]

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { MUSIC, MUSIC_DIR, SFX, SFX_DIR } from '@/lib/sfx'
-import { playSfx, unlockSfx } from '@/lib/sfxBank'
+import { playSfx, playUrl, unlockSfx } from '@/lib/sfxBank'
 
 /**
  * SOUND FOR THE CRADLE.
@@ -36,6 +36,8 @@ const STORE = 'cradle.sound.v1'
 const POOL = 3
 
 type Saved = { volume: number; muted: boolean }
+/** The announcer's voice against the cues: present, but sitting in the mix like a fighting-game intro (JP: "a bit too loud"). */
+const VOICE_GAIN = 0.7
 
 function load(): Saved {
   if (typeof window === 'undefined') return { volume: 0.7, muted: false }
@@ -129,6 +131,26 @@ export function useSound() {
   }, [muted, volume])
 
   /**
+   * THE ANNOUNCER SPEAKS (lib/announcers): a voice file at the player's volume,
+   * with the music dipped under it for the length of the line so the words sit
+   * on top, then brought back.
+   */
+  const duck = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const say = useCallback((url: string, holdMs = 1300) => {
+    if (muted || !started.current) return
+    if (!playUrl(url, Math.min(1, VOICE_GAIN * volume))) {
+      // No running Web Audio yet (or at all): a plain element, a little late but heard.
+      try { const el = new Audio(url); el.volume = Math.min(1, VOICE_GAIN * volume); void el.play().catch(() => {}) } catch { return }
+    }
+    const m = music.current
+    if (!m) return
+    const full = MUSIC.gain * volume
+    m.volume = full * 0.6
+    if (duck.current) clearTimeout(duck.current)
+    duck.current = setTimeout(() => { if (music.current) music.current.volume = full * (muted ? 0 : 1) }, holdMs)
+  }, [muted, volume])
+
+  /**
    * Start the bed, optionally on a named track.
    *
    * Asking for the track that is ALREADY playing does not restart it — that is
@@ -166,5 +188,5 @@ export function useSound() {
   // Leaving the page with music still going is rude.
   useEffect(() => () => { music.current?.pause() }, [])
 
-  return { play, startMusic, stopMusic, volume, setVolume, muted, setMuted, prime }
+  return { play, say, startMusic, stopMusic, volume, setVolume, muted, setMuted, prime }
 }

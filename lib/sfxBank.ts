@@ -50,6 +50,7 @@ export function unlockSfx() {
   void ctx.resume().catch(() => {})
   fetchSfx()
   const c = ctx
+  decodeUrls(c)
   for (const [f, p] of raw) {
     if (decoded.has(f)) continue
     void p.then(buf => {
@@ -58,6 +59,46 @@ export function unlockSfx() {
       return c.decodeAudioData(buf.slice(0)).then(b => { decoded.set(f, b) })
     }).catch(() => {})
   }
+}
+
+/*
+ * OTHER FILES BY URL — the announcer's voice (lib/announcers). Fetched with the
+ * battle files, decoded on the same tap, played the same exact way.
+ */
+const rawUrl = new Map<string, Promise<ArrayBuffer | null>>()
+const decodedUrl = new Map<string, AudioBuffer>()
+
+export function fetchUrls(urls: readonly string[]): Promise<ArrayBuffer | null>[] {
+  for (const u of urls) {
+    if (!rawUrl.has(u)) rawUrl.set(u, fetch(u).then(r => (r.ok ? r.arrayBuffer() : null)).catch(() => null))
+  }
+  return urls.map(u => rawUrl.get(u)!)
+}
+
+function decodeUrls(c: AudioContext) {
+  for (const [u, p] of rawUrl) {
+    if (decodedUrl.has(u)) continue
+    void p.then(buf => {
+      if (!buf || decodedUrl.has(u)) return
+      return c.decodeAudioData(buf.slice(0)).then(b => { decodedUrl.set(u, b) })
+    }).catch(() => {})
+  }
+}
+
+/** Plays a fetched URL now at `gain`. False when it cannot yet. */
+export function playUrl(url: string, gain: number): boolean {
+  const b = decodedUrl.get(url)
+  if (!ctx || ctx.state !== 'running') return false
+  if (!b) { fetchUrls([url]); decodeUrls(ctx); return false }
+  const src = ctx.createBufferSource()
+  src.buffer = b
+  const g = ctx.createGain()
+  g.gain.value = gain
+  src.connect(g).connect(ctx.destination)
+  src.start()
+  const log = (window as unknown as { __sfxLog?: unknown[] }).__sfxLog
+  if (log) log.push({ src: url, vol: gain, t: Date.now() / 1000 })
+  return true
 }
 
 /** Plays one file now at `gain`. False when it cannot yet, so the caller can fall back. */

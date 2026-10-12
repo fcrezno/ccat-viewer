@@ -1,7 +1,8 @@
 'use client'
 
 import { MUSIC, MUSIC_DIR } from '@/lib/sfx'
-import { fetchSfx } from '@/lib/sfxBank'
+import { fetchSfx, fetchUrls } from '@/lib/sfxBank'
+import { VOICE_FILES } from '@/lib/announcers'
 
 /**
  * EVERYTHING A FIGHT DRAWS OR PLAYS, fetched by the loading screen.
@@ -58,6 +59,7 @@ export function preloadBattle(onEach: (done: number, total: number) => void): Pr
     ...BATTLE_IMAGES.map(picture),
     ...BATTLE_FILES.map(file),
     ...fetchSfx().map(p => p.then(() => {})),
+    ...fetchUrls(VOICE_FILES).map(p => p.then(() => {})),
   ]
   let done = 0
   return Promise.all(jobs.map(j => j.then(() => onEach(++done, jobs.length)))).then(() => {})
