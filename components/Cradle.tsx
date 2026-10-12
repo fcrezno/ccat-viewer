@@ -18,6 +18,7 @@ import { MAX_ENERGY, restLeft, spendEnergy, stamina, type Stamina } from '@/lib/
 import { useLoadingHold } from '@/lib/loading'
 import { noteWin, noteLoss, type Beat } from '@/lib/streak'
 import { NO_CHAIN } from '@/lib/appmode'
+import { announcerFor } from '@/lib/announcers'
 import { catsForWins } from '@/lib/season'
 import {
   addFriend, friends as loadFriends, ladder, noteFight, ratio,
@@ -74,24 +75,7 @@ const GO_MS = BEAT_MS + 600
  * MapDive holds its checker closed, the halves slam in, the line settles, and the
  * curtain parts onto 3 2 1.
  */
-const ANNOUNCERS = [
-  ['TWO CATS ENTER;', 'ONE CAT LEAVES'],
-  // JP, 2026-10-06: make one of the lines "ITS TIME TO CLANK SOME CATS!".
-  ['ITS TIME TO', 'CLANK SOME CATS!'],
-  ['THE CLANG OF DESTINY', 'SHALL CLANK THY DNA'],
-  ['THE WHEEL OF CLANK', 'IS TURNING...'],
-  ['YES, I DO', 'EAT GLUE.'],
-  ['HEY', 'IS THIS ON..?'],
-  // One half only: it slams once, then holds.
-  ['IM MOSHING IT!'],
-  /*
-   * TOKEN SHOUTS, web only. The App Store build (NO_CHAIN) has no way to buy
-   * anything — Guideline 3.1.1 — so these are not in it at all.
-   */
-  ...(NO_CHAIN ? [] : [['BUY $BUN'], ['BUY $BPEPE'], ['BUY $ALF']]),
-] as readonly (readonly string[])[]
-/** One per fight, off its seed: the same fight always opens the same way. */
-const announcerFor = (seed: number) => ANNOUNCERS[Math.abs(seed) % ANNOUNCERS.length]
+/* The lines themselves: lib/announcers (the meme kit shows them too). */
 const ANNOUNCE_STEP = 600
 /** After the last half lands, the line settles this long before the curtain opens. */
 const ANNOUNCE_SETTLE = 1400
@@ -1551,9 +1535,23 @@ export function Cradle() {
      * than the Vercel one. SEASON_TAG stays with Farcaster: its "@crezno" is the
      * Farcaster handle and $CLKCAT the Base token.
      */
+    /*
+     * THE CAT CARD (app/card, lib/catCard). JP, 2026-10-12: "a shareable cat card
+     * after each fight ... with your cat's real record". The link is a page whose
+     * picture IS the card, so the post shows it. The record and name come from this
+     * device; the card rebuilds the stats and the picture from the cat itself.
+     */
+    const card = new URLSearchParams()
+    if (picked && !isDemo && !picked.uid.startsWith('guest:')) card.set('u', picked.uid)
+    else card.set('g', String(guestId()))
+    card.set('n', result.you.label)
+    if (rec) { card.set('w', String(rec.wins)); card.set('l', String(rec.losses)) }
+    card.set('o', result.foe.label)
+    card.set('t', result.turf)
+    card.set('v', result.youWon ? '1' : '0')
     const url = 'https://x.com/intent/post?' + new URLSearchParams({
       text: `${line}${tail}\n\nClanker Cats #ClankerCats`,
-      url: 'https://clankercats.com',
+      url: `https://clankercats.com/card?${card}`,
     }).toString()
     // Inside a Farcaster client a new window is not allowed; the SDK opens it instead.
     try { await sdk.actions.openUrl(url) } catch { window.open(url, '_blank', 'noopener') }

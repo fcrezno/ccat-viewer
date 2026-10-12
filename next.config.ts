@@ -14,6 +14,9 @@ const nextConfig: NextConfig = {
    */
   outputFileTracingIncludes: {
     "/api/cat-art": ["./layers/**"],
+    // The card draws its words from the bitmap font sheet, read off disk.
+    "/api/card": ["./public/game/font.png"],
+    "/api/kit": ["./public/game/font.png", "./public/game/vs.png"],
   },
 
   async headers() {

@@ -70,5 +70,8 @@ export function playSfx(file: string, gain: number): boolean {
   g.gain.value = gain
   src.connect(g).connect(ctx.destination)
   src.start()
+  // The clip recorder (scripts/clip) sets window.__sfxLog to hear what played and when.
+  const log = (window as unknown as { __sfxLog?: unknown[] }).__sfxLog
+  if (log) log.push({ src: SFX_DIR + file, vol: gain, t: Date.now() / 1000 })
   return true
 }
