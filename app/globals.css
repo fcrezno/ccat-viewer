@@ -1066,3 +1066,27 @@ button, input, select, textarea, optgroup {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
+
+/*
+ * THE AD COLUMNS (components/SideAds) — only where the margins are empty. The
+ * page column is at most 960 wide, so below ~1560px a 250px column would sit on
+ * the game; there it is simply not drawn.
+ */
+.side-ads, .side-ads-slim { display: none; }
+/* Like a 1999 homepage: each column a grey sidebar panel with a bevel. */
+.side-ads, .side-ads-slim {
+  flex-direction: column; align-items: center; gap: 8px;
+  position: fixed; top: 96px; z-index: 5; padding: 8px;
+  background: #c0c0c0;
+  box-shadow: inset -1px -1px 0 0 #0a0a0a, inset 1px 1px 0 0 #ffffff, inset -2px -2px 0 0 #808080, inset 2px 2px 0 0 #dfdfdf, 3px 4px 0 0 rgba(10, 10, 30, 0.3);
+}
+.side-ads-left { left: 16px; }
+.side-ads-right { right: 16px; }
+/* Medium screens (the game column is 960): slim 125px columns. */
+@media (min-width: 1290px) and (max-width: 1599px) {
+  .side-ads-slim { display: flex; width: 141px; box-sizing: border-box; }
+}
+/* Wide screens: the full 250px columns. */
+@media (min-width: 1600px) {
+  .side-ads { display: flex; width: 266px; box-sizing: border-box; }
+}

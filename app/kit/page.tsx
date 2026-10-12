@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { PageTitle } from '@/components/PageTitle'
 import { FxLabel } from '@/components/FxButton'
 import { ANNOUNCERS } from '@/lib/announcers'
+import { BANNER_SIZES, BANNER_TOKENS } from '@/lib/banners'
 
 /**
  * THE MEME KIT — everything a holder needs to post about Clanker Cats in ten
@@ -30,22 +31,6 @@ const seed = () => Math.floor(Math.random() * 1e9)
  * house ad for us, in the five sizes of the era; a random one of each size per
  * visit, and SHUFFLE for another. Each links to its own token's site.
  */
-const BANNER_TOKENS = [
-  { sym: 'clkcat', name: 'Clanker Cats', href: 'https://clankercats.com' },
-  { sym: 'bun', name: 'Bundle Cat ($BUN)', href: 'https://mosh.trade' },
-  { sym: 'bpepe', name: 'Bundle Pepe ($BPEPE)', href: 'https://mosh.trade' },
-  { sym: 'alf', name: 'Agentic Liquid Fund ($ALF)', href: 'https://alfmemecoin.xyz' },
-  { sym: 'bork', name: 'King Bork ($BORK)', href: 'https://kingbork.fun' },
-]
-const BANNER_SIZES = [
-  { suffix: '', w: 468, h: 60, label: 'Banner 468x60' },
-  { suffix: '-story', w: 468, h: 60, label: 'Story 468x60' },
-  { suffix: '-250', w: 250, h: 250, label: 'Square 250x250' },
-  { suffix: '-125', w: 125, h: 125, label: 'Square 125x125' },
-  { suffix: '-88x31', w: 88, h: 31, label: 'Button 88x31' },
-  // JP, 2026-10-12: the "YOU WON!!!" pop-ups (scripts/make-popups.mjs).
-  { suffix: '-popup', w: 540, h: 675, label: 'Pop-up 540x675' },
-]
 const rollBanners = () => BANNER_SIZES.map(() => Math.floor(Math.random() * BANNER_TOKENS.length))
 const bannerSrc = (t: number, z: number) => `/banners/${BANNER_TOKENS[t].sym}${BANNER_SIZES[z].suffix}.gif`
 const embedOf = (t: number, z: number) => {
