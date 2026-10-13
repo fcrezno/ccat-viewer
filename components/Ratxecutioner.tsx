@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { CELL_H, TRACKING, cell, glyph } from '@/lib/font'
 import { BANNER_TOKENS, bannerFile } from '@/lib/banners'
-import { ANNOUNCERS, countVoice, voiceFile } from '@/lib/announcers'
+import { ANNOUNCERS, voiceFile } from '@/lib/announcers'
 import { VOICE_MS } from '@/lib/announcerVoice'
 import { CURTAIN_H, CURTAIN_INKS, CURTAIN_MS, CURTAIN_W, CurtainHalves } from '@/components/MapDive'
 
@@ -158,7 +158,7 @@ export function Ratxecutioner({ face }: { face: string }) {
           } catch { done() }
         })
       }
-      say(countVoice(0))                                              // "FIGHT!"
+      say('/game/announcer/go.mp3')                                // "GO!" (JP: "instead of fight; make them say GO!")
       await sleep(900)
       setCurtain(c => c && { ...c, phase: 'open' })                // it parts
       await sleep(CURTAIN_MS.split + 40)
@@ -233,7 +233,7 @@ export function Ratxecutioner({ face }: { face: string }) {
       nugs.forEach(n => (n.taken = false))
       banner = 2.2
     }
-    const restart = () => { musicOn(true); hp = 100; ammo = START_AMMO; kills = 0; wave = 1; over = false; px = 1.5; py = 1.5; dx = 1; dy = 0; plx = 0; ply = FOV; booms = []; spawnWave(); cursor(); intro.current(1, true) }
+    const restart = () => { musicOn(true); cleared = 0; hp = 100; ammo = START_AMMO; kills = 0; wave = 1; over = false; px = 1.5; py = 1.5; dx = 1; dy = 0; plx = 0; ply = FOV; booms = []; spawnWave(); cursor(); intro.current(1, true) }
 
     // ── sound: plain elements, a small pool each ──
     const pool = (src: string, n = 4, vol = 0.5) => {
@@ -423,6 +423,9 @@ export function Ratxecutioner({ face }: { face: string }) {
      */
     let aimX = W / 2, aimY = VIEW_H / 2
     let hitMark = 0
+    /** WAVE CLEARED!, on screen and said, before the curtain brings the next wave. */
+    let cleared = 0
+    const CLEARED_S = 2
     const edgeOf = (e: MouseEvent) => {
       const r = cv.getBoundingClientRect()
       const u = (e.clientX - r.left) / r.width
@@ -661,7 +664,15 @@ export function Ratxecutioner({ face }: { face: string }) {
             }
           }
         }
-        if (rats.every(r => r.dead)) { wave++; spawnWave(); intro.current(wave, false) }
+        // The round is won: "WAVE CLEARED!" (JP: "when u finish a round; say WAVE CLEARED!"), then the next wave.
+        if (!cleared && rats.every(r => r.dead) && !booms.length) {
+          cleared = CLEARED_S
+          try { const a = new Audio('/game/announcer/wave-cleared.mp3'); a.volume = 0.8; void a.play().catch(() => {}) } catch {}
+        }
+        if (cleared) {
+          cleared = Math.max(0, cleared - dt)
+          if (!cleared) { wave++; spawnWave(); intro.current(wave, false) }
+        }
       }
       flash = Math.max(0, flash - dt); hurt = Math.max(0, hurt - dt); banner = Math.max(0, banner - dt); hitMark = Math.max(0, hitMark - dt)
       booms = booms.filter(b => (b.t += dt) < 0.7)
@@ -735,6 +746,7 @@ export function Ratxecutioner({ face }: { face: string }) {
         if ((hurt > 0 && Math.floor(t * 16) % 2 === 0) || hp <= 0) { ctx.fillStyle = 'rgba(230,20,20,0.6)'; ctx.fillRect(LW / 2 - 13, LVIEW + 4, 26, 24) }
       }
 
+      if (cleared > 0) text('WAVE CLEARED!', LW / 2, LVIEW / 2 - 40, '#ffd166', 2, true, 'outline')
       if (!started) text('CLICK TO PLAY', LW / 2, LVIEW / 2 - 30, '#ffd166', 1.5, true, 'outline')
       if (over) {
         ctx.fillStyle = 'rgba(10,10,20,0.7)'; ctx.fillRect(0, 0, LW, LVIEW)
