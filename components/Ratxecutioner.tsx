@@ -145,8 +145,21 @@ export function Ratxecutioner({ face }: { face: string }) {
         await sleep(350)
       }
       setCurtain({ lines: [`WAVE ${wave}`], up: 1, phase: 'close', quiet: true, ink })
-      slam(); say(countVoice(0))                                     // "FIGHT!"
-      await sleep(1000)
+      // The announcer calls it: "Wave N!", then "FIGHT!" the moment that ends (JP: "i dont hear them say
+      // WAVE (whatever number) FIGHT!"). Waves past the recorded 25 get the FIGHT! alone.
+      slam()
+      if (wave <= 25) {
+        await new Promise<void>(done => {
+          try {
+            const a = new Audio(`/game/announcer/wave-${wave}.mp3`); a.volume = 0.8
+            a.onended = () => done(); a.onerror = () => done()
+            void a.play().catch(() => done())
+            setTimeout(done, 2500)                                        // never hang on a sound
+          } catch { done() }
+        })
+      }
+      say(countVoice(0))                                              // "FIGHT!"
+      await sleep(900)
       setCurtain(c => c && { ...c, phase: 'open' })                // it parts
       await sleep(CURTAIN_MS.split + 40)
       setCurtain(null)
@@ -220,7 +233,6 @@ export function Ratxecutioner({ face }: { face: string }) {
       nugs.forEach(n => (n.taken = false))
       banner = 2.2
     }
-    spawnWave()
     const restart = () => { musicOn(true); hp = 100; ammo = START_AMMO; kills = 0; wave = 1; over = false; px = 1.5; py = 1.5; dx = 1; dy = 0; plx = 0; ply = FOV; booms = []; spawnWave(); cursor(); intro.current(1, true) }
 
     // ── sound: plain elements, a small pool each ──
@@ -250,6 +262,8 @@ export function Ratxecutioner({ face }: { face: string }) {
     let wallLum: Float32Array | null = null
     let theme = waveTheme(1)
     let wall: ImageData | null = null, ratImg: HTMLImageElement | null = null, boomImg: HTMLImageElement | null = null
+    // The first wave, now that the walls it re-inks exist (it ran before them once: a crash on load).
+    spawnWave()
     let nugImg: HTMLImageElement | null = null, faceImg: HTMLImageElement | null = null, fontImg: HTMLImageElement | null = null
     const tinted = new Map<string, HTMLCanvasElement>()
     Promise.all([load('/ratx/wall.png'), load('/ratx/rat.png'), load('/ratx/explode.png'), load('/ratx/nugget.png'), load(face).catch(() => null), load('/game/font.png')])
