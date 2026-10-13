@@ -32,7 +32,7 @@ const seed = () => Math.floor(Math.random() * 1e9)
  * visit, and SHUFFLE for another. Each links to its own token's site.
  */
 const rollBanners = () => BANNER_SIZES.map(() => Math.floor(Math.random() * BANNER_TOKENS.length))
-const bannerSrc = (t: number, z: number) => `/banners/${BANNER_TOKENS[t].sym}${BANNER_SIZES[z].suffix}.gif`
+const bannerSrc = (t: number, z: number) => `/flyers/${BANNER_TOKENS[t].sym}${BANNER_SIZES[z].suffix}.gif`
 const embedOf = (t: number, z: number) => {
   const { name, href } = BANNER_TOKENS[t], { w, h } = BANNER_SIZES[z]
   return `<a href="${href}"><img src="https://clankercats.com${bannerSrc(t, z)}" width="${w}" height="${h}" alt="${name}"></a>`

@@ -1072,7 +1072,7 @@ button, input, select, textarea, optgroup {
  * page column is at most 960 wide, so below ~1560px a 250px column would sit on
  * the game; there it is simply not drawn.
  */
-.side-ads, .side-ads-slim { display: none; }
+.cc-rail, .cc-rail-slim { display: none; }
 /*
  * OLD-FORUM SIDEBARS (JP, 2026-10-13: "make the ad windows closer to the game;
  * format it like old forums"): a phpBB / vBulletin side table hugging the page
@@ -1080,37 +1080,37 @@ button, input, select, textarea, optgroup {
  * alternating light blue, a small "Advertisement" caption. The page column is
  * 960 wide and centred, so each table sits 12px off its edge.
  */
-.side-ads, .side-ads-slim {
+.cc-rail, .cc-rail-slim {
   flex-direction: column; align-items: stretch; gap: 0;
   position: fixed; top: 96px; z-index: 5;
   background: #ffffff; border: 1px solid #1a2a5a;
   box-shadow: 3px 4px 0 0 rgba(10, 10, 30, 0.25);
   font-family: Verdana, Tahoma, sans-serif;
 }
-.side-ads .forum-head, .side-ads-slim .forum-head {
+.cc-rail .forum-head, .cc-rail-slim .forum-head {
   background: linear-gradient(180deg, #2a4a9a, #000080); color: #ffffff;
   font: bold 11px Verdana, Tahoma, sans-serif; letter-spacing: 1px; padding: 5px 8px;
   border-bottom: 1px solid #1a2a5a;
 }
-.side-ads .forum-cell, .side-ads-slim .forum-cell {
+.cc-rail .forum-cell, .cc-rail-slim .forum-cell {
   display: flex; flex-direction: column; align-items: center; gap: 3px;
   padding: 6px; border-top: 1px solid #9aaad0;
 }
-.side-ads .forum-cell:nth-child(odd), .side-ads-slim .forum-cell:nth-child(odd) { background: #dfe6f3; }
-.side-ads .forum-cell:nth-child(even), .side-ads-slim .forum-cell:nth-child(even) { background: #eef2f9; }
+.cc-rail .forum-cell:nth-child(odd), .cc-rail-slim .forum-cell:nth-child(odd) { background: #dfe6f3; }
+.cc-rail .forum-cell:nth-child(even), .cc-rail-slim .forum-cell:nth-child(even) { background: #eef2f9; }
 .forum-cap { font: 9px Verdana, Tahoma, sans-serif; color: #5a6a8a; align-self: flex-start; }
 .forum-row { display: flex; gap: 6px; justify-content: center; }
 /* Medium screens: slim 125px tables. */
-html[data-ads="slim"] {
-  .side-ads-slim { display: flex; width: 141px; box-sizing: border-box; }
-  .side-ads-slim.side-ads-left { left: calc(50% - 480px - 12px - 141px); }
-  .side-ads-slim.side-ads-right { left: calc(50% + 480px + 12px); }
+html[data-rail="slim"] {
+  .cc-rail-slim { display: flex; width: 141px; box-sizing: border-box; }
+  .cc-rail-slim.cc-rail-left { left: calc(50% - 480px - 12px - 141px); }
+  .cc-rail-slim.cc-rail-right { left: calc(50% + 480px + 12px); }
 }
 /* Wide screens: the full 250px tables. */
-html[data-ads="full"] {
-  .side-ads { display: flex; width: 266px; box-sizing: border-box; }
-  .side-ads.side-ads-left { left: calc(50% - 480px - 12px - 266px); }
-  .side-ads.side-ads-right { left: calc(50% + 480px + 12px); }
+html[data-rail="full"] {
+  .cc-rail { display: flex; width: 266px; box-sizing: border-box; }
+  .cc-rail.cc-rail-left { left: calc(50% - 480px - 12px - 266px); }
+  .cc-rail.cc-rail-right { left: calc(50% + 480px + 12px); }
 }
 
 
@@ -1120,32 +1120,32 @@ html[data-ads="full"] {
  * table of 88x31 buttons does. Narrower than that — phones too — the ads become
  * one 468x60 banner at the foot of the page, the way old sites ran them.
  */
-.side-ads-tiny { display: none; }
-.side-ads-tiny {
+.cc-rail-tiny { display: none; }
+.cc-rail-tiny {
   flex-direction: column; align-items: stretch; gap: 0;
   position: fixed; top: 96px; z-index: 5; width: 100px; box-sizing: border-box;
   background: #ffffff; border: 1px solid #1a2a5a; box-shadow: 3px 4px 0 0 rgba(10, 10, 30, 0.25);
 }
-.side-ads-tiny .forum-head {
+.cc-rail-tiny .forum-head {
   background: linear-gradient(180deg, #2a4a9a, #000080); color: #ffffff;
   font: bold 9px Verdana, Tahoma, sans-serif; letter-spacing: 0.5px; padding: 4px 6px; border-bottom: 1px solid #1a2a5a;
 }
-.side-ads-tiny .forum-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 5px; border-top: 1px solid #9aaad0; }
-.side-ads-tiny > div:nth-child(odd) .forum-cell { background: #dfe6f3; }
-.side-ads-tiny > div:nth-child(even) .forum-cell { background: #eef2f9; }
-html[data-ads="tiny"] {
-  .side-ads-tiny { display: flex; }
-  .side-ads-tiny.side-ads-left { left: calc(50% - 480px - 6px - 100px); }
-  .side-ads-tiny.side-ads-right { left: calc(50% + 480px + 6px); }
+.cc-rail-tiny .forum-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 5px; border-top: 1px solid #9aaad0; }
+.cc-rail-tiny > div:nth-child(odd) .forum-cell { background: #dfe6f3; }
+.cc-rail-tiny > div:nth-child(even) .forum-cell { background: #eef2f9; }
+html[data-rail="tiny"] {
+  .cc-rail-tiny { display: flex; }
+  .cc-rail-tiny.cc-rail-left { left: calc(50% - 480px - 6px - 100px); }
+  .cc-rail-tiny.cc-rail-right { left: calc(50% + 480px + 6px); }
 }
-.ad-strip {
+.cc-foot {
   display: flex; flex-direction: column; align-items: center; gap: 2px;
   margin: 8px auto 24px; padding: 0 16px; max-width: 500px; box-sizing: border-box;
 }
-html:not([data-ads="strip"]) .ad-strip { display: none; }
+html:not([data-rail="strip"]) .cc-foot { display: none; }
 /*
  * WHICH TIER, AND A LITTLE ZOOM (JP: "i need to zoom in and out to see the ads; fix
- * that"): components/SideAds measures the window and sets html[data-ads]. A window
+ * that"): components/SideAds measures the window and sets html[data-rail]. A window
  * just short of room for the tiny columns is zoomed out a touch (html zoom) so the
  * game and the sponsors fit together — what JP was doing by hand.
  */

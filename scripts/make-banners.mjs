@@ -1,11 +1,11 @@
 /**
  * OLD-WEB GIF BANNERS for the Mosh tokens (and a house ad for Clanker Cats).
  *
- *   node scripts/make-banners.mjs [SYM ...]   -> public/banners/<sym>.gif          468x60, the loop
- *                                                public/banners/<sym>-story.gif    468x60, the little film
- *                                                public/banners/<sym>-88x31.gif    the micro button
- *                                                public/banners/<sym>-250.gif      the square pop-up
- *                                                public/banners/<sym>-125.gif      the square button
+ *   node scripts/make-banners.mjs [SYM ...]   -> public/flyers/<sym>.gif          468x60, the loop
+ *                                                public/flyers/<sym>-story.gif    468x60, the little film
+ *                                                public/flyers/<sym>-btn.gif      the micro button (88x31)
+ *                                                public/flyers/<sym>-250.gif      the square pop-up
+ *                                                public/flyers/<sym>-125.gif      the square button
  *
  * JP, 2026-10-12: "now i want to start making gif banners representing other
  * mosh tokens", after magneticdogz.neocities.org's old web banners — flashing
@@ -27,7 +27,7 @@ import { tmpdir } from 'os'
 import { spawnSync } from 'child_process'
 
 const FFMPEG = 'C:/Users/JPDom/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-8.1.1-full_build/bin/ffmpeg.exe'
-const OUT = 'public/banners'
+const OUT = 'public/flyers'
 const W = 468, H = 60, FPS = 10, FRAMES = 48
 
 const TOKENS = [
@@ -237,7 +237,7 @@ async function micro(tok) {
       <text x="32" y="26" font-family="Verdana" font-weight="bold" font-style="italic" font-size="11" fill="${flashes[k]}">${word}</text></svg>`
     await sharp(Buffer.from(svg)).composite([{ input: logo, left: 3, top: 3 }]).png().toFile(frame(dir, k))
   }
-  toGif(dir, join(OUT, `${tok.sym.toLowerCase()}-88x31.gif`), 2)
+  toGif(dir, join(OUT, `${tok.sym.toLowerCase()}-btn.gif`), 2)
 }
 
 // ── 4. THE SQUARES: 250x250 and 125x125, the square ad sizes of the era ──────
@@ -298,7 +298,7 @@ async function square(tok) {
     if (sp) layers.push(sp)
     await sharp(Buffer.from(svg)).composite(layers).png().toFile(frame(dir, f))
   }
-  toGif(dir, join(OUT, `${tok.sym.toLowerCase()}-250.gif`), FPS)
+  toGif(dir, join(OUT, `${tok.sym.toLowerCase()}-sq.gif`), FPS)
 }
 
 async function squareSmall(tok) {
@@ -320,7 +320,7 @@ async function squareSmall(tok) {
     if (sp) layers.push(sp)
     await sharp(Buffer.from(svg)).composite(layers).png().toFile(frame(dir, f))
   }
-  toGif(dir, join(OUT, `${tok.sym.toLowerCase()}-125.gif`), FPS)
+  toGif(dir, join(OUT, `${tok.sym.toLowerCase()}-sm.gif`), FPS)
 }
 
 // Only the tokens named on the command line, or all of them.

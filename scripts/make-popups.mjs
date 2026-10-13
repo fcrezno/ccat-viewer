@@ -4,8 +4,8 @@
  * WON!!! No This Is Not A Joke ... *Not Actually Free"): "also do some ads like
  * this as well".
  *
- *   node scripts/make-popups.mjs [SYM ...]   -> public/banners/<sym>-popup.gif   540x675, animated
- *                                               public/banners/<sym>-popup.png   1080x1350, Instagram portrait
+ *   node scripts/make-popups.mjs [SYM ...]   -> public/flyers/<sym>-won.gif   540x675, animated
+ *                                               public/flyers/<sym>-won.png   1080x1350, Instagram portrait
  *
  * THE TWIST FOR US: our prize IS free — the game costs nothing — so the small
  * print says so. For the other Mosh tokens the prizes stay silly and plainly not
@@ -22,7 +22,7 @@ import { tmpdir } from 'os'
 import { spawnSync } from 'child_process'
 
 const FFMPEG = 'C:/Users/JPDom/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-8.1.1-full_build/bin/ffmpeg.exe'
-const OUT = 'public/banners'
+const OUT = 'public/flyers'
 const W = 540, H = 675, FRAMES = 24, FPS = 8
 
 const CAT = seed => `https://clankercats.com/api/cat-art?seed=${seed}`
@@ -107,7 +107,7 @@ async function popup(ad) {
   mkdirSync(OUT, { recursive: true })
   const name = ad.sym.toLowerCase()
   // The still, for Instagram: 1080x1350, the frame with "Congratulations" in red.
-  await sharp(Buffer.from(svgFrame(ad, imgA, imgB, 0, 2))).png().toFile(join(OUT, `${name}-popup.png`))
+  await sharp(Buffer.from(svgFrame(ad, imgA, imgB, 0, 2))).png().toFile(join(OUT, `${name}-won.png`))
   // The animated one.
   const dir = join(tmpdir(), 'popup-' + name)
   rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true })
@@ -115,7 +115,7 @@ async function popup(ad) {
     await sharp(Buffer.from(svgFrame(ad, imgA, imgB, f))).png().toFile(join(dir, 'f' + String(f).padStart(3, '0') + '.png'))
   const r = spawnSync(FFMPEG, ['-v', 'error', '-y', '-framerate', String(FPS), '-i', join(dir, 'f%03d.png'),
     '-filter_complex', '[0]split[a][b];[a]palettegen=max_colors=160:stats_mode=full[p];[b][p]paletteuse=dither=bayer:bayer_scale=3',
-    '-loop', '0', join(OUT, `${name}-popup.gif`)], { stdio: 'inherit' })
+    '-loop', '0', join(OUT, `${name}-won.gif`)], { stdio: 'inherit' })
   rmSync(dir, { recursive: true, force: true })
   if (r.status) throw new Error('ffmpeg failed for ' + name)
   console.log('ok', name)

@@ -53,6 +53,8 @@ const START_AMMO = 40, MAX_AMMO = 99
  */
 const hexRGB = (h: string) => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16))
 const mixRGB = (a: number[], b: number[], t: number) => a.map((v, i) => v + (b[i] - v) * t)
+/** Where the words of "Wave N!" end in each file (ms), so GO! follows the words, not the echo. */
+const WAVE_SAID_MS = [1032, 1042, 1149, 1089, 1227, 1046, 1196, 961, 1050, 1106, 1306, 1170, 1479, 1490, 1443, 1395, 1451, 1369, 1386, 1286, 1535, 1556, 1625, 1560, 1553]
 export const waveInk = (wave: number) => CURTAIN_INKS[(wave - 1) % CURTAIN_INKS.length]
 function waveTheme(wave: number) {
   const c = hexRGB(waveInk(wave)), black = [10, 10, 24], white = [255, 255, 255]
@@ -133,16 +135,16 @@ export function Ratxecutioner({ face }: { face: string }) {
     void (async () => {
       // It shuts the fight's way: the view fades to white, the checker fades in over it.
       setCurtain({ lines: [], up: 0, phase: 'close', quiet: false, ink })
-      await sleep(CURTAIN_MS.white + CURTAIN_MS.checks + 150)
+      await sleep(CURTAIN_MS.white + CURTAIN_MS.checks)
       if (announce) {
         const line = Math.floor(Math.random() * ANNOUNCERS.length)
         const halves = ANNOUNCERS[line]
         for (let h = 0; h < halves.length; h++) {
           setCurtain({ lines: halves, up: h + 1, phase: 'close', quiet: true, ink })
           slam(); say(voiceFile(line, h))
-          await sleep(Math.max(600, (VOICE_MS[line]?.[h] ?? 600) + 150))
+          await sleep(Math.max(500, (VOICE_MS[line]?.[h] ?? 600) + 60))
         }
-        await sleep(350)
+        await sleep(120)
       }
       setCurtain({ lines: [`WAVE ${wave}`], up: 1, phase: 'close', quiet: true, ink })
       // The announcer calls it: "Wave N!", then "FIGHT!" the moment that ends (JP: "i dont hear them say
@@ -151,15 +153,18 @@ export function Ratxecutioner({ face }: { face: string }) {
       if (wave <= 25) {
         await new Promise<void>(done => {
           try {
+            // GO! comes in as the WORDS end, not the reverb after them (that tail was the pause):
+            // WAVE_SAID_MS, measured off each file (silence after the words, -28 dB).
             const a = new Audio(`/game/announcer/wave-${wave}.mp3`); a.volume = 0.8
-            a.onended = () => done(); a.onerror = () => done()
+            a.onerror = () => done()
+            a.onplaying = () => setTimeout(done, WAVE_SAID_MS[wave - 1] ?? 1300)
             void a.play().catch(() => done())
-            setTimeout(done, 2500)                                        // never hang on a sound
+            setTimeout(done, 2200)                                        // never hang on a sound
           } catch { done() }
         })
       }
       say('/game/announcer/go.mp3')                                // "GO!" (JP: "instead of fight; make them say GO!")
-      await sleep(900)
+      await sleep(450)
       setCurtain(c => c && { ...c, phase: 'open' })                // it parts
       await sleep(CURTAIN_MS.split + 40)
       setCurtain(null)
@@ -321,7 +326,7 @@ export function Ratxecutioner({ face }: { face: string }) {
       dec.close()
       return { frames, ms, total: ms.reduce((a, b) => a + b, 0) }
     }
-    Promise.all(BANNER_TOKENS.flatMap((_, i) => [['-250', 3], ['-popup', 2]].map(([sfx, step]) =>
+    Promise.all(BANNER_TOKENS.flatMap((_, i) => [['-sq', 3], ['-won', 2]].map(([sfx, step]) =>
       posterOf(bannerFile(i, sfx as string), step as number).catch(() => null))))
       .then(list => { posters = list.filter((p): p is NonNullable<typeof p> => !!p) })
     /** The frame of poster `p` showing now. */

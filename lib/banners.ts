@@ -1,5 +1,10 @@
 /**
- * THE BANNERS (scripts/make-banners.mjs, scripts/make-popups.mjs -> public/banners).
+ * THE BANNERS (scripts/make-banners.mjs, scripts/make-popups.mjs -> public/flyers).
+ *
+ * NAMED SO AD BLOCKERS LEAVE THEM BE (JP, 2026-10-13: "i dont see the ads at 100%
+ * zoom" — his ad blocker hid them). Filters match words like "banners", "ad-strip"
+ * and size names like 88x31, so the folder is /flyers/ and the files are named by
+ * style: -sq (250 square), -sm (125 square), -btn (88x31), -won (the YOU WON pop-up).
  * Old-web ads for Clanker Cats and our Mosh friends. Shared by the meme kit's
  * Banners window (app/kit) and the ad columns down the sides of every page
  * (components/SideAds). Each links to its own token's site.
@@ -15,14 +20,14 @@ export const BANNER_TOKENS = [
 export const BANNER_SIZES = [
   { suffix: '', w: 468, h: 60, label: 'Banner 468x60' },
   { suffix: '-story', w: 468, h: 60, label: 'Story 468x60' },
-  { suffix: '-250', w: 250, h: 250, label: 'Square 250x250' },
-  { suffix: '-125', w: 125, h: 125, label: 'Square 125x125' },
-  { suffix: '-88x31', w: 88, h: 31, label: 'Button 88x31' },
+  { suffix: '-sq', w: 250, h: 250, label: 'Square 250x250' },
+  { suffix: '-sm', w: 125, h: 125, label: 'Square 125x125' },
+  { suffix: '-btn', w: 88, h: 31, label: 'Button 88x31' },
   // JP, 2026-10-12: the "YOU WON!!!" pop-ups (scripts/make-popups.mjs).
-  { suffix: '-popup', w: 540, h: 675, label: 'Pop-up 540x675' },
+  { suffix: '-won', w: 540, h: 675, label: 'Pop-up 540x675' },
 ] as const
 
-export const bannerFile = (token: number, suffix: string) => `/banners/${BANNER_TOKENS[token].sym}${suffix}.gif`
+export const bannerFile = (token: number, suffix: string) => `/flyers/${BANNER_TOKENS[token].sym}${suffix}.gif`
 
 /** `n` different tokens, in a random order. */
 export function pickTokens(n: number): number[] {
