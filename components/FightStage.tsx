@@ -161,6 +161,7 @@ export function FightStage({
     transition: catsIn ? `clip-path ${catsFadeMs}ms ease-out` : 'none',
   })
 
+  const boxLines = lines.filter(l => l.kind !== 'miss')
   const warnYou = warnFor(hp[0], you.maxHp)
   const warnFoe = warnFor(hp[1], foe.maxHp)
 
@@ -224,12 +225,16 @@ export function FightStage({
 
           {float && <FloatWord key={float.key} float={float} secs={1.15 / speed} />}
 
+          {/*
+            No miss lines in the box ("It missed!", "hesitated..."): the MISS already
+            floats on the cat, so the grey line only said it twice. JP, 2026-10-12.
+          */}
           {!crop && <div ref={log} style={st.log} aria-live="polite">
-            {lines.map((l, i) => (
+            {boxLines.map((l, i) => (
               <div key={i} style={{
                 ...st.row,
                 // The crit's shake, on the line that has just landed.
-                animation: l.kind === 'crit' && i === lines.length - 1 ? `cradle-crit ${0.45 / speed}s ease-out` : undefined,
+                animation: l.kind === 'crit' && i === boxLines.length - 1 ? `cradle-crit ${0.45 / speed}s ease-out` : undefined,
               }}>
                 <BitmapText text={l.text} scale={1} color={KIND_INK[l.kind] ?? '#1a1a1a'} />
               </div>

@@ -2221,7 +2221,8 @@ export function Cradle() {
               */}
               {narrow && (
                 <div ref={logRef} style={s.log}>
-                  {result.log.slice(0, shown).map((l, i) => (
+                  {/* No miss lines: the MISS already floats on the cat (JP, 2026-10-12). */}
+                  {result.log.slice(0, shown).filter(l => l.kind !== 'miss').map((l, i) => (
                     <div key={i} style={{
                       margin: '0 0 6px',
                       animation: l.kind === 'crit' ? `cradle-crit ${0.45 / speed}s ease-out` : undefined,
