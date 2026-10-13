@@ -1113,3 +1113,33 @@ button, input, select, textarea, optgroup {
   .side-ads.side-ads-right { left: calc(50% + 480px + 12px); }
 }
 
+
+/*
+ * THE TINY TIER AND THE STRIP (JP, 2026-10-13: "do this for all pages"). Between
+ * 1190 and 1289px the slim tables do not fit beside the 960 column, so a narrow
+ * table of 88x31 buttons does. Narrower than that — phones too — the ads become
+ * one 468x60 banner at the foot of the page, the way old sites ran them.
+ */
+.side-ads-tiny { display: none; }
+.side-ads-tiny {
+  flex-direction: column; align-items: stretch; gap: 0;
+  position: fixed; top: 96px; z-index: 5; width: 100px; box-sizing: border-box;
+  background: #ffffff; border: 1px solid #1a2a5a; box-shadow: 3px 4px 0 0 rgba(10, 10, 30, 0.25);
+}
+.side-ads-tiny .forum-head {
+  background: linear-gradient(180deg, #2a4a9a, #000080); color: #ffffff;
+  font: bold 9px Verdana, Tahoma, sans-serif; letter-spacing: 0.5px; padding: 4px 6px; border-bottom: 1px solid #1a2a5a;
+}
+.side-ads-tiny .forum-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 5px; border-top: 1px solid #9aaad0; }
+.side-ads-tiny > div:nth-child(odd) .forum-cell { background: #dfe6f3; }
+.side-ads-tiny > div:nth-child(even) .forum-cell { background: #eef2f9; }
+@media (min-width: 1190px) and (max-width: 1289px) {
+  .side-ads-tiny { display: flex; }
+  .side-ads-tiny.side-ads-left { left: calc(50% - 480px - 6px - 100px); }
+  .side-ads-tiny.side-ads-right { left: calc(50% + 480px + 6px); }
+}
+.ad-strip {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  margin: 8px auto 24px; padding: 0 16px; max-width: 500px; box-sizing: border-box;
+}
+@media (min-width: 1190px) { .ad-strip { display: none; } }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { NO_CHAIN } from '@/lib/appmode'
-import { BANNER_TOKENS, bannerFile, pickTokens } from '@/lib/banners'
+import { BANNER_TOKENS, bannerFile, pickMosh } from '@/lib/banners'
 
 /**
  * THE AD COLUMNS — old-web banners down both sides of every page. JP,
@@ -28,10 +28,10 @@ function Ad({ token, suffix, w, h }: { token: number; suffix: string; w: number;
 
 export function SideAds() {
   // [left square, two small squares, two buttons] and [pop-up, two buttons].
-  const [mix, setMix] = useState<{ left: number[]; right: number[]; slimL: number[]; slimR: number[] } | null>(null)
+  const [mix, setMix] = useState<{ left: number[]; right: number[]; slimL: number[]; slimR: number[]; tinyL: number[]; tinyR: number[]; strip: number; stripStory: boolean } | null>(null)
   useEffect(() => {
     if (NO_CHAIN) return
-    const roll = () => setMix({ left: pickTokens(5), right: pickTokens(3), slimL: pickTokens(3), slimR: pickTokens(3) })
+    const roll = () => setMix({ left: pickMosh(5), right: pickMosh(3), slimL: pickMosh(3), slimR: pickMosh(3), tinyL: pickMosh(4), tinyR: pickMosh(4), strip: pickMosh(1)[0], stripStory: Math.random() < 0.5 })
     roll()
     const t = setInterval(roll, ROTATE_MS)
     return () => clearInterval(t)
@@ -100,6 +100,22 @@ export function SideAds() {
         </div>
         )}
       </aside>
+      {/* The tiny columns (globals.css .side-ads-tiny): four 88x31 buttons a side. */}
+      <aside className="side-ads-tiny side-ads-left" aria-label="Banners">
+        {label}
+        {mix.tinyL.map((t, i) => <div key={i}>{cell(<Ad token={t} suffix="-88x31" w={88} h={31} />)}</div>)}
+      </aside>
+      <aside className="side-ads-tiny side-ads-right" aria-label="Banners">
+        {label}
+        {mix.tinyR.map((t, i) => <div key={i}>{cell(<Ad token={t} suffix="-88x31" w={88} h={31} />)}</div>)}
+      </aside>
+      {/* Narrow screens and phones: one old-school 468x60 banner at the foot of the page. */}
+      <div className="ad-strip" aria-label="Banner">
+        <span className="forum-cap">Advertisement</span>
+        <a href={BANNER_TOKENS[mix.strip].href} target="_blank" rel="noopener" style={{ display: 'block', lineHeight: 0, maxWidth: 468, width: '100%' }}>
+          <img src={bannerFile(mix.strip, mix.stripStory ? '-story' : '')} alt={BANNER_TOKENS[mix.strip].name} width={468} height={60} style={{ width: '100%', height: 'auto', imageRendering: 'pixelated', display: 'block' }} />
+        </a>
+      </div>
     </>
   )
 }

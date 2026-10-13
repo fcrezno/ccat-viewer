@@ -16,12 +16,12 @@ export const metadata: Metadata = {
 const S: Record<string, React.CSSProperties> = {
   page: { maxWidth: 960, margin: '0 auto', padding: '24px 16px 48px', display: 'flex', flexDirection: 'column', gap: 18, boxSizing: 'border-box', color: '#000' },
   win:  { background: '#c0c0c0', padding: 16, display: 'flex', flexDirection: 'column', gap: 10 },
-  p:    { margin: 0, fontSize: 19, lineHeight: 1.5 },
-  ul:   { margin: 0, paddingLeft: 22, fontSize: 19, lineHeight: 1.55, display: 'flex', flexDirection: 'column', gap: 4 },
+  p:    { margin: 0, fontSize: 23, lineHeight: 1.5 },
+  ul:   { margin: 0, paddingLeft: 24, fontSize: 23, lineHeight: 1.55, display: 'flex', flexDirection: 'column', gap: 6 },
   b:    { color: '#000080' },
   a:    { color: '#000080' },
-  fine: { margin: 0, fontSize: 15, color: '#303040' },
-  toc:  { display: 'flex', flexWrap: 'wrap', gap: '6px 16px', fontSize: 17 },
+  fine: { margin: 0, fontSize: 18, color: '#303040' },
+  toc:  { display: 'flex', flexWrap: 'wrap', gap: '6px 18px', fontSize: 21 },
 }
 
 export default function DocsPage() {

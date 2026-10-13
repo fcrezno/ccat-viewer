@@ -33,3 +33,21 @@ export function pickTokens(n: number): number[] {
   }
   return all.slice(0, n)
 }
+
+/**
+ * The other Mosh tokens' ads only — our own house ad does not belong on our own
+ * site (JP, 2026-10-13: "add the ads of other mosh tokens to the sides ... do this
+ * for all pages"). `n` picks, shuffled; a token repeats only when there are
+ * more slots than tokens, and never twice in a row.
+ */
+export function pickMosh(n: number): number[] {
+  const mosh = BANNER_TOKENS.map((_, i) => i).filter(i => BANNER_TOKENS[i].sym !== 'clkcat')
+  const out: number[] = []
+  while (out.length < n) {
+    const deck = [...mosh]
+    for (let i = deck.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [deck[i], deck[j]] = [deck[j], deck[i]] }
+    if (out.length && deck[0] === out[out.length - 1]) deck.push(deck.shift()!)
+    out.push(...deck)
+  }
+  return out.slice(0, n)
+}

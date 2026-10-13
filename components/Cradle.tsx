@@ -2134,7 +2134,12 @@ export function Cradle() {
                 the free space with the footer's; once the results card is there,
                 there is none left to share and the screen sits at the top again.
               */}
-              <div style={{
+              {/*
+                THE BATTLE IN A WINDOWS 98 WINDOW (JP, 2026-10-13: "make the main battle page have the
+                windows border"), titled with the arena. Not on a phone, where the fight runs edge to edge.
+              */}
+              <div className={narrow ? undefined : 'win98'} data-title={narrow ? undefined : `BATTLE.EXE — ${result.turf.toUpperCase()}`} style={{
+                ...(narrow ? null : { background: '#c0c0c0', padding: 16, boxSizing: 'border-box' as const }),
                 // A phone: edge to edge — the column plus the page's 18px padding either side.
                 width: narrow ? 'calc(100% + 36px)' : WIDE,
                 alignSelf: 'center',
