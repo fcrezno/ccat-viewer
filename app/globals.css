@@ -1101,13 +1101,13 @@ button, input, select, textarea, optgroup {
 .forum-cap { font: 9px Verdana, Tahoma, sans-serif; color: #5a6a8a; align-self: flex-start; }
 .forum-row { display: flex; gap: 6px; justify-content: center; }
 /* Medium screens: slim 125px tables. */
-@media (min-width: 1290px) and (max-width: 1599px) {
+html[data-ads="slim"] {
   .side-ads-slim { display: flex; width: 141px; box-sizing: border-box; }
   .side-ads-slim.side-ads-left { left: calc(50% - 480px - 12px - 141px); }
   .side-ads-slim.side-ads-right { left: calc(50% + 480px + 12px); }
 }
 /* Wide screens: the full 250px tables. */
-@media (min-width: 1600px) {
+html[data-ads="full"] {
   .side-ads { display: flex; width: 266px; box-sizing: border-box; }
   .side-ads.side-ads-left { left: calc(50% - 480px - 12px - 266px); }
   .side-ads.side-ads-right { left: calc(50% + 480px + 12px); }
@@ -1133,7 +1133,7 @@ button, input, select, textarea, optgroup {
 .side-ads-tiny .forum-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 5px; border-top: 1px solid #9aaad0; }
 .side-ads-tiny > div:nth-child(odd) .forum-cell { background: #dfe6f3; }
 .side-ads-tiny > div:nth-child(even) .forum-cell { background: #eef2f9; }
-@media (min-width: 1190px) and (max-width: 1289px) {
+html[data-ads="tiny"] {
   .side-ads-tiny { display: flex; }
   .side-ads-tiny.side-ads-left { left: calc(50% - 480px - 6px - 100px); }
   .side-ads-tiny.side-ads-right { left: calc(50% + 480px + 6px); }
@@ -1142,4 +1142,10 @@ button, input, select, textarea, optgroup {
   display: flex; flex-direction: column; align-items: center; gap: 2px;
   margin: 8px auto 24px; padding: 0 16px; max-width: 500px; box-sizing: border-box;
 }
-@media (min-width: 1190px) { .ad-strip { display: none; } }
+html:not([data-ads="strip"]) .ad-strip { display: none; }
+/*
+ * WHICH TIER, AND A LITTLE ZOOM (JP: "i need to zoom in and out to see the ads; fix
+ * that"): components/SideAds measures the window and sets html[data-ads]. A window
+ * just short of room for the tiny columns is zoomed out a touch (html zoom) so the
+ * game and the sponsors fit together — what JP was doing by hand.
+ */

@@ -26,7 +26,34 @@ function Ad({ token, suffix, w, h }: { token: number; suffix: string; w: number;
   )
 }
 
+/*
+ * The tiers, by the page's room in CSS pixels: full >= 1560, slim >= 1290,
+ * tiny >= 1190. Short of 1190 but over MIN_ZOOMED, the page is zoomed out to
+ * exactly 1190 so the tiny columns fit; under that (and on touch screens) the ads
+ * become the strip at the foot.
+ */
+const FULL = 1560, SLIM = 1290, TINY = 1190, MIN_ZOOMED = 960
+function fitAds() {
+  const html = document.documentElement
+  const w = window.innerWidth                    // CSS zoom does not change this: the real window
+  const touch = matchMedia('(pointer: coarse)').matches
+  let zoom = 1, tier: 'full' | 'slim' | 'tiny' | 'strip'
+  if (touch || w < MIN_ZOOMED) tier = 'strip'
+  else if (w >= FULL) tier = 'full'
+  else if (w >= SLIM) tier = 'slim'
+  else if (w >= TINY) tier = 'tiny'
+  else { tier = 'tiny'; zoom = w / TINY }
+  html.style.zoom = zoom === 1 ? '' : zoom.toFixed(4)
+  html.dataset.ads = tier
+}
+
 export function SideAds() {
+  useEffect(() => {
+    if (NO_CHAIN) return
+    fitAds()
+    addEventListener('resize', fitAds)
+    return () => { removeEventListener('resize', fitAds); document.documentElement.style.zoom = ''; delete document.documentElement.dataset.ads }
+  }, [])
   // [left square, two small squares, two buttons] and [pop-up, two buttons].
   const [mix, setMix] = useState<{ left: number[]; right: number[]; slimL: number[]; slimR: number[]; tinyL: number[]; tinyR: number[]; strip: number; stripStory: boolean } | null>(null)
   useEffect(() => {
