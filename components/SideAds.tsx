@@ -38,41 +38,67 @@ export function SideAds() {
   }, [])
   if (!mix) return null
 
-  const label = <div style={st.label}>ADVERTISEMENT</div>
+  // The old-forum table: a header, then a cell per ad (globals.css .forum-*).
+  const label = <div className="forum-head">SPONSORS</div>
+  const cell = (children: React.ReactNode) => (
+    <div className="forum-cell"><span className="forum-cap">Advertisement</span>{children}</div>
+  )
   return (
     <>
       <aside className="side-ads side-ads-left" aria-label="Banners">
         {label}
-        <Ad token={mix.left[0]} suffix="-250" w={250} h={250} />
-        <div style={st.pair}>
+        {cell(
+          <Ad token={mix.left[0]} suffix="-250" w={250} h={250} />
+        )}
+        {cell(
+        <div className="forum-row">
           <Ad token={mix.left[1]} suffix="-125" w={122} h={122} />
           <Ad token={mix.left[2]} suffix="-125" w={122} h={122} />
         </div>
-        <div style={st.pair}>
+        )}
+        {cell(
+        <div className="forum-row">
           <Ad token={mix.left[3]} suffix="-88x31" w={88} h={31} />
           <Ad token={mix.left[4]} suffix="-88x31" w={88} h={31} />
         </div>
+        )}
       </aside>
       {/* The slim columns, for medium screens: 125 wide (globals.css .side-ads-slim). */}
       <aside className="side-ads-slim side-ads-left" aria-label="Banners">
         {label}
-        <Ad token={mix.slimL[0]} suffix="-125" w={125} h={125} />
+        {cell(
+          <Ad token={mix.slimL[0]} suffix="-125" w={125} h={125} />
+        )}
+        {cell(
         <Ad token={mix.slimL[1]} suffix="-88x31" w={88} h={31} />
+        )}
+        {cell(
         <Ad token={mix.slimL[2]} suffix="-88x31" w={88} h={31} />
+        )}
       </aside>
       <aside className="side-ads-slim side-ads-right" aria-label="Banners">
         {label}
-        <Ad token={mix.slimR[0]} suffix="-popup" w={125} h={156} />
+        {cell(
+          <Ad token={mix.slimR[0]} suffix="-popup" w={125} h={156} />
+        )}
+        {cell(
         <Ad token={mix.slimR[1]} suffix="-125" w={125} h={125} />
+        )}
+        {cell(
         <Ad token={mix.slimR[2]} suffix="-88x31" w={88} h={31} />
+        )}
       </aside>
       <aside className="side-ads side-ads-right" aria-label="Banners">
         {label}
-        <Ad token={mix.right[0]} suffix="-popup" w={250} h={312} />
-        <div style={st.pair}>
+        {cell(
+          <Ad token={mix.right[0]} suffix="-popup" w={250} h={312} />
+        )}
+        {cell(
+        <div className="forum-row">
           <Ad token={mix.right[1]} suffix="-88x31" w={88} h={31} />
           <Ad token={mix.right[2]} suffix="-88x31" w={88} h={31} />
         </div>
+        )}
       </aside>
     </>
   )

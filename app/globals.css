@@ -1073,20 +1073,43 @@ button, input, select, textarea, optgroup {
  * the game; there it is simply not drawn.
  */
 .side-ads, .side-ads-slim { display: none; }
-/* Like a 1999 homepage: each column a grey sidebar panel with a bevel. */
+/*
+ * OLD-FORUM SIDEBARS (JP, 2026-10-13: "make the ad windows closer to the game;
+ * format it like old forums"): a phpBB / vBulletin side table hugging the page
+ * column — a navy SPONSORS header, each ad in its own bordered cell, the rows in
+ * alternating light blue, a small "Advertisement" caption. The page column is
+ * 960 wide and centred, so each table sits 12px off its edge.
+ */
 .side-ads, .side-ads-slim {
-  flex-direction: column; align-items: center; gap: 8px;
-  position: fixed; top: 96px; z-index: 5; padding: 8px;
-  background: #c0c0c0;
-  box-shadow: inset -1px -1px 0 0 #0a0a0a, inset 1px 1px 0 0 #ffffff, inset -2px -2px 0 0 #808080, inset 2px 2px 0 0 #dfdfdf, 3px 4px 0 0 rgba(10, 10, 30, 0.3);
+  flex-direction: column; align-items: stretch; gap: 0;
+  position: fixed; top: 96px; z-index: 5;
+  background: #ffffff; border: 1px solid #1a2a5a;
+  box-shadow: 3px 4px 0 0 rgba(10, 10, 30, 0.25);
+  font-family: Verdana, Tahoma, sans-serif;
 }
-.side-ads-left { left: 16px; }
-.side-ads-right { right: 16px; }
-/* Medium screens (the game column is 960): slim 125px columns. */
+.side-ads .forum-head, .side-ads-slim .forum-head {
+  background: linear-gradient(180deg, #2a4a9a, #000080); color: #ffffff;
+  font: bold 11px Verdana, Tahoma, sans-serif; letter-spacing: 1px; padding: 5px 8px;
+  border-bottom: 1px solid #1a2a5a;
+}
+.side-ads .forum-cell, .side-ads-slim .forum-cell {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 6px; border-top: 1px solid #9aaad0;
+}
+.side-ads .forum-cell:nth-child(odd), .side-ads-slim .forum-cell:nth-child(odd) { background: #dfe6f3; }
+.side-ads .forum-cell:nth-child(even), .side-ads-slim .forum-cell:nth-child(even) { background: #eef2f9; }
+.forum-cap { font: 9px Verdana, Tahoma, sans-serif; color: #5a6a8a; align-self: flex-start; }
+.forum-row { display: flex; gap: 6px; justify-content: center; }
+/* Medium screens: slim 125px tables. */
 @media (min-width: 1290px) and (max-width: 1599px) {
   .side-ads-slim { display: flex; width: 141px; box-sizing: border-box; }
+  .side-ads-slim.side-ads-left { left: calc(50% - 480px - 12px - 141px); }
+  .side-ads-slim.side-ads-right { left: calc(50% + 480px + 12px); }
 }
-/* Wide screens: the full 250px columns. */
+/* Wide screens: the full 250px tables. */
 @media (min-width: 1600px) {
   .side-ads { display: flex; width: 266px; box-sizing: border-box; }
+  .side-ads.side-ads-left { left: calc(50% - 480px - 12px - 266px); }
+  .side-ads.side-ads-right { left: calc(50% + 480px + 12px); }
 }
+
