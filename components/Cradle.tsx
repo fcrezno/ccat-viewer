@@ -747,6 +747,11 @@ export function Cradle() {
   const [cats, setCats] = useState<Cat[] | null>(null)
   const [friends, setFriends] = useState<Friend[]>([])
   const [picked, setPicked] = useState<Cat | null>(null)
+  // Remember the cat last picked, for RATXECUTIONER's status-bar face (app/ratxecutioner).
+  useEffect(() => {
+    if (!picked?.meta?.image) return
+    try { window.localStorage.setItem('cradle.lastcat.v1', JSON.stringify({ uid: picked.uid, image: picked.meta.image })) } catch {}
+  }, [picked])
   // The speeds the SELECTED cat has earned — a title travels with the cat.
   const unlocked = useMemo(() => unlockedSpeeds(picked), [picked])
   const [result, setResult] = useState<FightResult | null>(null)
