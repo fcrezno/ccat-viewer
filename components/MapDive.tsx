@@ -235,6 +235,50 @@ function Words({ words, up, left, frame }: { words: readonly string[]; up: numbe
   )
 }
 
+/**
+ * THE CURTAIN — the paper-blue checker in two halves, CLANK THAT CAT! crawling
+ * across it in `ink`, the announcer's words on top, parting down the middle with
+ * an ink edge. In stage pixels (480x320). The fight's map dive uses it, and so
+ * does RATXECUTIONER (JP, 2026-10-13: "the curtain isnt the same as the fighting
+ * one; make it so") — one piece, so the two can never differ.
+ *
+ *   checks  0..1  the checker fading in
+ *   split   0..1  the halves parting (already eased)
+ *   quiet         the lettering steps back while the announcer speaks
+ */
+export function CurtainHalves({ clock, checks, split, quiet, ink, words, wordsUp = 0 }: {
+  clock: number; checks: number; split: number; quiet: boolean; ink: string
+  words?: readonly string[]; wordsUp?: number
+}) {
+  const frame = Math.floor(clock / FRAME_MS)
+  return (
+    <>
+      <div style={{ ...st.half, left: 0, opacity: checks, transform: `translateX(${-split * (W / 2 + 4)}px)` }}>
+        <Checker ms={clock} left={0} />
+        <div style={{ opacity: quiet ? 0.2 : 1, transition: 'opacity 0.25s ease-out' }}>
+          <Lettering ms={clock} left={0} ink={ink} />
+        </div>
+        {words && wordsUp > 0 && <Words words={words} up={wordsUp} left={0} frame={frame} />}
+        {split > 0 && <div style={{ ...st.edge, right: 0 }} />}
+      </div>
+      <div style={{ ...st.half, left: W / 2, opacity: checks, transform: `translateX(${split * (W / 2 + 4)}px)` }}>
+        <Checker ms={clock} left={W / 2} />
+        <div style={{ opacity: quiet ? 0.2 : 1, transition: 'opacity 0.25s ease-out' }}>
+          <Lettering ms={clock} left={W / 2} ink={ink} />
+        </div>
+        {words && wordsUp > 0 && <Words words={words} up={wordsUp} left={W / 2} frame={frame} />}
+        {split > 0 && <div style={{ ...st.edge, left: 0 }} />}
+      </div>
+    </>
+  )
+}
+/** The fight curtain's timing, for anyone playing it outside the map dive. */
+export const CURTAIN_MS = { white: WHITE, checks: CHECKS, split: SPLIT }
+/** The stage the curtain is drawn in. */
+export const CURTAIN_W = W, CURTAIN_H = H
+/** The zone inks, in the order the arenas go. */
+export const CURTAIN_INKS = [ZONE_INK.Town, ZONE_INK.Temple, ZONE_INK.Caves, ZONE_INK.Mountain, ZONE_INK.Forest]
+
 export function MapDive({ zone, cast, onDone, hold = false, onClosed, words, wordsUp = 0, onTapHeld }: {
   zone: string
   /**
@@ -402,24 +446,8 @@ export function MapDive({ zone, cast, onDone, hold = false, onClosed, words, wor
 
       {/* The checker: in over the white, then parting down the middle onto the fight. */}
       {checks > 0 && (
-        <>
-          <div style={{ ...st.half, left: 0, opacity: checks, transform: `translateX(${-split * (W / 2 + 4)}px)` }}>
-            <Checker ms={clock} left={0} />
-            <div style={{ opacity: quiet ? 0.2 : 1, transition: 'opacity 0.25s ease-out' }}>
-              <Lettering ms={clock} left={0} ink={ZONE_INK[zone] ?? ZONE_INK.Town} />
-            </div>
-            {words && wordsUp > 0 && <Words words={words} up={wordsUp} left={0} frame={liveFrame} />}
-            {split > 0 && <div style={{ ...st.edge, right: 0 }} />}
-          </div>
-          <div style={{ ...st.half, left: W / 2, opacity: checks, transform: `translateX(${split * (W / 2 + 4)}px)` }}>
-            <Checker ms={clock} left={W / 2} />
-            <div style={{ opacity: quiet ? 0.2 : 1, transition: 'opacity 0.25s ease-out' }}>
-              <Lettering ms={clock} left={W / 2} ink={ZONE_INK[zone] ?? ZONE_INK.Town} />
-            </div>
-            {words && wordsUp > 0 && <Words words={words} up={wordsUp} left={W / 2} frame={liveFrame} />}
-            {split > 0 && <div style={{ ...st.edge, left: 0 }} />}
-          </div>
-        </>
+        <CurtainHalves clock={clock} checks={checks} split={split} quiet={quiet}
+          ink={ZONE_INK[zone] ?? ZONE_INK.Town} words={words} wordsUp={wordsUp} />
       )}
     </div>
   )

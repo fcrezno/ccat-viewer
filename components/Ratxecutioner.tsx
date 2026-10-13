@@ -5,8 +5,7 @@ import { CELL_H, TRACKING, cell, glyph } from '@/lib/font'
 import { BANNER_TOKENS, bannerFile } from '@/lib/banners'
 import { ANNOUNCERS, countVoice, voiceFile } from '@/lib/announcers'
 import { VOICE_MS } from '@/lib/announcerVoice'
-import { BitmapText } from '@/components/BitmapText'
-import { measure } from '@/lib/font'
+import { CURTAIN_H, CURTAIN_INKS, CURTAIN_MS, CURTAIN_W, CurtainHalves } from '@/components/MapDive'
 
 /**
  * RATXECUTIONER — the first-person rat hunt, as a Doom mod with cats.
@@ -46,6 +45,23 @@ const FOV = 0.66                         // camera plane length: ~66 degrees, Wo
 const MOVE = 2.6, TURN = 2.4, MOUSE = 0.0026
 const RAT_SPEED = 1.15, RAT_HP = 2, BITE_DPS = 9
 const START_AMMO = 40, MAX_AMMO = 99
+
+/*
+ * A COLOUR PER WAVE (JP: "change the colors for each wave"): the five arena
+ * inks in turn — Town blue, Temple purple, Caves olive, Mountain orange, Forest
+ * green — on the bricks, the sky, the floor, and the curtain's lettering.
+ */
+const hexRGB = (h: string) => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16))
+const mixRGB = (a: number[], b: number[], t: number) => a.map((v, i) => v + (b[i] - v) * t)
+export const waveInk = (wave: number) => CURTAIN_INKS[(wave - 1) % CURTAIN_INKS.length]
+function waveTheme(wave: number) {
+  const c = hexRGB(waveInk(wave)), black = [10, 10, 24], white = [255, 255, 255]
+  return {
+    ramp: [mixRGB(c, black, 0.85), mixRGB(c, black, 0.55), c, mixRGB(c, white, 0.45), mixRGB(c, white, 0.8)],
+    skyTop: mixRGB(c, black, 0.7), skyLow: c,
+    checkA: mixRGB(c, white, 0.82), checkB: mixRGB(c, white, 0.68),
+  }
+}
 
 // The lair. # brick, . floor, P the player, R a rat's den, N a nugget.
 const MAP = [
@@ -104,7 +120,7 @@ export function Ratxecutioner({ face }: { face: string }) {
    * curtain parts. Every new wave: shut, WAVE N, FIGHT!, open. The game holds
    * still while the curtain is down (hold).
    */
-  const [curtain, setCurtain] = useState<{ lines: readonly string[]; up: number; open: boolean; key: number } | null>(null)
+  const [curtain, setCurtain] = useState<{ lines: readonly string[]; up: number; phase: 'close' | 'open'; quiet: boolean; ink: string } | null>(null)
   const hold = useRef(false)
   const wrapRef = useRef<HTMLDivElement>(null)
   const intro = useRef<(wave: number, announce: boolean) => void>(() => {})
@@ -113,27 +129,26 @@ export function Ratxecutioner({ face }: { face: string }) {
     const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms))
     const say = (src: string) => { try { const a = new Audio(src); a.volume = 0.8; void a.play().catch(() => {}) } catch {} }
     const slam = () => say('/game/sfx/slam.mp3')
-    const key = Math.random()
+    const ink = waveInk(wave)
     void (async () => {
-      setCurtain({ lines: [], up: 0, open: true, key })
-      await sleep(30)
-      setCurtain({ lines: [], up: 0, open: false, key })          // it shuts
-      await sleep(500)
+      // It shuts the fight's way: the view fades to white, the checker fades in over it.
+      setCurtain({ lines: [], up: 0, phase: 'close', quiet: false, ink })
+      await sleep(CURTAIN_MS.white + CURTAIN_MS.checks + 150)
       if (announce) {
         const line = Math.floor(Math.random() * ANNOUNCERS.length)
         const halves = ANNOUNCERS[line]
         for (let h = 0; h < halves.length; h++) {
-          setCurtain({ lines: halves, up: h + 1, open: false, key })
+          setCurtain({ lines: halves, up: h + 1, phase: 'close', quiet: true, ink })
           slam(); say(voiceFile(line, h))
           await sleep(Math.max(600, (VOICE_MS[line]?.[h] ?? 600) + 150))
         }
         await sleep(350)
       }
-      setCurtain({ lines: [`WAVE ${wave}`], up: 1, open: false, key: key + 1 })
+      setCurtain({ lines: [`WAVE ${wave}`], up: 1, phase: 'close', quiet: true, ink })
       slam(); say(countVoice(0))                                     // "FIGHT!"
       await sleep(1000)
-      setCurtain(c => c && { ...c, open: true })                   // it parts
-      await sleep(820)
+      setCurtain(c => c && { ...c, phase: 'open' })                // it parts
+      await sleep(CURTAIN_MS.split + 40)
       setCurtain(null)
       hold.current = false
     })()
@@ -185,7 +200,18 @@ export function Ratxecutioner({ face }: { face: string }) {
       if (c === 'R') dens.push([x + 0.5, y + 0.5])
       if (c === 'N') nugs.push({ x: x + 0.5, y: y + 0.5, taken: false })
     }))
+    /** Re-ink the bricks with the current wave's ramp. */
+    function inkWall() {
+      if (!wall || !wallLum) return
+      const R = theme.ramp
+      for (let i = 0; i < wallLum.length; i++) {
+        const k = Math.min(R.length - 1.001, wallLum[i] * (R.length - 1) * 1.15)
+        const a = R[Math.floor(k)], b = R[Math.ceil(k)], u = k - Math.floor(k)
+        wall.data[i * 4] = a[0] + (b[0] - a[0]) * u; wall.data[i * 4 + 1] = a[1] + (b[1] - a[1]) * u; wall.data[i * 4 + 2] = a[2] + (b[2] - a[2]) * u
+      }
+    }
     const spawnWave = () => {
+      theme = waveTheme(wave); inkWall()
       const n = 4 + wave * 2
       rats = Array.from({ length: n }, (_, i) => {
         const [x, y] = dens[(i + wave) % dens.length]
@@ -220,6 +246,9 @@ export function Ratxecutioner({ face }: { face: string }) {
     // ── art ──
     /** Each poster: its frames, and how long each one shows (ms). */
     let posters: { frames: ImageData[]; ms: number[]; total: number }[] = []
+    /** The bricks' brightness, kept, so each wave can re-ink them. */
+    let wallLum: Float32Array | null = null
+    let theme = waveTheme(1)
     let wall: ImageData | null = null, ratImg: HTMLImageElement | null = null, boomImg: HTMLImageElement | null = null
     let nugImg: HTMLImageElement | null = null, faceImg: HTMLImageElement | null = null, fontImg: HTMLImageElement | null = null
     const tinted = new Map<string, HTMLCanvasElement>()
@@ -227,14 +256,11 @@ export function Ratxecutioner({ face }: { face: string }) {
       .then(([w, r, b, n, f, fo]) => {
         const c = document.createElement('canvas'); c.width = w.width; c.height = w.height
         const x = c.getContext('2d')!; x.drawImage(w, 0, 0); wall = x.getImageData(0, 0, w.width, w.height)
-        // JP's green bricks, re-inked: each pixel's brightness onto the site's blues.
-        const BLUES = [[14, 18, 60], [0, 0, 128], [58, 90, 170], [140, 160, 214], [211, 220, 235]]
-        for (let i = 0; i < wall.data.length; i += 4) {
-          const l = (wall.data[i] * 0.3 + wall.data[i + 1] * 0.55 + wall.data[i + 2] * 0.15) / 255
-          const k = Math.min(BLUES.length - 1.001, l * (BLUES.length - 1) * 1.15)
-          const a = BLUES[Math.floor(k)], b = BLUES[Math.ceil(k)], u = k - Math.floor(k)
-          wall.data[i] = a[0] + (b[0] - a[0]) * u; wall.data[i + 1] = a[1] + (b[1] - a[1]) * u; wall.data[i + 2] = a[2] + (b[2] - a[2]) * u
-        }
+        // JP's green bricks: keep each pixel's brightness, and ink them in the wave's colour.
+        wallLum = new Float32Array(wall.width * wall.height)
+        for (let i = 0; i < wallLum.length; i++)
+          wallLum[i] = (wall.data[i * 4] * 0.3 + wall.data[i * 4 + 1] * 0.55 + wall.data[i * 4 + 2] * 0.15) / 255
+        inkWall()
         ratImg = r; boomImg = b; nugImg = n; faceImg = f; fontImg = fo
       })
     /*
@@ -375,6 +401,14 @@ export function Ratxecutioner({ face }: { face: string }) {
      * the nearer the edge — the old PC-game way. `edge` is -1..1, 0 in the middle.
      */
     let edge = 0
+    /*
+     * WHERE THE GUN POINTS (JP: "make the gun hit where the cursor is pointing; so
+     * it doesnt miss"). Locked, the pointer is the centre of the screen. In free
+     * mode the crosshair follows the pointer and the shot goes exactly there.
+     * In real canvas pixels.
+     */
+    let aimX = W / 2, aimY = VIEW_H / 2
+    let hitMark = 0
     const edgeOf = (e: MouseEvent) => {
       const r = cv.getBoundingClientRect()
       const u = (e.clientX - r.left) / r.width
@@ -382,7 +416,12 @@ export function Ratxecutioner({ face }: { face: string }) {
     }
     const leave = () => { edge = 0 }
     const look = (e: MouseEvent) => {
-      if (free && started && e.target === cv) edgeOf(e)
+      if (free && started && e.target === cv) {
+        edgeOf(e)
+        const r = cv.getBoundingClientRect()
+        aimX = Math.max(0, Math.min(W - 1, ((e.clientX - r.left) / r.width) * W))
+        aimY = Math.max(0, Math.min(VIEW_H - 1, ((e.clientY - r.top) / r.height) * H))
+      }
       // Locked: the mouse is the view. Free mode (lock refused): only over the screen.
       if (document.pointerLockElement !== cv && !(free && started && e.target === cv)) return
       // Chrome on Windows sometimes reports a huge jump under pointer lock: a spike, not a hand. Drop it.
@@ -405,6 +444,7 @@ export function Ratxecutioner({ face }: { face: string }) {
     document.addEventListener('pointerlockerror', () => { free = true })
     const lockChange = () => {
       const on = document.pointerLockElement === cv
+      if (on) { aimX = W / 2; aimY = VIEW_H / 2 }
       setLocked(on)
       // Losing the lock (Esc, Alt-Tab) pauses a game in progress, with the menu up.
       paused = started && !on && !over && !coarse && !free
@@ -444,10 +484,10 @@ export function Ratxecutioner({ face }: { face: string }) {
     // ── the raycast: one DDA ray per column ──
     const zbuf = new Float32Array(W)
     const img = ctx.createImageData(W, VIEW_H)
-    const SKY_TOP = [0, 0, 128], SKY_LOW = [16, 132, 208]          // the 98 title bar
-    const CHECK_A = [211, 220, 235], CHECK_B = [176, 190, 220]          // the site's paper-blue checker
     function renderWalls() {
       const d = img.data
+      // The sky and the floor in the wave's colour.
+      const SKY_TOP = theme.skyTop, SKY_LOW = theme.skyLow, CHECK_A = theme.checkA, CHECK_B = theme.checkB
       // The sky: navy into blue, the Windows 98 title bar.
       const hz = Math.round(VIEW_H / 2 + pitch)
       for (let y = 0; y < hz; y++) {
@@ -585,17 +625,23 @@ export function Ratxecutioner({ face }: { face: string }) {
           fire.current = false
           if (ammo > 0) {
             ammo--; flash = 0.08; sShot()
-            let best: Rat | null = null, bestD = zbuf[W / 2]
+            const col = Math.round(aimX)
+            let best: Rat | null = null, bestD = zbuf[col] ?? Infinity
             for (const r of rats) {
               if (r.dead) continue
               const rx = r.x - px, ry = r.y - py
               const inv = 1 / (plx * dy - dx * ply)
               const tX = inv * (dy * rx - dx * ry), tY = inv * (-ply * rx + plx * ry)
               if (tY <= 0.1 || tY > bestD) continue
-              const cx = (W / 2) * (1 + tX / tY), half = (VIEW_H / tY) * 0.35
-              if (Math.abs(cx - W / 2) < half) { best = r; bestD = tY }
+              // Exactly the box the rat is drawn in (see sprite(): scale 0.42), a little generous.
+              const h = (VIEW_H / tY) * 0.42, w = h * (ratImg ? ratImg.width / ratImg.height : 1.7)
+              const cx = (W / 2) * (1 + tX / tY)
+              const y0 = VIEW_H / 2 + pitch + (VIEW_H / tY) / 2 - h
+              const padX = w * 0.12, padY = h * 0.25
+              if (aimX > cx - w / 2 - padX && aimX < cx + w / 2 + padX && aimY > y0 - padY && aimY < y0 + h + padY) { best = r; bestD = tY }
             }
             if (best) {
+              hitMark = 0.18
               best.hp--; best.hurt = 0.15
               if (best.hp <= 0) { best.dead = 0.001; kills++; booms.push({ x: best.x, y: best.y, t: 0 }); sBoom() }
             }
@@ -603,7 +649,7 @@ export function Ratxecutioner({ face }: { face: string }) {
         }
         if (rats.every(r => r.dead)) { wave++; spawnWave(); intro.current(wave, false) }
       }
-      flash = Math.max(0, flash - dt); hurt = Math.max(0, hurt - dt); banner = Math.max(0, banner - dt)
+      flash = Math.max(0, flash - dt); hurt = Math.max(0, hurt - dt); banner = Math.max(0, banner - dt); hitMark = Math.max(0, hitMark - dt)
       booms = booms.filter(b => (b.t += dt) < 0.7)
 
       // ── draw ──
@@ -611,7 +657,10 @@ export function Ratxecutioner({ face }: { face: string }) {
       const things: { d: number; draw: () => void }[] = []
       const dist = (x: number, y: number) => (x - px) ** 2 + (y - py) ** 2
       if (ratImg) for (const r of rats) if (!r.dead) things.push({ d: dist(r.x, r.y), draw: () => {
+        // A hit rat flashes red, so a shot that landed never looks like a miss.
+        if (r.hurt > 0) ctx.filter = 'sepia(1) saturate(8) hue-rotate(-40deg) brightness(1.1)'
         sprite(ratImg!, 0, 0, ratImg!.width, ratImg!.height, r.x, r.y, 0.42)
+        ctx.filter = 'none'
       } })
       if (nugImg) for (const n of nugs) if (!n.taken) things.push({ d: dist(n.x, n.y), draw: () => {
         const f = Math.floor(t * 10) % 8
@@ -633,7 +682,21 @@ export function Ratxecutioner({ face }: { face: string }) {
       ctx.fillStyle = '#e8bf86'; for (let i = 0; i < 4; i++) ctx.fillRect(LW / 2 - 14 + i * 8, LVIEW - 22 + kick + bob, 6, 6)
       if (flash > 0) { ctx.fillStyle = '#ffd166'; ctx.beginPath(); ctx.arc(LW / 2, LVIEW - 56, 9, 0, 7); ctx.fill(); ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(LW / 2, LVIEW - 56, 4, 0, 7); ctx.fill() }
       // Crosshair.
-      ctx.fillStyle = '#ffffff'; ctx.fillRect(LW / 2 - 3, LVIEW / 2, 2, 1); ctx.fillRect(LW / 2 + 2, LVIEW / 2, 2, 1); ctx.fillRect(LW / 2, LVIEW / 2 - 3, 1, 2); ctx.fillRect(LW / 2, LVIEW / 2 + 2, 1, 2)
+      {
+        const ax = Math.round(aimX / S), ay = Math.round(aimY / S)
+        ctx.fillStyle = '#101018'
+        ctx.fillRect(ax - 5, ay - 1, 4, 3); ctx.fillRect(ax + 2, ay - 1, 4, 3); ctx.fillRect(ax - 1, ay - 5, 3, 4); ctx.fillRect(ax - 1, ay + 2, 3, 4)
+        ctx.fillStyle = '#ffffff'
+        ctx.fillRect(ax - 4, ay, 3, 1); ctx.fillRect(ax + 2, ay, 3, 1); ctx.fillRect(ax, ay - 4, 1, 3); ctx.fillRect(ax, ay + 2, 1, 3)
+        if (hitMark > 0) {
+          // The hit marker: a red X round the crosshair.
+          ctx.fillStyle = '#ff3030'
+          for (let i = 0; i < 3; i++) {
+            ctx.fillRect(ax - 6 + i, ay - 6 + i, 1, 1); ctx.fillRect(ax + 6 - i, ay - 6 + i, 1, 1)
+            ctx.fillRect(ax - 6 + i, ay + 6 - i, 1, 1); ctx.fillRect(ax + 6 - i, ay + 6 - i, 1, 1)
+          }
+        }
+      }
       if (hurt > 0) { ctx.fillStyle = `rgba(220,30,30,${hurt * 1.2})`; ctx.fillRect(0, 0, LW, LVIEW) }
 
       // The status bar, Doom's: ammo, the face, health, kills.
@@ -693,17 +756,7 @@ export function Ratxecutioner({ face }: { face: string }) {
     <div style={st.wrap}>
       <div ref={wrapRef} style={{ position: 'relative' }}>
         <canvas ref={canvas} width={W} height={H} style={st.canvas} />
-        {curtain && <Curtain {...curtain} width={wrapRef.current?.clientWidth ?? 640} />}
-      </div>
-      <div style={st.opts}>
-        <label style={st.opt}>MOUSE SENSITIVITY
-          <input type="range" min={0.2} max={3} step={0.1} value={sens} onChange={e => setSens(Number(e.target.value))} style={st.range} />
-          <span>{sens.toFixed(1)}x</span>
-        </label>
-        <label style={st.opt}>MUSIC
-          <input type="range" min={0} max={1} step={0.05} value={vol} onChange={e => setVol(Number(e.target.value))} style={st.range} />
-          <span>{Math.round(vol * 100)}%</span>
-        </label>
+        {curtain && <GameCurtain {...curtain} width={wrapRef.current?.clientWidth ?? 640} />}
       </div>
       {!touch && !locked && hint && <div style={st.hint}>CLICK TO LOCK IN · MOUSE AIMS · CLICK SHOOTS · WASD MOVES · ESC PAUSES</div>}
       {paused && (
@@ -712,14 +765,15 @@ export function Ratxecutioner({ face }: { face: string }) {
             <button className="plain" style={st.menuBtn} onClick={() => menu.current.resume()}>RESUME</button>
             <button className="plain" style={st.menuBtn} onClick={() => menu.current.restart()}>RESTART</button>
             <a style={{ ...st.menuBtn, textDecoration: 'none', textAlign: 'center' }} href="/">QUIT</a>
-            <label style={st.opt}>MOUSE SENSITIVITY
-              <input type="range" min={0.2} max={3} step={0.1} value={sens} onChange={e => setSens(Number(e.target.value))} style={st.range} />
-              <span>{sens.toFixed(1)}x</span>
-            </label>
-            <label style={st.opt}>MUSIC
-              <input type="range" min={0} max={1} step={0.05} value={vol} onChange={e => setVol(Number(e.target.value))} style={st.range} />
-              <span>{Math.round(vol * 100)}%</span>
-            </label>
+            {/* Two rows of one grid: labels, sliders and values each line up (JP: "format this better so the sliders are uniform"). */}
+            <div style={st.optGrid}>
+              <label htmlFor="ratx-sens" style={st.optLabel}>MOUSE SPEED</label>
+              <input id="ratx-sens" type="range" min={0.2} max={3} step={0.1} value={sens} onChange={e => setSens(Number(e.target.value))} style={st.range} />
+              <span style={st.optValue}>{sens.toFixed(1)}x</span>
+              <label htmlFor="ratx-vol" style={st.optLabel}>MUSIC</label>
+              <input id="ratx-vol" type="range" min={0} max={1} step={0.05} value={vol} onChange={e => setVol(Number(e.target.value))} style={st.range} />
+              <span style={st.optValue}>{Math.round(vol * 100)}%</span>
+            </div>
             <p style={st.menuFine}>Esc lets go of the mouse. Click RESUME, or the game, to jump back in.</p>
           </section>
         </div>
@@ -735,40 +789,40 @@ export function Ratxecutioner({ face }: { face: string }) {
   )
 }
 
-/** The words' outline and hard shadow: the battle curtain's (MapDive WORDS_INK). */
-const INK_EDGE = 'drop-shadow(3px 0 0 #1a1a1a) drop-shadow(-3px 0 0 #1a1a1a) drop-shadow(0 3px 0 #1a1a1a) drop-shadow(0 -3px 0 #1a1a1a) drop-shadow(4px 4px 0 #1a1a1a)'
-const CHECKS = 'repeating-conic-gradient(#d3dceb 0 25%, #c9d3e4 0 50%)'
-
 /**
- * The battle curtain over the game view: two halves of the paper-blue checker
- * that shut and part, with the words drawn ONCE PER HALF so each half carries its
- * side away, white then gold, slamming in and trembling.
+ * THE FIGHT'S CURTAIN over the game view (MapDive's CurtainHalves, the very same
+ * piece), drawn in its 480x320 stage and scaled to the view's width — the stage is
+ * a touch taller than the view, so it is centred and the extra is cut off.
+ *
+ *   close: the view fades to white, then the checker fades in over it
+ *   open:  the halves part down the middle, easing in
  */
-function Curtain({ lines, up, open, width }: { lines: readonly string[]; up: number; open: boolean; key: number; width: number }) {
-  const widest = Math.max(1, ...lines.map(l => measure(l)))
-  const scale = Math.max(1, Math.min(5, Math.floor((width * 0.86) / widest)))
-  const words = (side: 0 | 1) => (
-    <div style={{ position: 'absolute', top: 0, bottom: 0, width: '200%', left: side ? '-100%' : 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-      {lines.slice(0, up).map((l, i) => (
-        <div key={l + i} style={{ animation: 'cradle-count 0.45s ease-out', filter: INK_EDGE }}>
-          <div style={{ animation: 'cradle-shake 0.3s steps(5) infinite' }}>
-            <BitmapText text={l} scale={scale} color={i === 0 ? '#f0f0f5' : '#ffd166'} />
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-  const half = (side: 0 | 1): React.CSSProperties => ({
-    position: 'absolute', top: 0, bottom: 0, width: '50%', left: side ? '50%' : 0, overflow: 'hidden',
-    background: CHECKS, backgroundSize: '64px 64px',
-    transform: open ? `translateX(${side ? 101 : -101}%)` : 'translateX(0)',
-    transition: open ? 'transform 0.8s ease-in' : 'transform 0.45s ease-out',
-    boxShadow: side ? 'inset 2px 0 0 #1a1a1a' : 'inset -2px 0 0 #1a1a1a',
-  })
+function GameCurtain({ lines, up, phase, quiet, ink, width }: {
+  lines: readonly string[]; up: number; phase: 'close' | 'open'; quiet: boolean; ink: string; width: number
+}) {
+  const [clock, setClock] = useState(0)
+  const since = useRef({ phase, at: 0 })
+  useEffect(() => {
+    let raf = 0
+    const t0 = performance.now()
+    const tick = () => { setClock(performance.now() - t0); raf = requestAnimationFrame(tick) }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [])
+  if (since.current.phase !== phase) since.current = { phase, at: clock }
+  const t = clock - since.current.at
+  const clamp = (n: number) => Math.max(0, Math.min(1, n))
+  const white = phase === 'close' ? clamp(t / CURTAIN_MS.white) : 0
+  const checks = phase === 'close' ? clamp((t - CURTAIN_MS.white) / CURTAIN_MS.checks) : 1
+  const split = phase === 'open' ? clamp(t / CURTAIN_MS.split) ** 2 : 0
+  const k = width / CURTAIN_W
+  const viewH = width * (H / W)
   return (
-    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
-      <div style={half(0)}>{words(0)}</div>
-      <div style={half(1)}>{words(1)}</div>
+    <div style={{ position: 'absolute', left: 0, top: 0, width, height: viewH, overflow: 'hidden', pointerEvents: 'none' }}>
+      {white > 0 && <div style={{ position: 'absolute', inset: 0, background: '#ffffff', opacity: white }} />}
+      <div style={{ position: 'absolute', left: 0, top: (viewH - CURTAIN_H * k) / 2, width: CURTAIN_W, height: CURTAIN_H, transform: `scale(${k})`, transformOrigin: '0 0', imageRendering: 'pixelated' }}>
+        {checks > 0 && <CurtainHalves clock={clock} checks={checks} split={split} quiet={quiet} ink={ink} words={lines} wordsUp={up} />}
+      </div>
     </div>
   )
 }
@@ -783,7 +837,10 @@ const st: Record<string, React.CSSProperties> = {
   menuFine: { margin: '4px 0 0', fontSize: 15 },
   opts:     { display: 'flex', flexWrap: 'wrap', gap: '8px 24px', color: '#000' },
   opt:      { display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, color: '#000080' },
-  range:    { width: 140, accentColor: '#000080', cursor: 'pointer' },
+  range:    { width: '100%', margin: 0, accentColor: '#000080', cursor: 'pointer' },
+  optGrid:  { display: 'grid', gridTemplateColumns: '112px 1fr 44px', alignItems: 'center', columnGap: 10, rowGap: 10, marginTop: 6 },
+  optLabel: { fontSize: 16, color: '#000080', whiteSpace: 'nowrap' },
+  optValue: { fontSize: 16, color: '#000080', textAlign: 'right' },
   pads:   { display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 8, userSelect: 'none' },
   pad:    { height: 110, background: '#3a3a46', color: '#c0c0c8', display: 'grid', placeItems: 'center', fontSize: 16, touchAction: 'none', boxShadow: 'inset 2px 2px 0 #5a5a68, inset -2px -2px 0 #1a1a22' },
   fire:   { width: 96, background: '#c0392b', color: '#fff', border: 0, fontSize: 20, fontFamily: 'inherit', touchAction: 'none' },
