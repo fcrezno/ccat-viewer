@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { NO_CHAIN } from '@/lib/appmode'
-import { BANNER_TOKENS, bannerFile, pickMosh } from '@/lib/banners'
+import { BANNER_TOKENS, MEME_ADS, MEME_AD_HREF, MEME_AD_NAME, bannerFile, pickMosh, pickOne, type MemeAd } from '@/lib/banners'
 
 /**
  * THE AD COLUMNS — old-web banners down both sides of every page. JP,
@@ -16,6 +16,16 @@ import { BANNER_TOKENS, bannerFile, pickMosh } from '@/lib/banners'
  * Drawn after mount, so the server and the browser agree on the first paint.
  */
 const ROTATE_MS = 20000
+
+/** A Bundle Cat meme ad, scaled to fit `maxW` (never up). */
+function Meme({ ad, maxW, fluid }: { ad: MemeAd; maxW: number; fluid?: boolean }) {
+  const k = Math.min(1, maxW / ad.w)
+  return (
+    <a href={MEME_AD_HREF} target="_blank" rel="noopener" title={MEME_AD_NAME} style={{ display: 'block', lineHeight: 0, margin: '0 auto', width: fluid ? '100%' : Math.round(ad.w * k) }}>
+      <img src={ad.file} alt={MEME_AD_NAME} width={Math.round(ad.w * k)} height={Math.round(ad.h * k)} style={fluid ? { display: 'block', width: '100%', height: 'auto' } : { display: 'block' }} />
+    </a>
+  )
+}
 
 function Ad({ token, suffix, w, h }: { token: number; suffix: string; w: number; h: number }) {
   const t = BANNER_TOKENS[token]
@@ -55,10 +65,12 @@ export function SideAds() {
     return () => { removeEventListener('resize', fitAds); document.documentElement.style.zoom = ''; delete document.documentElement.dataset.rail }
   }, [])
   // [left square, two small squares, two buttons] and [pop-up, two buttons].
-  const [mix, setMix] = useState<{ left: number[]; right: number[]; slimL: number[]; slimR: number[]; tinyL: number[]; tinyR: number[]; strip: number; stripStory: boolean } | null>(null)
+  const [mix, setMix] = useState<{ left: number[]; right: number[]; slimL: number[]; slimR: number[]; tinyL: number[]; tinyR: number[]; strip: number; stripStory: boolean; memeL: MemeAd | null; memeR: MemeAd | null; memeSlim: MemeAd | null; memeStrip: MemeAd | null } | null>(null)
   useEffect(() => {
     if (NO_CHAIN) return
-    const roll = () => setMix({ left: pickMosh(5), right: pickMosh(3), slimL: pickMosh(3), slimR: pickMosh(3), tinyL: pickMosh(4), tinyR: pickMosh(4), strip: pickMosh(1)[0], stripStory: Math.random() < 0.5 })
+    const roll = () => setMix({ left: pickMosh(5), right: pickMosh(3), slimL: pickMosh(3), slimR: pickMosh(3), tinyL: pickMosh(4), tinyR: pickMosh(4), strip: pickMosh(1)[0], stripStory: Math.random() < 0.5,
+      memeL: Math.random() < 0.5 ? pickOne(MEME_ADS.square) : null, memeR: Math.random() < 0.5 ? pickOne(MEME_ADS.tall) : null,
+      memeSlim: Math.random() < 0.35 ? pickOne(MEME_ADS.tall) : null, memeStrip: Math.random() < 0.4 ? pickOne(MEME_ADS.strip) : null })
     roll()
     const t = setInterval(roll, ROTATE_MS)
     return () => clearInterval(t)
@@ -75,7 +87,7 @@ export function SideAds() {
       <aside className="cc-rail cc-rail-left" aria-label="Mosh friends">
         {label}
         {cell(
-          <Ad token={mix.left[0]} suffix="-sq" w={250} h={250} />
+          mix.memeL ? <Meme ad={mix.memeL} maxW={250} /> : <Ad token={mix.left[0]} suffix="-sq" w={250} h={250} />
         )}
         {cell(
         <div className="forum-row">
@@ -106,7 +118,7 @@ export function SideAds() {
       <aside className="cc-rail-slim cc-rail-right" aria-label="Mosh friends">
         {label}
         {cell(
-          <Ad token={mix.slimR[0]} suffix="-won" w={125} h={156} />
+          mix.memeSlim ? <Meme ad={mix.memeSlim} maxW={125} /> : <Ad token={mix.slimR[0]} suffix="-won" w={125} h={156} />
         )}
         {cell(
         <Ad token={mix.slimR[1]} suffix="-sm" w={125} h={125} />
@@ -118,7 +130,7 @@ export function SideAds() {
       <aside className="cc-rail cc-rail-right" aria-label="Mosh friends">
         {label}
         {cell(
-          <Ad token={mix.right[0]} suffix="-won" w={250} h={312} />
+          mix.memeR ? <Meme ad={mix.memeR} maxW={250} /> : <Ad token={mix.right[0]} suffix="-won" w={250} h={312} />
         )}
         {cell(
         <div className="forum-row">
@@ -139,9 +151,10 @@ export function SideAds() {
       {/* Narrow screens and phones: one old-school 468x60 banner at the foot of the page. */}
       <div className="cc-foot" aria-label="Mosh friends">
         <span className="forum-cap">Advertisement</span>
+        {mix.memeStrip ? <div style={{ maxWidth: 468, width: '100%' }}><Meme ad={mix.memeStrip} maxW={468} fluid /></div> :
         <a href={BANNER_TOKENS[mix.strip].href} target="_blank" rel="noopener" style={{ display: 'block', lineHeight: 0, maxWidth: 468, width: '100%' }}>
           <img src={bannerFile(mix.strip, mix.stripStory ? '-story' : '')} alt={BANNER_TOKENS[mix.strip].name} width={468} height={60} style={{ width: '100%', height: 'auto', imageRendering: 'pixelated', display: 'block' }} />
-        </a>
+        </a>}
       </div>
     </>
   )

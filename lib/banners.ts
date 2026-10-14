@@ -56,3 +56,25 @@ export function pickMosh(n: number): number[] {
   }
   return out.slice(0, n)
 }
+
+/*
+ * BUNDLE CAT MEME ADS (scripts/make-memeads.mjs): the Meme Depot memes as 2000s
+ * IAB ads (JP, 2026-10-13: "make some of the new images ads for the site in the
+ * same internet ad style"). They take a column's top slot about half the time.
+ * Round two ("use the images we gain and make more ads"): ten more, same script.
+ */
+export const MEME_AD_HREF = BANNER_TOKENS[1].href
+export const MEME_AD_NAME = BANNER_TOKENS[1].name
+export type MemeAd = { file: string; w: number; h: number }
+const memeAd = (name: string, w: number, h: number): MemeAd => ({ file: `/flyers/bun-x-${name}.gif`, w, h })
+export const MEME_ADS = {
+  /** For the 250-wide top of the left column. */
+  square: [memeAd('getby', 300, 250), memeAd('career', 250, 250), memeAd('nowall', 200, 200), memeAd('beforeyougo', 300, 250),
+    memeAd('comfy', 300, 250), memeAd('bundog', 250, 250), memeAd('throne', 300, 250), memeAd('storm', 300, 250),
+    memeAd('energy', 250, 250), memeAd('trick', 300, 250), memeAd('virus', 300, 250)],
+  /** The skyscraper, for the top of the right columns. */
+  tall: [memeAd('side', 160, 600), memeAd('fighter', 160, 600)],
+  /** The 468x60, for the strip at the foot. */
+  strip: [memeAd('hearing', 468, 60), memeAd('creation', 468, 60), memeAd('bear', 468, 60)],
+}
+export const pickOne = <T,>(a: readonly T[]) => a[Math.floor(Math.random() * a.length)]

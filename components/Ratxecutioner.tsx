@@ -442,6 +442,9 @@ export function Ratxecutioner({ face }: { face: string }) {
       })
     }
     hangPosters()
+    // ?demo: a read-only look at the game for the demo-video bot (clanker-clips/ratx-demo.js). Changes nothing.
+    if (new URLSearchParams(location.search).has('demo'))
+      (window as unknown as { __ratx?: () => unknown }).__ratx = () => ({ px, py, dx, dy, hp, kills, wave, map: MAP, rats: rats.filter(r => !r.dead).map(r => [r.x, r.y]) })
     /** The game's bitmap font, tinted once per colour. */
     const sheetFor = (color: string) => {
       let sheet = tinted.get(color)

@@ -80,6 +80,12 @@ const GO_MS = BEAT_MS + 600
 const ANNOUNCE_STEP = 600
 /** After the last half lands, the line settles this long before the curtain opens. */
 const ANNOUNCE_SETTLE = 1400
+/**
+ * A one-half line (IM MOSHING IT!, the BUY lines) stays up this much longer: it has
+ * no second slam, so it flashed past (JP, 2026-10-13: "im moshing it ... wayy to fast
+ * ... in terms of speed it shows up and last on the screen").
+ */
+const ANNOUNCE_SOLO = 1200
 /** The countdown's outline and shadow: see the 3, 2, 1, FIGHT! below. */
 const COUNT_INK = 'drop-shadow(3px 0 0 #1a1a1a) drop-shadow(-3px 0 0 #1a1a1a) drop-shadow(0 3px 0 #1a1a1a) drop-shadow(0 -3px 0 #1a1a1a) drop-shadow(4px 4px 0 #1a1a1a)'
 
@@ -976,7 +982,7 @@ export function Cradle() {
     const said = sound.muted ? 0 : VOICE_MS[line]?.[announce - 1] ?? 0
     const t = result && announce < announcerFor(result.seed).length
       ? setTimeout(() => setAnnounce(announce + 1), Math.max(ANNOUNCE_STEP / speed, said + 150))
-      : setTimeout(() => { setCurtainOpen(true); setCount(c => c ?? 3) }, Math.max(ANNOUNCE_SETTLE / speed, said + 500))
+      : setTimeout(() => { setCurtainOpen(true); setCount(c => c ?? 3) }, Math.max(ANNOUNCE_SETTLE / speed, said + 500) + (result && announcerFor(result.seed).length === 1 ? ANNOUNCE_SOLO / speed : 0))
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [announce, speed])
