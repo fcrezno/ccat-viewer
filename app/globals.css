@@ -1144,8 +1144,26 @@ html[data-rail="tiny"] {
 }
 html:not([data-rail="strip"]) .cc-foot { display: none; }
 /* The uniform tables (components/SideAds): each cell sits in its own div, so the stripes count the divs. */
-.cc-rail-uniform > div:nth-child(odd) .forum-cell { background: #dfe6f3; }
-.cc-rail-uniform > div:nth-child(even) .forum-cell { background: #eef2f9; }
+/*
+ * THE 1998 HOMEPAGE TABLE (JP, 2026-10-14: "make it real classic like"): silver,
+ * a raised 3D edge, a teal title in Times, sunken cells, blue underlined links.
+ */
+.cc-rail-uniform {
+  background: #c0c0c0 !important; border: 3px outset #e8e8e8 !important; box-shadow: 4px 4px 0 0 rgba(0, 0, 0, 0.35) !important;
+  padding: 0; gap: 2px !important;
+}
+.cc-rail-uniform .forum-head {
+  background: #008080 !important; color: #ffff00 !important; border: 2px inset #e8e8e8 !important;
+  font: bold 14px "Times New Roman", Times, serif !important; text-align: center; letter-spacing: 0.5px !important; padding: 3px 4px !important;
+}
+/* Thin padding: 250 + 2x2 + 2x2 border + 2x3 table edge = 264, inside the 266 column (and 125 in 141, 88 in 100). */
+.cc-rail-uniform .forum-cell { background: #c0c0c0 !important; border: 2px inset #e8e8e8 !important; padding: 2px !important; }
+.cc-rail-tiny.cc-rail-uniform .forum-cell { padding: 1px !important; }
+.cc-rail-uniform .forum-cap { font: 10px "Times New Roman", Times, serif; color: #000; align-self: center; }
+.geo-click { font: 13px "Times New Roman", Times, serif; color: #0000ee; text-decoration: underline; line-height: 14px; }
+.geo-click:visited { color: #551a8b; }
+.geo-click:hover { color: #ff0000; }
+.geo-foot { font: italic 11px "Times New Roman", Times, serif; color: #000; text-align: center; padding: 4px 2px; border: 2px inset #e8e8e8; background: #d4d0c8; }
 /*
  * WHICH TIER, AND A LITTLE ZOOM (JP: "i need to zoom in and out to see the ads; fix
  * that"): components/SideAds measures the window and sets html[data-rail]. A window

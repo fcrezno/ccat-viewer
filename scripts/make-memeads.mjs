@@ -17,6 +17,7 @@ import { existsSync, mkdirSync, rmSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
 import { spawnSync } from 'child_process'
+import { FRAMES, bevel, blinkOf, decorate, encodeGif } from './classic.mjs'
 
 const FFMPEG = 'C:/Users/JPDom/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-8.1.1-full_build/bin/ffmpeg.exe'
 const OUT = 'public/flyers'
@@ -39,6 +40,11 @@ const X = 2                                       // pictures and drawing at twi
 /** A meme cropped to w x h, as a data URI for the SVG. */
 async function pic(n, w0, h0, position = 'centre') {
   const w = w0 * X, h = h0 * X
+  // 'contain': the whole picture, on white (the hand-drawn memes: a crop cuts their words).
+  if (position === 'contain') {
+    const png = await sharp(MEME(n)).resize(w, h, { fit: 'contain', background: '#ffffff', kernel: 'lanczos3' }).flatten({ background: '#ffffff' }).png().toBuffer()
+    return 'data:image/png;base64,' + png.toString('base64')
+  }
   // position may be a number: the crop's centre, 0..1 across the picture.
   const tall = await sharp(MEME(n)).resize({ height: h, kernel: 'lanczos3' }).toBuffer()
   const png = typeof position === 'number'
@@ -51,7 +57,10 @@ async function pic(n, w0, h0, position = 'centre') {
 const img = (uri, x, y, w, h, extra = '') => `<image href="${uri}" x="${x}" y="${y}" width="${w}" height="${h}" ${extra}/>`
 
 /** A rounded glossy button: the 2004 "LEARN MORE" pill. `lit` is the blink frame. */
-function pill(x, y, w, h, label, { from, to, ink = '#1a1a1a', size = 14, lit = false, font = 'Arial Black' }) {
+function pill(x, y, w, h, label, { size = 14, lit = false } = {}) {
+  return bevel(x, y, w, h, label, { size: Math.min(size, 14), lit })
+}
+function glossyPill(x, y, w, h, label, { from, to, ink = '#1a1a1a', size = 14, lit = false, font = 'Arial Black' }) {
   const id = 'g' + Math.round(x + y * 7 + w)
   return `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="${lit ? '#ffffff' : from}"/><stop offset="0.45" stop-color="${from}"/><stop offset="1" stop-color="${to}"/></linearGradient></defs>
@@ -145,7 +154,7 @@ const ADS = [
     return f => `<defs><linearGradient id="tb" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0a246a"/><stop offset="1" stop-color="#a6caf0"/></linearGradient></defs>
       <rect width="300" height="250" fill="#d4d0c8"/>
       <rect x="2" y="2" width="296" height="18" fill="url(#tb)"/>
-      <text x="7" y="15" font-family="Tahoma" font-weight="bold" font-size="10.5" fill="#fff">Special Offer - Microsoft Internet Explorer</text>
+      <text x="7" y="15" font-family="Tahoma" font-weight="bold" font-size="10.5" fill="#fff">Special Offer - Internet Explorer</text>
       ${['_', '□', '×'].map((c, i) => `<rect x="${246 + i * 17}" y="4" width="15" height="13" fill="#d4d0c8" stroke="#fff"/><text x="${253.5 + i * 17}" y="14.5" text-anchor="middle" font-family="Tahoma" font-weight="bold" font-size="10">${c}</text>`).join('')}
       <rect x="5" y="23" width="290" height="222" fill="#fff" stroke="#808080"/>
       <rect x="5" y="23" width="290" height="34" fill="#0b5fbf"/>
@@ -211,7 +220,7 @@ ADS.push(
       <text x="150" y="21" text-anchor="middle" font-family="Arial Black" font-size="15" fill="#fff">⚠ SEVERE BUN WARNING ⚠</text>
       ${img(p, 0, 30, 300, 150)}
       <rect x="0" y="152" width="300" height="28" fill="#000" opacity="0.6"/>
-      <text x="10" y="171" font-family="Verdana" font-weight="bold" font-size="10" fill="#ffe94a">A WALL OF BUN IS MOVING THROUGH YOUR AREA</text>
+      <text x="10" y="171" font-family="Verdana" font-weight="bold" font-size="10" fill="#ffe94a">A WALL OF BUN IS HEADING YOUR WAY</text>
       <text x="12" y="202" font-family="Arial" font-size="12" fill="#fff">Today: <tspan font-weight="bold">100% chance of bun</tspan></text>
       <text x="12" y="220" font-family="Arial" font-size="12" fill="#fff">Tonight: <tspan font-weight="bold">scattered cats</tspan></text>
       ${pill(196, 198, 96, 28, 'FORECAST', { from: '#4fa3ff', to: '#1b5fc2', ink: '#fff', size: 12, lit: f === 1 })}
@@ -251,14 +260,14 @@ ADS.push(
     const p = await pic(21, 104, 104, 'centre')
     return f => `<rect width="300" height="250" fill="#d4d0c8" stroke="#000"/>
       <rect x="2" y="2" width="296" height="18" fill="${f ? '#0a246a' : '#7b0000'}"/>
-      <text x="7" y="15" font-family="Tahoma" font-weight="bold" font-size="10.5" fill="#fff">System Alert - Microsoft Internet Explorer</text>
+      <text x="7" y="15" font-family="Tahoma" font-weight="bold" font-size="10.5" fill="#fff">System Alert - Internet Explorer</text>
       <rect x="280" y="4" width="15" height="13" fill="#d4d0c8" stroke="#fff"/><text x="287.5" y="14.5" text-anchor="middle" font-family="Tahoma" font-weight="bold" font-size="10">×</text>
       <circle cx="30" cy="48" r="16" fill="#ffd200" stroke="#000"/><text x="30" y="56" text-anchor="middle" font-family="Arial Black" font-size="22">!</text>
       <text x="54" y="44" font-family="Tahoma" font-weight="bold" font-size="14" fill="#c00">WARNING!</text>
       <text x="54" y="60" font-family="Tahoma" font-size="11">Your PC may be infected with</text>
       <text x="10" y="90" font-family="Tahoma" font-weight="bold" font-size="17" fill="#000">EXTREME CUTENESS</text>
-      <text x="10" y="112" font-family="Tahoma" font-size="11">(1) BUN detected on this computer.</text>
-      <text x="10" y="128" font-family="Tahoma" font-size="11">Scanning: C:\\Windows\\Bundle\\</text>
+      <text x="10" y="112" font-family="Tahoma" font-size="11">(1) BUN detected!</text>
+      <text x="10" y="128" font-family="Tahoma" font-size="11">Scanning C:\\Bun\\</text>
       <rect x="10" y="136" width="170" height="14" fill="#fff" stroke="#808080"/>
       ${[...Array(f ? 11 : 7)].map((_, i) => `<rect x="${12 + i * 15}" y="138" width="13" height="10" fill="#0a246a"/>`).join('')}
       <rect x="188" y="74" width="104" height="104" fill="#000"/>${img(p, 188, 74, 104, 104)}
@@ -327,7 +336,7 @@ ADS.push(
       <rect x="12" y="44" width="134" height="200" fill="#000"/>${img(p, 14, 46, 130, 196)}
       <text x="79" y="66" text-anchor="middle" font-family="Times New Roman" font-weight="bold" font-size="14" fill="#fff" stroke="#000" stroke-width="2" paint-order="stroke">BUN AND THE STONE</text>
       <g font-family="Arial" fill="#fff"><text x="158" y="70" font-size="12" font-style="italic">"Two paws up!"</text>
-        <text x="158" y="88" font-size="10" fill="#ffd200">★★★★★ The Mosh Times</text>
+        <text x="158" y="88" font-size="10" fill="#ffd200">★★★★★ Mosh Times</text>
         <text x="158" y="116" font-size="12" font-weight="bold">Only the true king</text><text x="158" y="132" font-size="12" font-weight="bold">can pull the bun.</text></g>
       ${pill(158, 196, 130, 30, 'RENT IT TODAY', { from: '#ffd200', to: '#e0a800', ink: '#003a8c', size: 12, lit: f === 1 })}
       <text x="223" y="244" text-anchor="middle" font-family="Arial" font-size="8" fill="#9db8e8">Be kind, rewind.</text>` } },
@@ -377,7 +386,7 @@ ADS.push(
       <rect y="168" width="300" height="82" fill="#111" opacity="0.92"/>
       <text x="12" y="192" font-family="Arial Black" font-style="italic" font-size="17" fill="#fff">WORLD PILLOW FIGHT</text>
       <text x="12" y="212" font-family="Arial Black" font-style="italic" font-size="17" fill="#ffd200">CHAMPIONSHIP</text>
-      <text x="12" y="236" font-family="Arial" font-size="11" fill="#bbb">SAT 8PM · ONLY ON MOSH SPORTS</text>
+      <text x="12" y="236" font-family="Arial" font-size="11" fill="#bbb">SAT 8PM · MOSH SPORTS</text>
       ${pill(206, 214, 84, 28, 'WATCH', { from: '#ff4a2e', to: '#c3170b', ink: '#fff', size: 13, lit: f === 1 })}` } },
 
   // The e-mail newsletter sign-up -> daily affirmations.
@@ -413,7 +422,7 @@ ADS.push(
       <text x="198" y="72" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="11" fill="#fff">for MEOW</text>
       <g font-family="Arial" font-size="10.5" fill="#ffb07a"><text x="160" y="104">✓ Rip and bun</text><text x="160" y="122">✓ 666 rats</text><text x="160" y="140">✓ No wallet</text></g>
       ${pill(156, 176, 84, 30, 'PLAY', { from: '#ff7a00', to: '#c00000', ink: '#fff', size: 15, lit: f === 1, font: 'Impact' })}
-      <text x="198" y="236" text-anchor="middle" font-family="Arial" font-size="8" fill="#aa6a4a">On sale wherever bun is sold.</text>` } },
+      <text x="125" y="244" text-anchor="middle" font-family="Arial" font-size="10" fill="#aa6a4a">Sold wherever bun is sold.</text>` } },
 
   // The extreme-sports cereal ad -> BUNDLE TO THE EXTREME!
   { name: 'extreme', w: 300, h: 250, async make() {
@@ -428,7 +437,7 @@ ADS.push(
 
   // The instant-messenger pop-up -> You've got BUN!
   { name: 'buddy', w: 250, h: 250, async make() {
-    const p = await pic(32, 80, 80, 'centre')
+    const p = await pic(32, 80, 80, 'contain')
     return f => `<rect width="250" height="250" fill="#d4d0c8"/>
       <rect x="2" y="2" width="246" height="18" fill="#0a246a"/><text x="7" y="15" font-family="Tahoma" font-weight="bold" font-size="10.5" fill="#fff">BunBuddy42 - Instant Message</text>
       <rect x="230" y="4" width="15" height="13" fill="#d4d0c8" stroke="#fff"/><text x="237.5" y="14.5" text-anchor="middle" font-family="Tahoma" font-weight="bold" font-size="10">×</text>
@@ -481,7 +490,7 @@ ADS.push(
 
   // The personality-quiz skyscraper -> WHICH BUN ARE YOU?
   { name: 'quiz', w: 160, h: 600, async make() {
-    const ps = await Promise.all([6, 13, 33, 12].map(n => pic(n, 68, 68, 'north')))
+    const ps = await Promise.all([6, 13, 45, 12].map(n => pic(n, 68, 68, 'north')))
     const names = ['Brave', 'Chill', 'Happy', 'Ninja']
     return f => `<rect width="160" height="600" fill="#6a1b9a"/>
       ${stars(20, 160, 600)}
@@ -514,7 +523,7 @@ ADS.push(
 
   // PUNCH THE MONKEY -> hit the rat.
   { name: 'punch', w: 468, h: 60, async make() {
-    const p = await pic(23, 90, 60, 'centre')
+    const p = await pic(23, 90, 60, 'contain')
     const rx = [300, 340, 380][0]
     return f => `<rect width="468" height="60" fill="#ffe600"/>
       ${img(p, 0, 0, 90, 60)}
@@ -528,7 +537,7 @@ ADS.push(
 
   // The dial-up free-hours CD -> 700 HOURS OF BUN.
   { name: 'dialup', w: 468, h: 60, async make() {
-    const p = await pic(42, 70, 60, 'centre')
+    const p = await pic(42, 70, 60, 'contain')
     return f => `<defs><linearGradient id="cd" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9bf"/><stop offset="0.5" stop-color="#fdf"/><stop offset="1" stop-color="#9fd"/></linearGradient></defs>
       <rect width="468" height="60" fill="#0b2a7a"/>
       <circle cx="35" cy="30" r="27" fill="url(#cd)" stroke="#fff"/><circle cx="35" cy="30" r="5" fill="#0b2a7a"/>
@@ -563,16 +572,61 @@ const shown = ad => {
  * column cell is the same size.
  */
 const square = ad => ad.h !== 60 && ad.h < 600
+/*
+ * READABLE (JP, 2026-10-14: "make sure its readable to users"): no word on an ad is
+ * smaller than MIN_PX as the page shows it. A 300x250 is shown at 250, so its small
+ * print is raised to MIN_PX / (250/300) in its own units. Single symbols (the stars,
+ * the window buttons) keep their size.
+ */
+const MIN_PX = 10
+/** Lay classic.mjs's cheap animation for frame f over a finished frame (PNG buffer, fw x fh). */
+async function withDecor(png, name, fw, fh, f) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${fw * X}" height="${fh * X}" viewBox="0 0 ${fw} ${fh}">${decorate(name, fw, fh, f)}</svg>`
+  const top = await sharp(Buffer.from(svg)).resize(fw, fh, { kernel: 'lanczos3' }).png().toBuffer()
+  return sharp(png).composite([{ input: top, left: 0, top: 0 }]).png().toBuffer()
+}
+
+const readable = (svg, k) => svg.replace(/font-size="([0-9.]+)"([^>]*>)([^<]*)/g, (all, size, rest, text) =>
+  text.trim().length <= 1 || +size * k >= MIN_PX ? all : `font-size="${(MIN_PX / k).toFixed(1)}"${rest}${text}`)
+/*
+ * THE MINIS (JP: "make sure its readable to users"): a 250 square shrunk to the
+ * medium columns' 125 has words too small to read, so each square has its own
+ * 125x125: its picture and one big title. -> bun-x-<name>-mini.webp
+ */
+const MINI = {
+  getby: [39, 'GOT $BUN?'], career: [37, 'CAREER'], nowall: [36, 'NO WALL'], beforeyougo: [46, 'DID U KNOW'],
+  comfy: [40, 'COMFY'], bundog: [25, 'BUN DOG'], throne: [29, 'THE THRONE'], storm: [41, 'BUN STORM'],
+  energy: [31, 'BUN ENERGY'], trick: [18, '1 WEIRD TRICK'], virus: [21, 'VIRUS ALERT'], bunmania: [20, 'BUNMANIA'],
+  stone: [9, 'NOW ON VHS'], infinity: [3, 'INFINITY'], bunwich: [30, 'BUN-WICH'], aisle9: [35, 'FRESH BUNS'],
+  pillow: [47, 'PILLOW FIGHT'], smiling: [45, 'SMILE!'], theory: [14, 'BUN THEORY'], doom: [46, 'RATED M'],
+  extreme: [22, 'XTREME!', 'contain'], buddy: [32, 'BUNBUDDY', 'contain'], island: [38, 'BUN ISLAND'],
+  singles: [6, 'SINGLES'], screensaver: [16, 'SCREENSAVER'],
+}
+async function miniOf(name) {
+  const [n, title, pos] = MINI[name]
+  const p = await pic(n, 125, 125, pos || 'north')
+  const size = title.length > 10 ? 12 : 15
+  return f => `${img(p, 0, 0, 125, 125)}
+    <rect y="91" width="125" height="34" fill="${f ? '#c00000' : '#0b1f5c'}" opacity="0.93"/>
+    <text x="62.5" y="${108 + size * 0.36}" text-anchor="middle" font-family="Arial Black" font-size="${size}" fill="${f ? '#ffffff' : '#ffd200'}">${title.replace(/&/g, '&amp;')}</text>
+    <rect x="0.5" y="0.5" width="124" height="124" fill="none" stroke="#0b1f5c"/>`
+}
 // "node scripts/make-memeads.mjs comfy storm" makes just those.
 const only = process.argv.slice(2)
 for (const ad of ADS.filter(a => !only.length || only.includes(a.name))) {
   const draw = await ad.make()
+  // AUDIT=1: list every text smaller than 10 px as the page shows it (readability sweep).
+  if (process.env.AUDIT) {
+    const k = shown(ad)[0] / ad.w, svg = readable(draw(0), k)
+    for (const m of svg.matchAll(/font-size="([0-9.]+)"[^>]*>([^<]{0,40})/g)) if (+m[1] * k < 10) console.log(ad.name.padEnd(12), (+m[1] * k).toFixed(1).padStart(5), m[2])
+    continue
+  }
   const dir = join(tmpdir(), 'memead-' + ad.name)
   rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true })
   const [sw, sh] = shown(ad)
-  for (const f of [0, 1]) {
+  for (let f = 0; f < FRAMES; f++) {
     // The ad's own coordinates (viewBox), rasterised at 2x the shown size, then brought down.
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${sw * X}" height="${sh * X}" viewBox="0 0 ${ad.w} ${ad.h}">${draw(f)}</svg>`
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${sw * X}" height="${sh * X}" viewBox="0 0 ${ad.w} ${ad.h}">${readable(draw(blinkOf(f)), sw / ad.w)}</svg>`
     const px = sharp(await sharp(Buffer.from(svg)).resize(sw, sh, { kernel: 'lanczos3' }).png().toBuffer())
     const pad = square(ad) ? 250 - sh : 0
     if (pad > 0) {
@@ -581,15 +635,26 @@ for (const ad of ADS.filter(a => !only.length || only.includes(a.name))) {
       const avg = async top => { const { data } = await sharp(raw).extract({ left: 0, top, width: sw, height: 2 }).resize(1, 1).raw().toBuffer({ resolveWithObject: true }); return { r: data[0], g: data[1], b: data[2], alpha: 1 } }
       const top = await avg(3), bot = await avg(sh - 5)          // inside any 1px border
       const t = Math.floor(pad / 2), b = Math.ceil(pad / 2)
-      await sharp({ create: { width: sw, height: 250, channels: 4, background: top } })
+      const full = await sharp({ create: { width: sw, height: 250, channels: 4, background: top } })
         .composite([{ input: { create: { width: sw, height: b + 1, channels: 4, background: bot } }, left: 0, top: 250 - b - 1 }, { input: raw, left: 0, top: t }])
-        .png().toFile(join(dir, `f00${f}.png`))
-    } else await px.png().toFile(join(dir, `f00${f}.png`))
+        .png().toBuffer()
+      await sharp(await withDecor(full, ad.name, sw, 250, f)).toFile(join(dir, `f00${f}.png`))
+    } else await sharp(await withDecor(await px.png().toBuffer(), ad.name, sw, sh, f)).toFile(join(dir, `f00${f}.png`))
   }
-  const out = join(OUT, `bun-x-${ad.name}.webp`)
-  const r = spawnSync(FFMPEG, ['-v', 'error', '-y', '-framerate', '1.5', '-i', join(dir, 'f%03d.png'),
-    '-c:v', 'libwebp_anim', '-quality', '90', '-compression_level', '6', '-loop', '0', out], { stdio: 'inherit' })
+  const out = join(OUT, `bun-x-${ad.name}.gif`)
+  encodeGif(dir, out)
   rmSync(dir, { recursive: true, force: true })
-  if (r.status) throw new Error('ffmpeg failed for ' + out)
+  if (MINI[ad.name]) {
+    const draw2 = await miniOf(ad.name)
+    const d2 = join(tmpdir(), 'memead-mini-' + ad.name)
+    rmSync(d2, { recursive: true, force: true }); mkdirSync(d2, { recursive: true })
+    for (let f = 0; f < FRAMES; f++) {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${125 * X}" height="${125 * X}" viewBox="0 0 125 125">${draw2(blinkOf(f))}</svg>`
+      const png = await sharp(Buffer.from(svg)).resize(125, 125, { kernel: 'lanczos3' }).png().toBuffer()
+      await sharp(await withDecor(png, ad.name + '-mini', 125, 125, f)).toFile(join(d2, `f00${f}.png`))
+    }
+    encodeGif(d2, join(OUT, `bun-x-${ad.name}-mini.gif`))
+    rmSync(d2, { recursive: true, force: true })
+  }
   console.log('ok', out)
 }

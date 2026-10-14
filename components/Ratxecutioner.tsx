@@ -389,7 +389,7 @@ export function Ratxecutioner({ face }: { face: string }) {
     Promise.all(BANNER_TOKENS.flatMap((_, i) => [['-sq', 3], ['-won', 2]].map(([sfx, step]) =>
       posterOf(bannerFile(i, sfx as string), step as number).catch(() => null)))
       // ... and the Bundle Cat meme ads (JP: "put them on the website and in the game").
-      .concat([...MEME_ADS.square, ...MEME_ADS.tall].map(a => posterOf(a.file, 1).catch(() => null))))
+      .concat([...MEME_ADS.square, ...MEME_ADS.tall].map(a => posterOf(a.file, 4).catch(() => null))))   // every 4th of 8 frames: the blink, not 8x the memory
       .then(list => { posters = list.filter((p): p is NonNullable<typeof p> => !!p) })
     /*
      * THE MEMES (JP: "get the memes from here and add them as posters in the game",
@@ -398,6 +398,8 @@ export function Ratxecutioner({ face }: { face: string }) {
      * 48 decodes. JP's picks (his "make these ads", 2026-10-13) hang in every lair.
      */
     const MEME_PICKS = [7, 11, 24, 36, 37, 39]
+    // 48 Bundle Cat memes, then King Bork's (public/ratx/memes/list.json: kbNN.jpg; "do the same for king bork").
+    const MEME_COUNT = 90
     let memeFiles: string[] = []
     const memes = new Map<number, { frames: ImageData[]; ms: number[]; total: number } | null>()
     const memeList = fetch('/ratx/memes/list.json').then(r => r.json() as Promise<string[]>).then(l => { memeFiles = l }).catch(() => {})
@@ -434,7 +436,7 @@ export function Ratxecutioner({ face }: { face: string }) {
       }))
       const near = faces.filter(f => f.d < 3.5).sort(() => Math.random() - 0.5).slice(0, 3)
       const rest = faces.filter(f => !near.includes(f)).sort(() => Math.random() - 0.5)
-      const others = Array.from({ length: 48 }, (_, i) => i + 1).filter(n => !MEME_PICKS.includes(n)).sort(() => Math.random() - 0.5)
+      const others = Array.from({ length: MEME_COUNT }, (_, i) => i + 1).filter(n => !MEME_PICKS.includes(n)).sort(() => Math.random() - 0.5)
       const memeDeck = [...[...MEME_PICKS].sort(() => Math.random() - 0.5), ...others]
       let ad = Math.floor(Math.random() * 1000), mi = 0          // a random start in the whole ad list
       ;[...near, ...rest].slice(0, 40).forEach((f, i) => {

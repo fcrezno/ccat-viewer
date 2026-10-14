@@ -63,29 +63,38 @@ export function pickMosh(n: number): number[] {
  * same internet ad style"). They take a column's top slot about half the time.
  * Round two ("use the images we gain and make more ads"): ten more, same script.
  */
-export const MEME_AD_HREF = BANNER_TOKENS[1].href
-export const MEME_AD_NAME = BANNER_TOKENS[1].name
-export type MemeAd = { file: string; w: number; h: number }
-const memeAd = (name: string, w: number, h: number): MemeAd => ({ file: `/flyers/bun-x-${name}.webp`, w, h })
+export type MemeAd = { file: string; mini?: string; w: number; h: number; href: string; name: string }
+const BUN = BANNER_TOKENS[1], BORK = BANNER_TOKENS[4]
+const bun = (name: string, w: number, h: number, mini = false): MemeAd =>
+  ({ file: `/flyers/bun-x-${name}.gif`, mini: mini ? `/flyers/bun-x-${name}-mini.gif` : undefined, w, h, href: BUN.href, name: BUN.name })
+const bork = (name: string, w: number, h: number): MemeAd =>
+  ({ file: `/flyers/bork-x-${name}.gif`, mini: `/flyers/bork-x-${name}-mini.gif`, w, h, href: BORK.href, name: BORK.name })
 /*
- * 35 ads (JP, 2026-10-14: "make at least 33 ads and put them on the website and in
- * the game"), drawn sharp at the size they are SHOWN: every square is 250x250 for
- * the 250 column (scripts/make-memeads.mjs). RATXECUTIONER hangs the squares and
- * the tall ones on its walls too.
+ * THE MEME ADS: Bundle Cat (scripts/make-memeads.mjs, 35) and King Bork
+ * (scripts/make-borkads.mjs, 33; JP, 2026-10-14: "do the same for king bork as
+ * well"). Drawn sharp at the size they are SHOWN; every square is 250x250
+ * ("make the ads be uniform") with a 125x125 mini made to be read in the medium
+ * columns ("make sure its readable to users"). Each links to its own token.
+ * RATXECUTIONER hangs the squares and the tall ones on its walls too.
  */
-// Every square is saved 250x250 ("make the ads be uniform"), whatever its design size.
-const sq = (n: string) => memeAd(n, 250, 250), sq250 = sq
+const sq = (n: string) => bun(n, 250, 250, true)
+const ksq = (n: string) => bork(n, 250, 250)
 export const MEME_ADS = {
-  /** For the 250-wide top of the left column. */
   square: [
-    sq('getby'), sq250('career'), sq('nowall'), sq('beforeyougo'), sq('comfy'), sq250('bundog'),
-    sq('throne'), sq('storm'), sq250('energy'), sq('trick'), sq('virus'), sq('bunmania'), sq('stone'),
-    sq('infinity'), sq('bunwich'), sq250('aisle9'), sq('pillow'), sq250('smiling'), sq('theory'), sq250('doom'),
-    sq('extreme'), sq250('buddy'), sq('island'), sq('singles'), sq250('screensaver'),
+    sq('getby'), sq('career'), sq('nowall'), sq('beforeyougo'), sq('comfy'), sq('bundog'),
+    sq('throne'), sq('storm'), sq('energy'), sq('trick'), sq('virus'), sq('bunmania'), sq('stone'),
+    sq('infinity'), sq('bunwich'), sq('aisle9'), sq('pillow'), sq('smiling'), sq('theory'), sq('doom'),
+    sq('extreme'), sq('buddy'), sq('island'), sq('singles'), sq('screensaver'),
+    ksq('decree'), ksq('movie'), ksq('ball'), ksq('feast'), ksq('paint'), ksq('gym'), ksq('mobile'), ksq('winter'),
+    ksq('tenten'), ksq('lostcrown'), ksq('court'), ksq('anger'), ksq('tour'), ksq('bakery'), ksq('yoga'), ksq('borktv'),
+    ksq('driving'), ksq('seal'), ksq('shades'), ksq('queen'), ksq('castle'), ksq('mattress'), ksq('mail'), ksq('callnow'),
+    ksq('gala'), ksq('spa'), ksq('builders'),
   ],
-  /** The skyscrapers, for the top of the right columns. */
-  tall: [memeAd('side', 160, 600), memeAd('fighter', 160, 600), memeAd('quiz', 160, 600), memeAd('hotornot', 160, 600)],
+  /** The skyscrapers (the game's walls). */
+  tall: [bun('side', 160, 600), bun('fighter', 160, 600), bun('quiz', 160, 600), bun('hotornot', 160, 600),
+    bork('chocolate', 160, 600), bork('party', 160, 600), bork('borkooor', 160, 600)],
   /** The 468x60s, for the strip at the foot. */
-  strip: [memeAd('hearing', 468, 60), memeAd('creation', 468, 60), memeAd('bear', 468, 60), memeAd('punch', 468, 60), memeAd('dialup', 468, 60), memeAd('askbun', 468, 60)],
+  strip: [bun('hearing', 468, 60), bun('creation', 468, 60), bun('bear', 468, 60), bun('punch', 468, 60), bun('dialup', 468, 60), bun('askbun', 468, 60),
+    bork('bait', 468, 60), bork('soback', 468, 60), bork('spicy', 468, 60)],
 }
 export const pickOne = <T,>(a: readonly T[]) => a[Math.floor(Math.random() * a.length)]

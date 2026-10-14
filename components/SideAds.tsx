@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { NO_CHAIN } from '@/lib/appmode'
-import { BANNER_TOKENS, MEME_ADS, MEME_AD_HREF, MEME_AD_NAME, bannerFile, pickMosh, pickOne, type MemeAd } from '@/lib/banners'
+import { BANNER_TOKENS, MEME_ADS, bannerFile, pickMosh, pickOne, type MemeAd } from '@/lib/banners'
 
 /**
  * THE AD COLUMNS — old-web banners down both sides of every page. JP,
@@ -18,11 +18,13 @@ import { BANNER_TOKENS, MEME_ADS, MEME_AD_HREF, MEME_AD_NAME, bannerFile, pickMo
 const ROTATE_MS = 20000
 
 /** A Bundle Cat meme ad, scaled to fit `maxW` (never up). */
-function Meme({ ad, maxW, fluid }: { ad: MemeAd; maxW: number; fluid?: boolean }) {
+function Meme({ ad: big, maxW, fluid }: { ad: MemeAd; maxW: number; fluid?: boolean }) {
+  // In a 125 cell, the mini: its own picture and title, made to be read at that size.
+  const ad = maxW <= 125 && big.mini ? { ...big, file: big.mini, w: 125, h: 125 } : big
   const k = Math.min(1, maxW / ad.w)
   return (
-    <a href={MEME_AD_HREF} target="_blank" rel="noopener" title={MEME_AD_NAME} style={{ display: 'block', lineHeight: 0, margin: '0 auto', width: fluid ? '100%' : Math.round(ad.w * k) }}>
-      <img src={ad.file} alt={MEME_AD_NAME} width={Math.round(ad.w * k)} height={Math.round(ad.h * k)} style={fluid ? { display: 'block', width: '100%', height: 'auto' } : { display: 'block' }} />
+    <a href={ad.href} target="_blank" rel="noopener" title={ad.name} style={{ display: 'block', lineHeight: 0, margin: '0 auto', width: fluid ? '100%' : Math.round(ad.w * k) }}>
+      <img src={ad.file} alt={ad.name} width={Math.round(ad.w * k)} height={Math.round(ad.h * k)} style={fluid ? { display: 'block', width: '100%', height: 'auto' } : { display: 'block' }} />
     </a>
   )
 }
@@ -69,11 +71,11 @@ function fitAds() {
 type Tier = 'full' | 'slim' | 'tiny' | 'strip'
 type Slot = { mosh: number } | { meme: MemeAd }
 const CELLS: Record<Exclude<Tier, 'strip'>, { size: number; cell: number }> = {
-  full: { size: 250, cell: 250 + 27 },
-  slim: { size: 125, cell: 125 + 27 },
+  full: { size: 250, cell: 250 + 27 + 17 },
+  slim: { size: 125, cell: 125 + 27 + 17 },
   tiny: { size: 31, cell: 31 + 24 },
 }
-const TOP = 96, HEAD = 23, FOOT = 12, MAX = 16
+const TOP = 96, HEAD = 25, FOOT = 12 + 26, MAX = 16
 
 /** One side's cells, alternating Mosh / meme from `first`. */
 function column(n: number, first: 0 | 1, mosh: number[], memes: MemeAd[]): Slot[] {
@@ -124,11 +126,18 @@ export function SideAds() {
 
   if (!deck || !tier) return null
 
-  // The old-forum table: a header, then a cell per ad (globals.css .forum-*).
-  const label = <div className="forum-head">SPONSORS</div>
-  const cell = (children: React.ReactNode, key: number) => (
-    <div key={key}><div className="forum-cell"><span className="forum-cap">Advertisement</span>{children}</div></div>
+  /*
+   * THE 1998 HOMEPAGE TABLE (JP, 2026-10-14: "make it real classic like"): a silver
+   * table with a raised edge, a teal title bar in Times, each ad in a sunken cell
+   * with a blue underlined "Click here!" under it, and a "best viewed" line at the
+   * foot (globals.css .cc-rail-uniform).
+   */
+  const label = <div className="forum-head">★ Our Sponsors ★</div>
+  const cell = (children: React.ReactNode, key: number, href?: string) => (
+    <div key={key}><div className="forum-cell"><span className="forum-cap">Advertisement</span>{children}
+      {href && <a className="geo-click" href={href} target="_blank" rel="noopener">Click here!</a>}</div></div>
   )
+  const footer = <div className="geo-foot">Best viewed at 800x600</div>
 
   if (tier === 'strip') return (
     // Narrow screens and phones: one old-school 468x60 banner at the foot of the page.
@@ -153,7 +162,8 @@ export function SideAds() {
   const draw = (s: Slot, i: number) => cell(
     tier === 'tiny' ? <Ad token={'mosh' in s ? s.mosh : (deck.moshL[i] ?? 1)} suffix="-btn" w={88} h={31} />
       : 'mosh' in s ? <Ad token={s.mosh} suffix={tier === 'full' ? '-sq' : '-sm'} w={size} h={size} />
-      : <Meme ad={s.meme} maxW={size} />, i)
+      : <Meme ad={s.meme} maxW={size} />, i,
+    tier === 'tiny' ? undefined : 'mosh' in s ? BANNER_TOKENS[s.mosh].href : s.meme.href)
   // Buttons only on the narrow tables: a meme square does not shrink to 88x31.
   const sides: [React.RefObject<HTMLElement | null>, string, Slot[]][] = [
     [left, 'cc-rail-left', tier === 'tiny' ? deck.moshL.slice(0, n).map(m => ({ mosh: m })) : column(n, deck.firstL, deck.moshL, deck.memes.slice(0, half))],
@@ -170,6 +180,7 @@ export function SideAds() {
               const pool = side === 'cc-rail-left' ? deck.moshL : deck.moshR
               return <Ad key={k} token={pool[(n + r * 2 + k) % pool.length]} suffix="-btn" w={88} h={31} />
             })}</div>, 100 + r))}
+          {tier !== 'tiny' && footer}
         </aside>
       ))}
     </>
