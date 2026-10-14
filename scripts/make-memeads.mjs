@@ -40,6 +40,14 @@ const X = 2                                       // pictures and drawing at twi
 /** A meme cropped to w x h, as a data URI for the SVG. */
 async function pic(n, w0, h0, position = 'centre') {
   const w = w0 * X, h = h0 * X
+  // A crop box [x0, y0, x1, y1] (fractions of the picture), chosen by eye so the subject's face is in frame.
+  if (Array.isArray(position)) {
+    const m = await sharp(MEME(n)).metadata()
+    const [x0, y0, x1, y1] = position
+    const box = { left: Math.round(m.width * x0), top: Math.round(m.height * y0), width: Math.round(m.width * (x1 - x0)), height: Math.round(m.height * (y1 - y0)) }
+    const png = await sharp(MEME(n)).extract(box).resize(w, h, { fit: 'cover', kernel: 'lanczos3' }).flatten({ background: '#ffffff' }).sharpen({ sigma: 0.5 }).png().toBuffer()
+    return 'data:image/png;base64,' + png.toString('base64')
+  }
   // 'contain': the whole picture, on white (the hand-drawn memes: a crop cuts their words).
   if (position === 'contain') {
     const png = await sharp(MEME(n)).resize(w, h, { fit: 'contain', background: '#ffffff', kernel: 'lanczos3' }).flatten({ background: '#ffffff' }).png().toBuffer()
@@ -91,10 +99,10 @@ const ADS = [
 
   // "Start Your Career in Healthcare" -> Start Your Career in Bundling.
   { name: 'career', w: 250, h: 250, async make() {
-    const p = await pic(37, 112, 290, 0.42)
+    const p = await pic(37, 128, 166, [0.2, 0, 0.63, 0.75])
     return f => `<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#c8f25a"/><stop offset="1" stop-color="#ffffff"/></linearGradient></defs>
       <rect width="250" height="250" fill="url(#bg)"/>
-      ${img(p, 0, 0, 112, 290)}
+      ${img(p, 0, 0, 128, 166)}
       <g font-family="Trebuchet MS" font-style="italic">
         <text x="182" y="46" text-anchor="middle" font-size="21" fill="#1f3fbf">Start Your</text>
         <text x="182" y="88" text-anchor="middle" font-size="36" font-weight="bold" font-style="normal" fill="#d6157f">Career</text>
@@ -186,7 +194,7 @@ ADS.push(
 
   // The fast-food ad -> the BUN DOG.
   { name: 'bundog', w: 250, h: 250, async make() {
-    const p = await pic(25, 150, 200, 'centre')
+    const p = await pic(25, 150, 200, [0.36, 0, 0.96, 0.8])
     return f => `<rect width="250" height="250" fill="#ffd21f"/>
       ${[...Array(12)].map((_, i) => `<path d="M125 125 L${125 + 260 * Math.cos(i * Math.PI / 6)} ${125 + 260 * Math.sin(i * Math.PI / 6)} L${125 + 260 * Math.cos(i * Math.PI / 6 + 0.26)} ${125 + 260 * Math.sin(i * Math.PI / 6 + 0.26)} Z" fill="#ffb800"/>`).join('')}
       <circle cx="80" cy="140" r="78" fill="#fff"/>

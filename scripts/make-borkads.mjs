@@ -41,6 +41,14 @@ const RED = '#b3122e', GOLD = '#f5c518', CREAM = '#fff4dc', INK = '#2a1408', NAV
 
 async function pic(n, w0, h0, position = 'centre') {
   const w = w0 * X, h = h0 * X
+  // A crop box [x0, y0, x1, y1] (fractions of the picture), chosen by eye so the subject's face is in frame.
+  if (Array.isArray(position)) {
+    const m = await sharp(MEME(n)).metadata()
+    const [x0, y0, x1, y1] = position
+    const box = { left: Math.round(m.width * x0), top: Math.round(m.height * y0), width: Math.round(m.width * (x1 - x0)), height: Math.round(m.height * (y1 - y0)) }
+    const png = await sharp(MEME(n)).extract(box).resize(w, h, { fit: 'cover', kernel: 'lanczos3' }).flatten({ background: '#ffffff' }).sharpen({ sigma: 0.5 }).png().toBuffer()
+    return 'data:image/png;base64,' + png.toString('base64')
+  }
   const fit = position === 'contain' ? { fit: 'contain', background: '#ffffff' } : { fit: 'cover', position }
   const png = await sharp(MEME(n)).resize(w, h, { ...fit, kernel: 'lanczos3' }).flatten({ background: '#ffffff' }).sharpen({ sigma: 0.5 }).png().toBuffer()
   return 'data:image/png;base64,' + png.toString('base64')
@@ -81,10 +89,11 @@ const T = {
       <text x="125" y="196" text-anchor="middle" font-family="Verdana" font-size="11" fill="${GOLD}">${esc(a.sub)}</text>
       ${pill(62, 207, 126, 32, a.btn, { lit: f === 1 })}` },
   /** Picture left, words right. */
-  split: async a => { const p = await pic(a.meme, 118, 250, a.pos || 'centre'); const bg = a.bg || CREAM
-    return f => `<rect width="250" height="250" fill="${bg}"/>${img(p, 0, 0, 118, 250)}<rect x="118" width="3" height="250" fill="${GOLD}"/>
-      ${lines(a.head, 186, 44, 30, `text-anchor="middle" font-family="Georgia" font-weight="bold" font-size="${a.headSize || 22}" fill="${a.ink || RED}"`)}
-      ${lines(a.sub, 186, 44 + a.head.length * 30 + 10, 16, `text-anchor="middle" font-family="Verdana" font-size="11" fill="${INK}"`)}
+  split: async a => { const p = await pic(a.meme, 128, 128, a.pos || 'centre'); const bg = a.bg || CREAM
+    return f => `<rect width="250" height="250" fill="${bg}"/>
+      <rect x="8" y="10" width="132" height="132" fill="${GOLD}"/>${img(p, 10, 12, 128, 128)}
+      ${lines(a.head, 196, 44, 30, `text-anchor="middle" font-family="Georgia" font-weight="bold" font-size="${a.headSize || 22}" fill="${a.ink || RED}"`)}
+      ${lines(a.sub, 10, 166, 17, `font-family="Verdana" font-size="12" fill="${INK}"`)}
       ${pill(128, 204, 114, 32, a.btn, { from: a.btnFrom || RED, to: '#7a0a1e', ink: '#fff', size: 13, lit: f === 1 })}` },
   /** A Windows 98 dialog. */
   window: async a => { const p = await pic(a.meme, 96, 96, a.pos || 'centre')
@@ -155,7 +164,7 @@ const ADS = [
   { name: 'movie', t: 'overlay', meme: 1, top: 'NOW SHOWING', head: 'KING BORK', sub: 'THE MOVIE · Bring popcorn.', btn: 'GET TICKETS', mini: 'NOW SHOWING' },
   { name: 'ball', t: 'overlay', meme: 17, top: 'TONIGHT ONLY', head: 'THE ROYAL BALL', sub: 'Fireworks at midnight', btn: 'RSVP', mini: 'ROYAL BALL' },
   { name: 'feast', t: 'photoTop', meme: 21, pos: 'centre', head: "THE KING'S FEAST", sub: 'All you can eat. Then more.', btn: 'RESERVE', mini: 'THE FEAST' },
-  { name: 'paint', t: 'split', meme: 18, head: ['Paint', 'like a', 'KING'], sub: ['Royal Art School', 'No talent needed'], btn: 'ENROLL', mini: 'ART SCHOOL' },
+  { name: 'paint', t: 'split', meme: 18, pos: [0.02, 0.04, 0.98, 1], head: ['Paint', 'like a', 'KING'], sub: ['Royal Art School', 'No talent needed'], btn: 'ENROLL', mini: 'ART SCHOOL' },
   { name: 'gym', t: 'burst', meme: 14, head: 'GET RIPPED LIKE A KING', headSize: 22, badge: 'NEW!', sub: 'Royal Fitness · Day 1', btn: 'JOIN NOW', mini: 'ROYAL GYM' },
   { name: 'mobile', t: 'photoTop', meme: 13, pos: 'centre', head: 'ROYAL MOBILE', sub: 'Two phones. One king.', btn: 'SWITCH', bg: NAVY, mini: 'ROYAL MOBILE' },
   { name: 'winter', t: 'overlay', meme: 16, top: 'WINTER GETAWAY', head: 'MOUNT BORK', sub: 'Ski. Sled. Bork.', btn: 'BOOK NOW', bar: NAVY, mini: 'MOUNT BORK' },
@@ -164,14 +173,14 @@ const ADS = [
   { name: 'court', t: 'burst', meme: 10, head: 'JOIN THE COURT!', badge: 'HI!', sub: 'The King wants YOU', btn: 'JOIN', c1: '#7fd3ff', c2: '#bfe9ff', mini: 'JOIN COURT' },
   { name: 'anger', t: 'window', meme: 20, pos: 'centre', title: 'Royal Alert - Internet Explorer', head: 'THE KING IS BORKING', headInk: '#c00', sub: ['Royal anger', 'level: MAX'], btns: ['Calm down', 'Bork back'], mini: 'BORK ALERT' },
   { name: 'tour', t: 'overlay', meme: 42, top: 'LIVE IN CONCERT', head: 'KING BORK', sub: 'WORLD TOUR 2026', btn: 'TICKETS', mini: 'WORLD TOUR' },
-  { name: 'bakery', t: 'photoTop', meme: 44, pos: 'south', head: 'ROYAL BAKERY', sub: "Let's get this bread.", btn: 'ORDER', bg: '#8a4b12', mini: 'ROYAL BAKERY' },
-  { name: 'yoga', t: 'split', meme: 45, head: ['Royal', 'Yoga'], sub: ['Find inner peace.', 'Even in here.'], btn: 'BREATHE', mini: 'ROYAL YOGA' },
+  { name: 'bakery', t: 'photoTop', meme: 44, pos: [0, 0.14, 1, 0.72], head: 'ROYAL BAKERY', sub: "Let's get this bread.", btn: 'ORDER', bg: '#8a4b12', mini: 'ROYAL BAKERY' },
+  { name: 'yoga', t: 'split', meme: 45, pos: [0.1, 0.15, 0.9, 0.95], head: ['Royal', 'Yoga'], sub: ['Find inner peace.', 'Even in here.'], btn: 'BREATHE', mini: 'ROYAL YOGA' },
   { name: 'borktv', t: 'overlay', meme: 48, top: 'ALL NEW', head: 'BORK TV', headSize: 30, sub: 'Broadcast yourself', btn: 'WATCH', bar: '#c2185b', mini: 'BORK TV' },
   { name: 'driving', t: 'photoTop', meme: 49, pos: 'centre', head: 'DRIVING SCHOOL', sub: 'Stop. Bork. Go.', btn: 'SIGN UP', bg: '#1b6b2f', mini: 'DRIVE SCHOOL' },
   { name: 'seal', t: 'decree', meme: 50, head: 'SEAL OF APPROVAL', headSize: 19, sub: ['Tested and approved', 'by the King himself.', 'Two thumbs. Up.'], btn: 'SEE WHY', mini: 'APPROVED' },
   { name: 'shades', t: 'burst', meme: 35, head: 'COOL SHADES SALE', badge: 'SALE', sub: 'Royal Optics: look like a king', btn: 'SHOP NOW', mini: 'SHADES SALE' },
-  { name: 'queen', t: 'split', meme: 37, head: ['Find', 'your', 'Queen'], sub: ['Royal Dating', 'Kings near you'], btn: 'MEET', bg: '#ffe8f0', mini: 'ROYAL DATING' },
-  { name: 'castle', t: 'photoTop', meme: 34, pos: 'centre', head: 'CASTLE FOR SALE', headSize: 20, sub: 'Tower. Flag. Moat nearby.', btn: 'VIEW', bg: NAVY, mini: 'FOR SALE' },
+  { name: 'queen', t: 'split', meme: 37, pos: [0, 0.28, 0.6, 0.88], head: ['Find', 'your', 'Queen'], sub: ['Royal Dating', 'Kings near you'], btn: 'MEET', bg: '#ffe8f0', mini: 'ROYAL DATING' },
+  { name: 'castle', t: 'photoTop', meme: 34, pos: [0.05, 0, 1, 0.555], head: 'CASTLE FOR SALE', headSize: 20, sub: 'Tower. Flag. Moat nearby.', btn: 'VIEW', bg: NAVY, mini: 'FOR SALE' },
   { name: 'mattress', t: 'overlay', meme: 32, top: 'ROYAL MATTRESS CO.', head: 'SLEEP LIKE A KING', headSize: 20, sub: 'Under a castle moon', btn: 'SHOP BEDS', bar: NAVY, mini: 'SLEEP WELL' },
   { name: 'mail', t: 'window', meme: 31, title: 'Royal Mail - Inbox', head: 'You have (12) scrolls!', headInk: '#0a246a', sub: ['From: The King', 'Re: BORK', 'Re: Re: BORK'], btns: ['Open', 'Later'], mini: 'ROYAL MAIL' },
   { name: 'callnow', t: 'classified', meme: 30, head: ['Call the King', '1-800-BORK'], sub: ['Operators are', 'standing by'], foot: ['Ask for His Majesty.'], btn: 'CALL NOW »', mini: 'CALL NOW' },

@@ -30,6 +30,7 @@ export function bevel(x, y, w, h, label, { size = 14, lit = false, font = 'Arial
     <text x="${x + w / 2 + d}" y="${y + h / 2 + size * 0.36 + d}" text-anchor="middle" font-family="${font}" font-weight="bold" font-size="${size}" fill="${lit ? '#c00000' : ink}">${esc(label)}</text>`
 }
 
+const NO_STAR = new Set(['anger', 'lostcrown', 'mail', 'buddy', 'virus', 'beforeyougo', 'callnow', 'tenten', 'trick', 'doom'])
 const hash = s => [...s].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7)
 const RAINBOW = ['#ff0000', '#ff8000', '#ffff00', '#00e000', '#00c0ff', '#0040ff', '#a000ff', '#ff00c0']
 
@@ -67,8 +68,9 @@ export function decorate(name, w, h, f) {
     if (!edgeish) continue
     out.push(sparkle(x, y, [0, 3, 6, 3][(f + i) % 4] * (small ? 0.7 : 1)))
   }
-  // A star that spins (squeezed side to side), in a top corner.
-  if (!small) {
+  // A star that spins (squeezed side to side), in a top corner; not on the ads whose
+  // top-left corner is a window title or small print it would cover.
+  if (!small && !NO_STAR.has(name)) {
     const cx = k % 4 < 2 ? 15 : w - 15, cy = 15, sx = Math.abs(Math.cos(f * Math.PI / 4)) + 0.08
     out.push(`<g transform="translate(${cx} ${cy}) scale(${sx.toFixed(2)} 1)"><path d="M0 -9 L2.6 -2.8 L9 -2.8 L3.8 1.2 L5.8 8 L0 4 L-5.8 8 L-3.8 1.2 L-9 -2.8 L-2.6 -2.8 Z" fill="#ffd200" stroke="#000" stroke-width="1"/></g>`)
   }
