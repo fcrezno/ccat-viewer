@@ -65,29 +65,78 @@ function waveTheme(wave: number) {
   }
 }
 
-// The lair. # brick, . floor, P the player, R a rat's den, N a nugget.
-const MAP = [
-  '####################',
-  '#P.....#.....R.....#',
-  '#.##...#..###......#',
-  '#.#....N....#..##..#',
-  '#.#..####...#...#..#',
-  '#......R#.......#R.#',
-  '####.....#..##.....#',
-  '#..N...........#...#',
-  '#..##..#####...#.N.#',
-  '#R.....#...#.......#',
-  '#..##..#.N.#..####.#',
-  '#......#...#.....R.#',
-  '#.####.##.##..#....#',
-  '#....#........#..#.#',
-  '#.N..#..R..##....#.#',
-  '#....###...#..N..#.#',
-  '#..........#.....#R#',
-  '#.R..##..........#.#',
-  '#........N....R....#',
-  '####################',
-]
+/*
+ * THE LAIR, NEW EVERY GAME (JP, 2026-10-13: "randomize the map so its not the same
+ * one twice"). # brick, . floor, P the player, R a rat's den, N a nugget.
+ *
+ * A maze is carved on the odd squares (the recursive backtracker), then walls are
+ * knocked through for loops and a few rooms are cleared, so the rats can come at
+ * you from two sides and you can circle away. The dens go far from the start; the
+ * nuggets go anywhere but on top of you. A layout the same as the last one is
+ * thrown away and drawn again.
+ */
+const MW = 20, MH = 20
+let MAP: string[] = []
+let lastMap = ''
+function makeMap(): string[] {
+  for (;;) {
+    const g = Array.from({ length: MH }, () => Array<string>(MW).fill('#'))
+    const inside = (x: number, y: number) => x > 0 && y > 0 && x < MW - 1 && y < MH - 1
+    // The maze, on the odd squares 1..17.
+    const stack: [number, number][] = [[1, 1]]
+    g[1][1] = '.'
+    while (stack.length) {
+      const [x, y] = stack[stack.length - 1]
+      const next = ([[2, 0], [-2, 0], [0, 2], [0, -2]] as const)
+        .map(([ax, ay]) => [x + ax, y + ay, ax, ay] as const)
+        .filter(([nx, ny]) => nx < MW - 2 && ny < MH - 2 && inside(nx, ny) && g[ny][nx] === '#')
+      if (!next.length) { stack.pop(); continue }
+      const [nx, ny, ax, ay] = next[Math.floor(Math.random() * next.length)]
+      g[y + ay / 2][x + ax / 2] = '.'; g[ny][nx] = '.'
+      stack.push([nx, ny])
+    }
+    // The last row and column (18) are not maze squares: open some of them into the maze.
+    for (let i = 1; i < MW - 2; i += 2) {
+      if (Math.random() < 0.5) g[i][MW - 2] = '.'
+      if (Math.random() < 0.5) g[MH - 2][i] = '.'
+    }
+    // Loops: a wall with floor on both sides is knocked through about a third of the time.
+    for (let y = 1; y < MH - 1; y++) for (let x = 1; x < MW - 1; x++) {
+      if (g[y][x] !== '#') continue
+      const ew = g[y][x - 1] === '.' && g[y][x + 1] === '.', ns = g[y - 1][x] === '.' && g[y + 1][x] === '.'
+      if ((ew || ns) && Math.random() < 0.3) g[y][x] = '.'
+    }
+    // A few rooms, so the fights are not all in corridors.
+    for (let r = 0; r < 4; r++) {
+      const w = 2 + Math.floor(Math.random() * 3), h = 2 + Math.floor(Math.random() * 3)
+      const x0 = 1 + Math.floor(Math.random() * (MW - 2 - w)), y0 = 1 + Math.floor(Math.random() * (MH - 2 - h))
+      for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) g[y][x] = '.'
+    }
+    // How far each square is from the start, walking.
+    const dist = new Map<string, number>([['1,1', 0]])
+    const q: [number, number][] = [[1, 1]]
+    while (q.length) {
+      const [x, y] = q.shift()!
+      for (const [ax, ay] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + ax, ny = y + ay, k = nx + ',' + ny
+        if (g[ny]?.[nx] === '.' && !dist.has(k)) { dist.set(k, dist.get(x + ',' + y)! + 1); q.push([nx, ny]) }
+      }
+    }
+    const floor = [...dist.entries()].map(([k, d]) => { const [x, y] = k.split(',').map(Number); return { x, y, d } })
+    const shuffle = <T,>(a: T[]) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]] } return a }
+    // Eight dens, far from you and apart from each other.
+    const dens: { x: number; y: number }[] = []
+    for (const c of shuffle(floor.filter(c => c.d >= 8))) {
+      if (dens.length < 8 && dens.every(o => Math.abs(o.x - c.x) + Math.abs(o.y - c.y) >= 5)) { dens.push(c); g[c.y][c.x] = 'R' }
+    }
+    for (const c of shuffle(floor.filter(c => c.d >= 3 && g[c.y][c.x] === '.')).slice(0, 8)) g[c.y][c.x] = 'N'
+    g[1][1] = 'P'
+    const out = g.map(r => r.join(''))
+    if (dens.length < 5 || out.join('') === lastMap) continue    // too few dens, or the same lair: again
+    lastMap = out.join('')
+    return out
+  }
+}
 const solid = (x: number, y: number) => MAP[Math.floor(y)]?.[Math.floor(x)] === '#' || MAP[Math.floor(y)]?.[Math.floor(x)] === undefined
 
 type Rat = { x: number; y: number; hp: number; hurt: number; dead: number }
@@ -212,12 +261,22 @@ export function Ratxecutioner({ face }: { face: string }) {
     const PITCH_MAX = 50 * S
     let hp = 100, ammo = START_AMMO, kills = 0, wave = 1, flash = 0, hurt = 0, over = false, banner = 2.2
     let rats: Rat[] = [], nugs: Nug[] = [], booms: Boom[] = []
-    const dens: [number, number][] = []
-    MAP.forEach((row, y) => [...row].forEach((c, x) => {
-      if (c === 'P') { px = x + 0.5; py = y + 0.5 }
-      if (c === 'R') dens.push([x + 0.5, y + 0.5])
-      if (c === 'N') nugs.push({ x: x + 0.5, y: y + 0.5, taken: false })
-    }))
+    let dens: [number, number][] = []
+    let spawnX = 1.5, spawnY = 1.5
+    /** A new lair: the walls, the dens, the nuggets, where you stand, and the posters. */
+    const newMap = () => {
+      MAP = makeMap()
+      dens = []; nugs = []
+      MAP.forEach((row, y) => [...row].forEach((c, x) => {
+        if (c === 'P') { spawnX = x + 0.5; spawnY = y + 0.5 }
+        if (c === 'R') dens.push([x + 0.5, y + 0.5])
+        if (c === 'N') nugs.push({ x: x + 0.5, y: y + 0.5, taken: false })
+      }))
+      px = spawnX; py = spawnY
+      // Face down the longer open way from the start.
+      const east = !solid(spawnX + 1, spawnY) ? 1 : 0, south = !solid(spawnX, spawnY + 1) ? 1 : 0
+      if (!east && south) { dx = 0; dy = 1; plx = -FOV; ply = 0 } else { dx = 1; dy = 0; plx = 0; ply = FOV }
+    }
     /** Re-ink the bricks with the current wave's ramp. */
     function inkWall() {
       if (!wall || !wallLum) return
@@ -238,7 +297,7 @@ export function Ratxecutioner({ face }: { face: string }) {
       nugs.forEach(n => (n.taken = false))
       banner = 2.2
     }
-    const restart = () => { musicOn(true); cleared = 0; hp = 100; ammo = START_AMMO; kills = 0; wave = 1; over = false; px = 1.5; py = 1.5; dx = 1; dy = 0; plx = 0; ply = FOV; booms = []; spawnWave(); cursor(); intro.current(1, true) }
+    const restart = () => { musicOn(true); cleared = 0; hp = 100; ammo = START_AMMO; kills = 0; wave = 1; over = false; booms = []; newMap(); hangPosters(); spawnWave(); cursor(); intro.current(1, true) }
 
     // ── sound: plain elements, a small pool each ──
     const pool = (src: string, n = 4, vol = 0.5) => {
@@ -268,6 +327,7 @@ export function Ratxecutioner({ face }: { face: string }) {
     let theme = waveTheme(1)
     let wall: ImageData | null = null, ratImg: HTMLImageElement | null = null, boomImg: HTMLImageElement | null = null
     // The first wave, now that the walls it re-inks exist (it ran before them once: a crash on load).
+    newMap()                                   // the lair first: the dens are in it
     spawnWave()
     let nugImg: HTMLImageElement | null = null, faceImg: HTMLImageElement | null = null, fontImg: HTMLImageElement | null = null
     const tinted = new Map<string, HTMLCanvasElement>()
@@ -329,32 +389,59 @@ export function Ratxecutioner({ face }: { face: string }) {
     Promise.all(BANNER_TOKENS.flatMap((_, i) => [['-sq', 3], ['-won', 2]].map(([sfx, step]) =>
       posterOf(bannerFile(i, sfx as string), step as number).catch(() => null))))
       .then(list => { posters = list.filter((p): p is NonNullable<typeof p> => !!p) })
+    /*
+     * THE MEMES (JP: "get the memes from here and add them as posters in the game",
+     * memedepot.com/d/bundle-cat -> public/ratx/memes). Still pictures, mounted like
+     * the ads. Only the ones on this lair's walls are loaded, so 48 memes do not cost
+     * 48 decodes. JP's picks (his "make these ads", 2026-10-13) hang in every lair.
+     */
+    const MEME_PICKS = [7, 11, 24, 36, 37, 39]
+    let memeFiles: string[] = []
+    const memes = new Map<number, { frames: ImageData[]; ms: number[]; total: number } | null>()
+    const memeList = fetch('/ratx/memes/list.json').then(r => r.json() as Promise<string[]>).then(l => { memeFiles = l }).catch(() => {})
+    const memeOf = (n: number) => {
+      if (memes.has(n)) return
+      memes.set(n, null)
+      void memeList.then(() => memeFiles[n - 1] ? load('/ratx/memes/' + memeFiles[n - 1]) : null)
+        .then(im => { if (im) memes.set(n, { frames: [mount(im, im.width, im.height)], ms: [1000], total: 1000 }) })
+        .catch(() => {})
+    }
     /** The frame of poster `p` showing now. */
     const posterNow = (p: (typeof posters)[number]) => {
       let k = (performance.now() % p.total)
       for (let i = 0; i < p.frames.length; i++) { if (k < p.ms[i]) return p.frames[i]; k -= p.ms[i] }
       return p.frames[0]
     }
-    // Which wall faces carry a poster: brick that faces open floor, picked at random.
+    /*
+     * Which wall faces carry a poster, chosen again for each lair: brick that faces
+     * open floor. The three nearest the start go up first, so the first look already
+     * has posters in it. About one in three is a Mosh ad; the rest are memes, JP's
+     * picks first. A value >= 0 is an ad (index into posters); < 0 is meme number -v.
+     */
     const posterAt = new Map<string, number>()
-    {
-      const faces: string[] = []
+    function hangPosters() {
+      posterAt.clear()
+      const faces: { k: string; d: number }[] = []
+      const add = (x: number, y: number, side: number) => faces.push({ k: x + ',' + y + ',' + side, d: Math.hypot(x + 0.5 - spawnX, y + 0.5 - spawnY) })
       MAP.forEach((row, y) => [...row].forEach((c, x) => {
         if (c !== '#') return
-        if (MAP[y]?.[x + 1] && MAP[y][x + 1] !== '#') faces.push(x + ',' + y + ',0')
-        if (MAP[y]?.[x - 1] && MAP[y][x - 1] !== '#') faces.push(x + ',' + y + ',0')
-        if (MAP[y + 1]?.[x] && MAP[y + 1][x] !== '#') faces.push(x + ',' + y + ',1')
-        if (MAP[y - 1]?.[x] && MAP[y - 1][x] !== '#') faces.push(x + ',' + y + ',1')
+        if (MAP[y]?.[x + 1] && MAP[y][x + 1] !== '#') add(x, y, 0)
+        if (MAP[y]?.[x - 1] && MAP[y][x - 1] !== '#') add(x, y, 0)
+        if (MAP[y + 1]?.[x] && MAP[y + 1][x] !== '#') add(x, y, 1)
+        if (MAP[y - 1]?.[x] && MAP[y - 1][x] !== '#') add(x, y, 1)
       }))
-      // Three in sight of the start, so the first look down the corridor has ads in it:
-      // the wall dead ahead, and one either side.
-      const first = ['7,1,0', '5,0,1', '3,2,1']
-      first.forEach((k, i) => posterAt.set(k, i))
-      for (let i = first.length; i < 22 && faces.length; i++) {
-        const k = faces.splice(Math.floor(Math.random() * faces.length), 1)[0]
-        if (!posterAt.has(k)) posterAt.set(k, i)
-      }
+      const near = faces.filter(f => f.d < 3.5).sort(() => Math.random() - 0.5).slice(0, 3)
+      const rest = faces.filter(f => !near.includes(f)).sort(() => Math.random() - 0.5)
+      const others = Array.from({ length: 48 }, (_, i) => i + 1).filter(n => !MEME_PICKS.includes(n)).sort(() => Math.random() - 0.5)
+      const memeDeck = [...[...MEME_PICKS].sort(() => Math.random() - 0.5), ...others]
+      let ad = Math.floor(Math.random() * 10), mi = 0
+      ;[...near, ...rest].slice(0, 30).forEach((f, i) => {
+        if (posterAt.has(f.k)) return
+        if (i % 3 === 1) posterAt.set(f.k, ad++)
+        else { const n = memeDeck[mi++ % memeDeck.length]; posterAt.set(f.k, -n); memeOf(n) }
+      })
     }
+    hangPosters()
     /** The game's bitmap font, tinted once per colour. */
     const sheetFor = (color: string) => {
       let sheet = tinted.get(color)
@@ -555,7 +642,8 @@ export function Ratxecutioner({ face }: { face: string }) {
         const tx = Math.floor(wx * 32) + (side === 1 ? 32 : 0)
         const fog = Math.max(0.25, 1 - dist / 14)
         const pi = posterAt.get(mx + ',' + my + ',' + side)
-        const poster = pi === undefined || !posters.length ? null : posterNow(posters[pi % posters.length])
+        const art = pi === undefined ? null : pi < 0 ? memes.get(-pi) : posters.length ? posters[pi % posters.length] : null
+        const poster = art ? posterNow(art) : null
         // Read the face left to right as you look at it, so the poster is never mirrored.
         const u = side === 0 ? (rdx > 0 ? wx : 1 - wx) : (rdy < 0 ? wx : 1 - wx)
         for (let y = Math.max(0, top); y <= bot; y++) {
