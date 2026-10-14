@@ -29,11 +29,11 @@ function Meme({ ad: big, maxW, fluid }: { ad: MemeAd; maxW: number; fluid?: bool
   )
 }
 
-function Ad({ token, suffix, w, h }: { token: number; suffix: string; w: number; h: number }) {
+function Ad({ token, suffix, w, h, smooth }: { token: number; suffix: string; w: number; h: number; smooth?: boolean }) {
   const t = BANNER_TOKENS[token]
   return (
     <a href={t.href} target="_blank" rel="noopener" title={t.name} style={{ display: 'block', lineHeight: 0 }}>
-      <img src={bannerFile(token, suffix)} alt={t.name} width={w} height={h} style={{ imageRendering: 'pixelated', display: 'block' }} />
+      <img src={bannerFile(token, suffix)} alt={t.name} width={w} height={h} style={{ imageRendering: smooth ? 'auto' : 'pixelated', display: 'block' }} />
     </a>
   )
 }
@@ -60,26 +60,62 @@ function fitAds() {
 }
 
 /*
- * UNIFORM, AND FULL TO THE FOOT (JP, 2026-10-14: "make sure the empty spaces are
- * filled; make the ads be uniform"). Each table is a stack of same-size cells,
- * as many as the window's height holds: 250x250 squares on wide screens, 125x125
- * on medium ones, 88x31 buttons on narrow ones. The squares take turns: a Mosh
- * token's ad, then a Bundle Cat meme ad (lib/banners MEME_ADS, all 250x250), and
- * the two sides start on different kinds. A table that still runs past the
- * window's foot after drawing (fonts, zoom) drops its last cell.
+ * MODULAR, FULL TO THE FOOT (JP, 2026-10-14: "make sure the empty spaces are
+ * filled; make the ads be uniform", then "have some variance on the sizes, do what
+ * we did before but make it modular"). Each table is built from MODULES of known
+ * size, picked at random per table and per visit, until the window's height is
+ * used up; the room left under the last one takes rows of 88x31 buttons:
+ *
+ *   sq    one 250x250 square          (a Mosh token's ad or a meme ad, in turn)
+ *   duo   two 122x122 squares side by side (a Mosh small + a meme mini)
+ *   tall  a 160x600 skyscraper with six 88x88 squares stacked beside it
+ *         (Mosh and meme in turn; JP did not like loose buttons there)
+ *   btn   a row of 88x31 buttons      (the filler)
+ *
+ * On the medium tables the modules are a 125 square (Mosh small or meme mini)
+ * and a button; on the narrow ones, buttons only. No module kind comes twice in a
+ * row when another fits. A table that still runs past the window's foot after
+ * drawing (fonts, zoom) is laid out again a little shorter.
  */
 type Tier = 'full' | 'slim' | 'tiny' | 'strip'
 type Slot = { mosh: number } | { meme: MemeAd }
-const CELLS: Record<Exclude<Tier, 'strip'>, { size: number; cell: number }> = {
-  full: { size: 250, cell: 250 + 27 + 17 },
-  slim: { size: 125, cell: 125 + 27 + 17 },
-  tiny: { size: 31, cell: 31 + 24 },
+type Mod =
+  | { kind: 'sq'; slot: Slot }
+  | { kind: 'duo'; a: number; b: MemeAd }
+  | { kind: 'tall'; ad: MemeAd; side: Slot[] }
+  | { kind: 'btn'; toks: number[] }
+/** Each module's height in the table, ad + caption + borders (+ "Click here!" where it has one). */
+const MOD_H = {
+  full: { sq: 250 + 44, duo: 122 + 27, tall: 600 + 44, btn: 31 + 24 },
+  slim: { sq: 125 + 44, btn: 31 + 24 },
+  tiny: { btn: 31 + 16 },                       // thinner cells, and no footer (see layout)
 }
-const TOP = 96, HEAD = 25, FOOT = 12 + 26, MAX = 16
+const TOP = 96, HEAD = 25, FOOT = 12 + 26
+const WEIGHT = { sq: 3, duo: 2, tall: 2 }
 
-/** One side's cells, alternating Mosh / meme from `first`. */
-function column(n: number, first: 0 | 1, mosh: number[], memes: MemeAd[]): Slot[] {
-  return Array.from({ length: n }, (_, i) => ((i + first) % 2 === 0 ? { mosh: mosh[i] } : { meme: memes[i] }))
+/** A small seeded random, so a table keeps its layout across re-draws until the next roll. */
+const rng = (seed: number) => () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t ^= t + Math.imul(t ^ (t >>> 7), 61 | t); return ((t ^ (t >>> 14)) >>> 0) / 4294967296 }
+
+function layout(tier: Exclude<Tier, 'strip'>, room: number, seed: number, mosh: number[], memes: MemeAd[], talls: MemeAd[]): Mod[] {
+  const r = rng(seed), H = MOD_H[tier] as Record<string, number>
+  let left = room - TOP - HEAD - (tier === 'tiny' ? 12 : FOOT), mi = 0, ki = 0, ti = 0, prev = ''
+  const nextMosh = () => mosh[mi++ % mosh.length], nextMeme = () => memes[ki++ % memes.length]
+  const mods: Mod[] = []
+  let sqTurn = r() < 0.5                              // squares take turns: Mosh, meme, Mosh...
+  for (;;) {
+    const kinds = (tier === 'full' ? ['sq', 'duo', 'tall'] : tier === 'slim' ? ['sq'] : [])
+      .filter(k => H[k] <= left && !(k === 'tall' && mods.some(m => m.kind === 'tall')))
+    if (!kinds.length) break
+    const pool = kinds.length > 1 ? kinds.filter(k => k !== prev) : kinds
+    let pick = r() * pool.reduce((s, k) => s + WEIGHT[k as keyof typeof WEIGHT], 0), kind = pool[0]
+    for (const k of pool) { pick -= WEIGHT[k as keyof typeof WEIGHT]; if (pick <= 0) { kind = k; break } }
+    if (kind === 'sq') { mods.push({ kind: 'sq', slot: (sqTurn = !sqTurn) ? { mosh: nextMosh() } : { meme: nextMeme() } }) }
+    else if (kind === 'duo') mods.push({ kind: 'duo', a: nextMosh(), b: nextMeme() })
+    else mods.push({ kind: 'tall', ad: talls[ti++ % talls.length], side: Array.from({ length: 6 }, (_, i): Slot => i % 2 ? { meme: nextMeme() } : { mosh: nextMosh() }) })
+    left -= H[kind]; prev = kind
+  }
+  for (let i = Math.floor(left / H.btn); i > 0; i--) mods.push({ kind: 'btn', toks: tier === 'full' ? [nextMosh(), nextMosh()] : [nextMosh()] })
+  return mods
 }
 
 export function SideAds() {
@@ -100,25 +136,26 @@ export function SideAds() {
     return () => { removeEventListener('resize', on); document.documentElement.style.zoom = ''; delete document.documentElement.dataset.rail }
   }, [])
 
-  const [deck, setDeck] = useState<{ moshL: number[]; moshR: number[]; memes: MemeAd[]; firstL: 0 | 1; strip: number; stripStory: boolean; memeStrip: MemeAd | null } | null>(null)
+  const [deck, setDeck] = useState<{ seed: number; moshL: number[]; moshR: number[]; memes: MemeAd[]; talls: MemeAd[]; strip: number; stripStory: boolean; memeStrip: MemeAd | null } | null>(null)
   useEffect(() => {
     if (NO_CHAIN) return
     const roll = () => {
-      const memes = [...MEME_ADS.square].sort(() => Math.random() - 0.5)
       setDeck({
-        moshL: pickMosh(MAX), moshR: pickMosh(MAX), memes, firstL: Math.random() < 0.5 ? 0 : 1,
+        seed: Math.floor(Math.random() * 1e9), moshL: pickMosh(40), moshR: pickMosh(40),
+        memes: [...MEME_ADS.square].sort(() => Math.random() - 0.5), talls: [...MEME_ADS.tall].sort(() => Math.random() - 0.5),
         strip: pickMosh(1)[0], stripStory: Math.random() < 0.5, memeStrip: Math.random() < 0.4 ? pickOne(MEME_ADS.strip) : null,
       })
+      setTrim(0)
     }
     roll()
     const t = setInterval(roll, ROTATE_MS)
     return () => clearInterval(t)
   }, [])
 
-  // After drawing: a table that runs past the window's foot loses a cell.
+  // After drawing: a table that runs past the window's foot is laid out again, 20px shorter.
   const left = useRef<HTMLElement>(null), right = useRef<HTMLElement>(null)
   useLayoutEffect(() => {
-    if (!tier || tier === 'strip') return
+    if (!tier || tier === 'strip' || trim > 20) return
     // getBoundingClientRect is already in the window's pixels under CSS zoom.
     const over = [left.current, right.current].some(e => e && e.getBoundingClientRect().bottom > innerHeight - 4)
     if (over) setTrim(t => t + 1)
@@ -150,36 +187,34 @@ export function SideAds() {
     </div>
   )
 
-  const { size, cell: cellH } = CELLS[tier]
-  const fit = Math.max(1, Math.min(MAX, Math.floor((room - TOP - HEAD - FOOT) / cellH)))
-  // The room under the last square, too short for another, takes rows of 88x31 buttons.
-  const BTN = 31 + 24
-  const rows = tier === 'tiny' ? 0 : Math.floor((room - TOP - HEAD - FOOT - fit * cellH) / BTN)
-  const n = Math.max(1, fit - Math.max(0, trim - rows))
-  const btnRows = Math.max(0, rows - trim)
+  const size = tier === 'full' ? 250 : 125
+  const draw = (m: Mod, i: number) => {
+    switch (m.kind) {
+      case 'sq': return cell('mosh' in m.slot
+        ? <Ad token={m.slot.mosh} suffix={tier === 'full' ? '-sq' : '-sm'} w={size} h={size} />
+        : <Meme ad={m.slot.meme} maxW={size} />, i, 'mosh' in m.slot ? BANNER_TOKENS[m.slot.mosh].href : m.slot.meme.href)
+      case 'duo': return cell(<div className="forum-row"><Ad token={m.a} suffix="-sm" w={122} h={122} /><Meme ad={m.b} maxW={122} /></div>, i)
+      case 'tall': return cell(<div className="forum-row" style={{ alignItems: 'stretch', gap: 4 }}>
+        <Meme ad={m.ad} maxW={160} />
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>{m.side.map((x, k) => 'mosh' in x
+          ? <Ad key={k} token={x.mosh} suffix="-sm" w={88} h={88} smooth />
+          : <Meme key={k} ad={x.meme} maxW={88} />)}</div>
+      </div>, i, m.ad.href)
+      case 'btn': return cell(<div className="forum-row">{m.toks.map((t, k) => <Ad key={k} token={t} suffix="-btn" w={88} h={31} />)}</div>, i)
+    }
+  }
   const cls = tier === 'full' ? 'cc-rail' : tier === 'slim' ? 'cc-rail-slim' : 'cc-rail-tiny'
   const half = Math.ceil(deck.memes.length / 2)
-  const draw = (s: Slot, i: number) => cell(
-    tier === 'tiny' ? <Ad token={'mosh' in s ? s.mosh : (deck.moshL[i] ?? 1)} suffix="-btn" w={88} h={31} />
-      : 'mosh' in s ? <Ad token={s.mosh} suffix={tier === 'full' ? '-sq' : '-sm'} w={size} h={size} />
-      : <Meme ad={s.meme} maxW={size} />, i,
-    tier === 'tiny' ? undefined : 'mosh' in s ? BANNER_TOKENS[s.mosh].href : s.meme.href)
-  // Buttons only on the narrow tables: a meme square does not shrink to 88x31.
-  const sides: [React.RefObject<HTMLElement | null>, string, Slot[]][] = [
-    [left, 'cc-rail-left', tier === 'tiny' ? deck.moshL.slice(0, n).map(m => ({ mosh: m })) : column(n, deck.firstL, deck.moshL, deck.memes.slice(0, half))],
-    [right, 'cc-rail-right', tier === 'tiny' ? deck.moshR.slice(0, n).map(m => ({ mosh: m })) : column(n, deck.firstL ? 0 : 1, deck.moshR, deck.memes.slice(half))],
+  const sides: [React.RefObject<HTMLElement | null>, string, Mod[]][] = [
+    [left, 'cc-rail-left', layout(tier, room - trim * 20, deck.seed, deck.moshL, deck.memes.slice(0, half), deck.talls)],
+    [right, 'cc-rail-right', layout(tier, room - trim * 20, deck.seed + 1, deck.moshR, deck.memes.slice(half), [...deck.talls].reverse())],
   ]
   return (
     <>
-      {sides.map(([ref, side, slots]) => (
+      {sides.map(([ref, side, mods]) => (
         <aside key={side} ref={ref as React.RefObject<HTMLElement>} className={`${cls} ${side} cc-rail-uniform`} aria-label="Mosh friends">
           {label}
-          {slots.map(draw)}
-          {Array.from({ length: btnRows }, (_, r) => cell(
-            <div className="forum-row">{(tier === 'full' ? [0, 1] : [0]).map(k => {
-              const pool = side === 'cc-rail-left' ? deck.moshL : deck.moshR
-              return <Ad key={k} token={pool[(n + r * 2 + k) % pool.length]} suffix="-btn" w={88} h={31} />
-            })}</div>, 100 + r))}
+          {mods.map(draw)}
           {tier !== 'tiny' && footer}
         </aside>
       ))}
