@@ -65,23 +65,36 @@ export function SideAds() {
     return () => { removeEventListener('resize', fitAds); document.documentElement.style.zoom = ''; delete document.documentElement.dataset.rail }
   }, [])
   // [left square, two small squares, two buttons] and [pop-up, two buttons].
+  const [extra, setExtra] = useState<{ tallL: MemeAd; tallR: MemeAd; square: MemeAd } | null>(null)
   const [mix, setMix] = useState<{ left: number[]; right: number[]; slimL: number[]; slimR: number[]; tinyL: number[]; tinyR: number[]; strip: number; stripStory: boolean; memeL: MemeAd | null; memeR: MemeAd | null; memeSlim: MemeAd | null; memeStrip: MemeAd | null } | null>(null)
   useEffect(() => {
     if (NO_CHAIN) return
     const roll = () => setMix({ left: pickMosh(5), right: pickMosh(3), slimL: pickMosh(3), slimR: pickMosh(3), tinyL: pickMosh(4), tinyR: pickMosh(4), strip: pickMosh(1)[0], stripStory: Math.random() < 0.5,
       memeL: Math.random() < 0.5 ? pickOne(MEME_ADS.square) : null, memeR: Math.random() < 0.5 ? pickOne(MEME_ADS.tall) : null,
-      memeSlim: Math.random() < 0.35 ? pickOne(MEME_ADS.tall) : null, memeStrip: Math.random() < 0.4 ? pickOne(MEME_ADS.strip) : null })
+      memeSlim: null, memeStrip: Math.random() < 0.4 ? pickOne(MEME_ADS.strip) : null })
     roll()
     const t = setInterval(roll, ROTATE_MS)
-    return () => clearInterval(t)
+    const rollExtra = () => {
+      const [a, b] = [...MEME_ADS.tall].sort(() => Math.random() - 0.5)
+      setExtra({ tallL: a, tallR: b ?? a, square: pickOne(MEME_ADS.square) })
+    }
+    rollExtra()
+    const t2 = setInterval(rollExtra, ROTATE_MS)
+    return () => { clearInterval(t); clearInterval(t2) }
   }, [])
-  if (!mix) return null
+  if (!mix || !extra) return null
 
   // The old-forum table: a header, then a cell per ad (globals.css .forum-*).
   const label = <div className="forum-head">SPONSORS</div>
-  const cell = (children: React.ReactNode) => (
-    <div className="forum-cell"><span className="forum-cap">Advertisement</span>{children}</div>
+  const cell = (children: React.ReactNode, more = '') => (
+    <div className={'forum-cell ' + more}><span className="forum-cap">Advertisement</span>{children}</div>
   )
+  /*
+   * THE EMPTY SPACE UNDER THE TABLES (JP, 2026-10-14: "we have extra space here").
+   * Each table gets one more ad at its foot: a skyscraper, or on the wide left a
+   * second square. It shows only when the window is tall enough to hold all of it
+   * (globals.css .rail-more-*), so an ad is never cut off at the bottom.
+   */
   return (
     <>
       <aside className="cc-rail cc-rail-left" aria-label="Mosh friends">
@@ -101,6 +114,7 @@ export function SideAds() {
           <Ad token={mix.left[4]} suffix="-btn" w={88} h={31} />
         </div>
         )}
+        {cell(<Meme ad={extra.square} maxW={250} />, 'rail-more-850')}
       </aside>
       {/* The slim columns, for medium screens: 125 wide (globals.css .cc-rail-slim). */}
       <aside className="cc-rail-slim cc-rail-left" aria-label="Mosh friends">
@@ -114,6 +128,7 @@ export function SideAds() {
         {cell(
         <Ad token={mix.slimL[2]} suffix="-btn" w={88} h={31} />
         )}
+        {cell(<Meme ad={extra.tallL} maxW={125} />, 'rail-more-900')}
       </aside>
       <aside className="cc-rail-slim cc-rail-right" aria-label="Mosh friends">
         {label}
@@ -126,6 +141,7 @@ export function SideAds() {
         {cell(
         <Ad token={mix.slimR[2]} suffix="-btn" w={88} h={31} />
         )}
+        {cell(<Meme ad={extra.tallR} maxW={125} />, 'rail-more-1010')}
       </aside>
       <aside className="cc-rail cc-rail-right" aria-label="Mosh friends">
         {label}
@@ -138,15 +154,18 @@ export function SideAds() {
           <Ad token={mix.right[2]} suffix="-btn" w={88} h={31} />
         </div>
         )}
+        {!mix.memeR && cell(<Meme ad={extra.tallR} maxW={160} />, 'rail-more-1150')}
       </aside>
       {/* The tiny columns (globals.css .cc-rail-tiny): four 88x31 buttons a side. */}
       <aside className="cc-rail-tiny cc-rail-left" aria-label="Mosh friends">
         {label}
         {mix.tinyL.map((t, i) => <div key={i}>{cell(<Ad token={t} suffix="-btn" w={88} h={31} />)}</div>)}
+        <div>{cell(<Meme ad={extra.tallL} maxW={88} />, 'rail-more-700')}</div>
       </aside>
       <aside className="cc-rail-tiny cc-rail-right" aria-label="Mosh friends">
         {label}
         {mix.tinyR.map((t, i) => <div key={i}>{cell(<Ad token={t} suffix="-btn" w={88} h={31} />)}</div>)}
+        <div>{cell(<Meme ad={extra.tallR} maxW={88} />, 'rail-more-700')}</div>
       </aside>
       {/* Narrow screens and phones: one old-school 468x60 banner at the foot of the page. */}
       <div className="cc-foot" aria-label="Mosh friends">

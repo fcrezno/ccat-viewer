@@ -66,15 +66,25 @@ export function pickMosh(n: number): number[] {
 export const MEME_AD_HREF = BANNER_TOKENS[1].href
 export const MEME_AD_NAME = BANNER_TOKENS[1].name
 export type MemeAd = { file: string; w: number; h: number }
-const memeAd = (name: string, w: number, h: number): MemeAd => ({ file: `/flyers/bun-x-${name}.gif`, w, h })
+const memeAd = (name: string, w: number, h: number): MemeAd => ({ file: `/flyers/bun-x-${name}.webp`, w, h })
+/*
+ * 35 ads (JP, 2026-10-14: "make at least 33 ads and put them on the website and in
+ * the game"), drawn sharp at the size they are SHOWN: a 300x250 is made 250x208 for
+ * the 250 column (scripts/make-memeads.mjs). RATXECUTIONER hangs the squares and
+ * the tall ones on its walls too.
+ */
+const sq = (n: string) => memeAd(n, 250, 208), sq250 = (n: string) => memeAd(n, 250, 250)
 export const MEME_ADS = {
   /** For the 250-wide top of the left column. */
-  square: [memeAd('getby', 300, 250), memeAd('career', 250, 250), memeAd('nowall', 200, 200), memeAd('beforeyougo', 300, 250),
-    memeAd('comfy', 300, 250), memeAd('bundog', 250, 250), memeAd('throne', 300, 250), memeAd('storm', 300, 250),
-    memeAd('energy', 250, 250), memeAd('trick', 300, 250), memeAd('virus', 300, 250)],
-  /** The skyscraper, for the top of the right columns. */
-  tall: [memeAd('side', 160, 600), memeAd('fighter', 160, 600)],
-  /** The 468x60, for the strip at the foot. */
-  strip: [memeAd('hearing', 468, 60), memeAd('creation', 468, 60), memeAd('bear', 468, 60)],
+  square: [
+    sq('getby'), sq250('career'), memeAd('nowall', 200, 200), sq('beforeyougo'), sq('comfy'), sq250('bundog'),
+    sq('throne'), sq('storm'), sq250('energy'), sq('trick'), sq('virus'), sq('bunmania'), sq('stone'),
+    sq('infinity'), sq('bunwich'), sq250('aisle9'), sq('pillow'), sq250('smiling'), sq('theory'), sq250('doom'),
+    sq('extreme'), sq250('buddy'), sq('island'), sq('singles'), sq250('screensaver'),
+  ],
+  /** The skyscrapers, for the top of the right columns. */
+  tall: [memeAd('side', 160, 600), memeAd('fighter', 160, 600), memeAd('quiz', 160, 600), memeAd('hotornot', 160, 600)],
+  /** The 468x60s, for the strip at the foot. */
+  strip: [memeAd('hearing', 468, 60), memeAd('creation', 468, 60), memeAd('bear', 468, 60), memeAd('punch', 468, 60), memeAd('dialup', 468, 60), memeAd('askbun', 468, 60)],
 }
 export const pickOne = <T,>(a: readonly T[]) => a[Math.floor(Math.random() * a.length)]

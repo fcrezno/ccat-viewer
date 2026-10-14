@@ -1144,6 +1144,17 @@ html[data-rail="tiny"] {
 }
 html:not([data-rail="strip"]) .cc-foot { display: none; }
 /*
+ * The extra ad at the foot of each table (components/SideAds, "we have extra space
+ * here") shows only when the window is tall enough for the whole table: the number
+ * is the window height it needs. The tables are fixed, so a short window would cut it.
+ */
+.rail-more-700, .rail-more-850, .rail-more-900, .rail-more-1010, .rail-more-1150 { display: none !important; }
+@media (min-height: 700px) { .rail-more-700 { display: flex !important; } }
+@media (min-height: 850px) { .rail-more-850 { display: flex !important; } }
+@media (min-height: 900px) { .rail-more-900 { display: flex !important; } }
+@media (min-height: 1010px) { .rail-more-1010 { display: flex !important; } }
+@media (min-height: 1150px) { .rail-more-1150 { display: flex !important; } }
+/*
  * WHICH TIER, AND A LITTLE ZOOM (JP: "i need to zoom in and out to see the ads; fix
  * that"): components/SideAds measures the window and sets html[data-rail]. A window
  * just short of room for the tiny columns is zoomed out a touch (html zoom) so the

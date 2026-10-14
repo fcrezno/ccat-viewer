@@ -13,22 +13,39 @@
  * Only cat memes: the photo of a real person from the depot is not used in an ad.
  */
 import sharp from 'sharp'
-import { mkdirSync, rmSync } from 'fs'
+import { existsSync, mkdirSync, rmSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
 import { spawnSync } from 'child_process'
 
 const FFMPEG = 'C:/Users/JPDom/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-8.1.1-full_build/bin/ffmpeg.exe'
 const OUT = 'public/flyers'
-const MEME = n => `public/ratx/memes/${String(n).padStart(2, '0')}.jpg`
+/*
+ * SHARPER (JP, 2026-10-14: "fix these ads so they look better"). The game's memes
+ * are 320 px, too soft for an ad, so the ads read full-size copies (1200 px, the
+ * same Meme Depot pictures in the same order) from clanker-clips/memes-hi when
+ * they are there. Every picture goes in at 2x, every ad is drawn at 2x and brought
+ * down to the size the page SHOWS it (a 300x250 in a 250 column is drawn for 250,
+ * not shrunk by the browser), and the frames are saved as animated WebP: a GIF's
+ * 256 colours put grain all over fur and fire.
+ */
+const HI = 'C:/Users/JPDom/clanker-clips/memes-hi'
+const MEME = n => {
+  const id = String(n).padStart(2, '0')
+  return existsSync(`${HI}/${id}.img`) ? `${HI}/${id}.img` : `public/ratx/memes/${id}.jpg`
+}
+const X = 2                                       // pictures and drawing at twice the shown size
 
 /** A meme cropped to w x h, as a data URI for the SVG. */
-async function pic(n, w, h, position = 'centre') {
+async function pic(n, w0, h0, position = 'centre') {
+  const w = w0 * X, h = h0 * X
   // position may be a number: the crop's centre, 0..1 across the picture.
+  const tall = await sharp(MEME(n)).resize({ height: h, kernel: 'lanczos3' }).toBuffer()
   const png = typeof position === 'number'
-    ? await sharp(await sharp(MEME(n)).resize({ height: h }).toBuffer()).metadata().then(async m => sharp(await sharp(MEME(n)).resize({ height: h }).toBuffer())
-        .extract({ left: Math.max(0, Math.min(m.width - w, Math.round(m.width * position - w / 2))), top: 0, width: w, height: h }).png().toBuffer())
-    : await sharp(MEME(n)).resize(w, h, { fit: 'cover', position }).png().toBuffer()
+    ? await sharp(tall).metadata().then(m => sharp(tall)
+        .extract({ left: Math.max(0, Math.min(m.width - w, Math.round(m.width * position - w / 2))), top: 0, width: Math.min(w, m.width), height: h })
+        .sharpen({ sigma: 0.6 }).png().toBuffer())
+    : await sharp(MEME(n)).resize(w, h, { fit: 'cover', position, kernel: 'lanczos3' }).sharpen({ sigma: 0.6 }).png().toBuffer()
   return 'data:image/png;base64,' + png.toString('base64')
 }
 const img = (uri, x, y, w, h, extra = '') => `<image href="${uri}" x="${x}" y="${y}" width="${w}" height="${h}" ${extra}/>`
@@ -282,21 +299,277 @@ ADS.push(
       <rect x="0.5" y="0.5" width="467" height="59" fill="none" stroke="#2a1300"/>` } },
 )
 
+
+// ── ROUND THREE (JP, 2026-10-14: "make at least 33 ads and put them on the website
+// and in the game"): nineteen more, 35 in all. ──
+const stars = (n, w, h, ink = '#ffffff33') => [...Array(n)].map((_, i) => `<text x="${(i * 53 + 11) % w}" y="${(i * 37 + 17) % h}" font-size="9" fill="${ink}">★</text>`).join('')
+ADS.push(
+  // The wrestling pay-per-view -> BUNMANIA.
+  { name: 'bunmania', w: 300, h: 250, async make() {
+    const p = await pic(20, 150, 250, 'north')
+    return f => `<rect width="300" height="250" fill="#0a0a0a"/>${img(p, 150, 0, 150, 250)}
+      <defs><linearGradient id="fadeL" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0a0a0a"/><stop offset="0.35" stop-color="#0a0a0a" stop-opacity="0"/></linearGradient></defs>
+      <rect x="150" width="150" height="250" fill="url(#fadeL)"/>
+      <text x="14" y="34" font-family="Arial Black" font-size="11" fill="#ffd200" letter-spacing="2">LIVE ON PAY-PER-VIEW</text>
+      <text x="12" y="80" font-family="Impact" font-size="46" fill="#ff1e1e" stroke="#ffd200" stroke-width="1.5" paint-order="stroke">BUN</text>
+      <text x="12" y="122" font-family="Impact" font-size="40" fill="#ffffff" stroke="#000" stroke-width="2" paint-order="stroke">MANIA</text>
+      <text x="14" y="146" font-family="Arial Black" font-size="12" fill="#fff">THE MAIN EVENT</text>
+      <text x="14" y="162" font-family="Arial" font-size="11" fill="#bbb">One cat. One belt. No rules.</text>
+      ${pill(12, 196, 132, 32, 'ORDER NOW!', { from: '#ffd200', to: '#e08a00', size: 14, lit: f === 1 })}
+      <rect x="0.5" y="0.5" width="299" height="249" fill="none" stroke="#ffd200"/>` } },
+
+  // The video-store new release -> BUN AND THE STONE.
+  { name: 'stone', w: 300, h: 250, async make() {
+    const p = await pic(9, 130, 196, 'centre')
+    return f => `<rect width="300" height="250" fill="#003a8c"/>
+      <rect x="0" y="0" width="300" height="34" fill="#ffd200"/>
+      <text x="150" y="24" text-anchor="middle" font-family="Arial Black" font-size="17" fill="#003a8c">NEW RELEASE · NOW ON VHS!</text>
+      <rect x="12" y="44" width="134" height="200" fill="#000"/>${img(p, 14, 46, 130, 196)}
+      <text x="79" y="66" text-anchor="middle" font-family="Times New Roman" font-weight="bold" font-size="14" fill="#fff" stroke="#000" stroke-width="2" paint-order="stroke">BUN AND THE STONE</text>
+      <g font-family="Arial" fill="#fff"><text x="158" y="70" font-size="12" font-style="italic">"Two paws up!"</text>
+        <text x="158" y="88" font-size="10" fill="#ffd200">★★★★★ The Mosh Times</text>
+        <text x="158" y="116" font-size="12" font-weight="bold">Only the true king</text><text x="158" y="132" font-size="12" font-weight="bold">can pull the bun.</text></g>
+      ${pill(158, 196, 130, 30, 'RENT IT TODAY', { from: '#ffd200', to: '#e0a800', ink: '#003a8c', size: 12, lit: f === 1 })}
+      <text x="223" y="244" text-anchor="middle" font-family="Arial" font-size="8" fill="#9db8e8">Be kind, rewind.</text>` } },
+
+  // The summer-blockbuster teaser -> INFINITY BUN.
+  { name: 'infinity', w: 300, h: 250, async make() {
+    const p = await pic(3, 300, 250, 'centre')
+    return f => `${img(p, 0, 0, 300, 250)}
+      <defs><linearGradient id="vig" x1="0" y1="0" x2="0" y2="1"><stop offset="0.45" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.92"/></linearGradient></defs>
+      <rect width="300" height="250" fill="url(#vig)"/>
+      <text x="150" y="176" text-anchor="middle" font-family="Arial Black" font-size="30" letter-spacing="3" fill="#ffffff">INFINITY BUN</text>
+      <text x="150" y="196" text-anchor="middle" font-family="Arial" font-size="11" letter-spacing="4" fill="#e9c46a">ONE SNAP. ALL THE BUNS.</text>
+      <text x="150" y="226" text-anchor="middle" font-family="Arial Black" font-size="13" fill="${f ? '#ffd200' : '#ffffff'}">COMING SOON TO A MOSH PIT NEAR YOU</text>` } },
+
+  // The sandwich-shop ad -> the BUN-WICH.
+  { name: 'bunwich', w: 300, h: 250, async make() {
+    const p = await pic(30, 300, 150, 'centre')
+    return f => `<rect width="300" height="250" fill="#005a2b"/>${img(p, 0, 0, 300, 150)}
+      <rect x="0" y="150" width="300" height="100" fill="#ffd200"/>
+      <path d="M0 150 L300 150 L300 160 L0 168 Z" fill="#005a2b"/>
+      <text x="14" y="198" font-family="Arial Black" font-size="27" fill="#005a2b">THE BUN-WICH</text>
+      <text x="14" y="218" font-family="Arial" font-weight="bold" font-size="12" fill="#004020">Freshly bundled. Every day.</text>
+      <text x="14" y="238" font-family="Arial" font-size="9" fill="#004020">Toppings: cat. That's it.</text>
+      ${pill(200, 208, 90, 30, 'EAT BUN', { from: '#2bb34a', to: '#005a2b', ink: '#fff', size: 13, lit: f === 1 })}
+      <rect x="0.5" y="0.5" width="299" height="249" fill="none" stroke="#004020"/>` } },
+
+  // The supermarket weekly circular -> FRESH BUNS, aisle 9.
+  { name: 'aisle9', w: 250, h: 250, async make() {
+    const p = await pic(35, 150, 160, 'north')
+    return f => `<rect width="250" height="250" fill="#fff"/>
+      <rect width="250" height="40" fill="#d81e1e"/>
+      <text x="125" y="27" text-anchor="middle" font-family="Arial Black" font-size="17" fill="#fff">THIS WEEK ONLY!</text>
+      ${img(p, 0, 40, 150, 160)}
+      <g transform="rotate(8 200 100)"><path d="M160 60 L245 60 L245 140 L160 140 Z" fill="#ffd200" stroke="#d81e1e" stroke-width="3"/>
+        <text x="202" y="92" text-anchor="middle" font-family="Arial Black" font-size="13" fill="#d81e1e">BUY 1</text>
+        <text x="202" y="112" text-anchor="middle" font-family="Arial Black" font-size="13" fill="#d81e1e">GET 1</text>
+        <text x="202" y="132" text-anchor="middle" font-family="Impact" font-size="${f ? 20 : 18}" fill="#000">BUN</text></g>
+      <rect y="200" width="250" height="50" fill="#1d4fa8"/>
+      <text x="12" y="222" font-family="Arial Black" font-size="15" fill="#fff">FRESH BAKED BUNS</text>
+      <text x="12" y="240" font-family="Arial" font-size="11" fill="#ffd200">Aisle 9 · while cats last</text>` } },
+
+  // The sports-network promo -> the pillow-fight championship.
+  { name: 'pillow', w: 300, h: 250, async make() {
+    const p = await pic(47, 300, 200, 'centre')
+    return f => `<rect width="300" height="250" fill="#111"/>${img(p, 0, 0, 300, 200)}
+      <rect x="0" y="0" width="74" height="26" fill="#c80000"/><text x="37" y="18" text-anchor="middle" font-family="Arial Black" font-size="13" fill="#fff">${f ? '● LIVE' : '○ LIVE'}</text>
+      <rect y="168" width="300" height="82" fill="#111" opacity="0.92"/>
+      <text x="12" y="192" font-family="Arial Black" font-style="italic" font-size="17" fill="#fff">WORLD PILLOW FIGHT</text>
+      <text x="12" y="212" font-family="Arial Black" font-style="italic" font-size="17" fill="#ffd200">CHAMPIONSHIP</text>
+      <text x="12" y="236" font-family="Arial" font-size="11" fill="#bbb">SAT 8PM · ONLY ON MOSH SPORTS</text>
+      ${pill(206, 214, 84, 28, 'WATCH', { from: '#ff4a2e', to: '#c3170b', ink: '#fff', size: 13, lit: f === 1 })}` } },
+
+  // The e-mail newsletter sign-up -> daily affirmations.
+  { name: 'smiling', w: 250, h: 250, async make() {
+    const p = await pic(33, 110, 140, 'north')
+    return f => `<rect width="250" height="250" fill="#fff6d8"/>
+      <rect width="250" height="36" fill="#ff8fb1"/>
+      <text x="125" y="24" text-anchor="middle" font-family="Comic Sans MS" font-weight="bold" font-size="16" fill="#fff">☺ Daily Affirmations ☺</text>
+      <rect x="10" y="46" width="114" height="144" fill="#fff" stroke="#ff8fb1" stroke-width="2"/>${img(p, 12, 48, 110, 140)}
+      <g font-family="Comic Sans MS" font-size="13" fill="#7a3b4f"><text x="134" y="70">Smiling</text><text x="134" y="88">through</text><text x="134" y="106">it all!</text>
+        <text x="134" y="140" font-size="11">One cat. One</text><text x="134" y="155" font-size="11">smile. Every</text><text x="134" y="170" font-size="11">morning.</text></g>
+      <rect x="10" y="202" width="130" height="24" fill="#fff" stroke="#999"/><text x="16" y="218" font-family="Arial" font-size="11" fill="#aaa">your@email.com</text>
+      ${pill(146, 200, 94, 28, 'SIGN UP!', { from: '#ff8fb1', to: '#e0406f', ink: '#fff', size: 12, lit: f === 1 })}` } },
+
+  // The sitcom promo -> THE BIG $BUN THEORY.
+  { name: 'theory', w: 300, h: 250, async make() {
+    const p = await pic(14, 300, 170, 'centre')
+    return f => `<rect width="300" height="250" fill="#120830"/>${img(p, 0, 0, 300, 170)}
+      <rect y="170" width="300" height="80" fill="#120830"/>
+      <text x="150" y="196" text-anchor="middle" font-family="Arial Black" font-size="13" fill="#c6a8ff" letter-spacing="2">ALL-NEW EPISODES</text>
+      <text x="150" y="218" text-anchor="middle" font-family="Arial Black" font-size="18" fill="#fff">THURSDAYS 8/7c</text>
+      <rect x="96" y="226" width="108" height="18" rx="9" fill="${f ? '#c6a8ff' : '#5b2bd6'}"/>
+      <text x="150" y="239" text-anchor="middle" font-family="Arial Black" font-size="10" fill="${f ? '#120830' : '#fff'}">ON MOSH NETWORK</text>` } },
+
+  // The PC-game box ad -> BUN, rated M for Meow.
+  { name: 'doom', w: 250, h: 250, async make() {
+    const p = await pic(46, 130, 196, 'north')
+    return f => `<rect width="250" height="250" fill="#1a0000"/>
+      ${stars(14, 250, 250, '#ff400033')}
+      <g transform="rotate(-4 75 125)"><rect x="12" y="24" width="134" height="200" fill="#000" stroke="#7a0000" stroke-width="2"/>${img(p, 14, 26, 130, 196)}
+        <rect x="16" y="196" width="24" height="24" fill="#fff"/><text x="28" y="214" text-anchor="middle" font-family="Arial Black" font-size="16">M</text></g>
+      <text x="198" y="54" text-anchor="middle" font-family="Impact" font-size="20" fill="#ff5a00">RATED M</text>
+      <text x="198" y="72" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="11" fill="#fff">for MEOW</text>
+      <g font-family="Arial" font-size="10.5" fill="#ffb07a"><text x="160" y="104">✓ Rip and bun</text><text x="160" y="122">✓ 666 rats</text><text x="160" y="140">✓ No wallet</text></g>
+      ${pill(156, 176, 84, 30, 'PLAY', { from: '#ff7a00', to: '#c00000', ink: '#fff', size: 15, lit: f === 1, font: 'Impact' })}
+      <text x="198" y="236" text-anchor="middle" font-family="Arial" font-size="8" fill="#aa6a4a">On sale wherever bun is sold.</text>` } },
+
+  // The extreme-sports cereal ad -> BUNDLE TO THE EXTREME!
+  { name: 'extreme', w: 300, h: 250, async make() {
+    const p = await pic(22, 150, 112, 'centre')
+    return f => `<rect width="300" height="250" fill="${f ? '#00e5ff' : '#ff2bd6'}"/>
+      ${[...Array(9)].map((_, i) => `<path d="M${i * 40 - 20} 250 L${i * 40 + 40} 0 L${i * 40 + 55} 0 L${i * 40 - 5} 250 Z" fill="${f ? '#ff2bd6' : '#00e5ff'}" opacity="0.5"/>`).join('')}
+      <rect x="12" y="78" width="154" height="116" fill="#fff" stroke="#000" stroke-width="3" transform="rotate(-3 89 136)"/>${img(p, 14, 80, 150, 112, 'transform="rotate(-3 89 136)"')}
+      <text x="150" y="40" text-anchor="middle" font-family="Impact" font-size="34" fill="#ffe600" stroke="#000" stroke-width="3" paint-order="stroke" transform="rotate(-4 150 40)">BUNDLE TO THE</text>
+      <text x="230" y="120" text-anchor="middle" font-family="Impact" font-size="40" fill="#fff" stroke="#000" stroke-width="3" paint-order="stroke" transform="rotate(8 230 120)">XTREME!</text>
+      <text x="236" y="158" text-anchor="middle" font-family="Arial Black" font-size="11" fill="#000">TOTALLY RADICAL</text>
+      ${pill(176, 200, 112, 32, 'GO XTREME', { from: '#ffe600', to: '#ff9a00', size: 13, lit: f === 1, font: 'Impact' })}` } },
+
+  // The instant-messenger pop-up -> You've got BUN!
+  { name: 'buddy', w: 250, h: 250, async make() {
+    const p = await pic(32, 80, 80, 'centre')
+    return f => `<rect width="250" height="250" fill="#d4d0c8"/>
+      <rect x="2" y="2" width="246" height="18" fill="#0a246a"/><text x="7" y="15" font-family="Tahoma" font-weight="bold" font-size="10.5" fill="#fff">BunBuddy42 - Instant Message</text>
+      <rect x="230" y="4" width="15" height="13" fill="#d4d0c8" stroke="#fff"/><text x="237.5" y="14.5" text-anchor="middle" font-family="Tahoma" font-weight="bold" font-size="10">×</text>
+      <rect x="6" y="24" width="238" height="150" fill="#fff" stroke="#808080"/>
+      <g font-family="Arial" font-size="12"><text x="12" y="44"><tspan fill="#d00" font-weight="bold">BunBuddy42:</tspan> hey</text>
+        <text x="12" y="64"><tspan fill="#d00" font-weight="bold">BunBuddy42:</tspan> u there??</text>
+        <text x="12" y="84"><tspan fill="#d00" font-weight="bold">BunBuddy42:</tspan> he bought $BUN</text>
+        <text x="12" y="104"><tspan fill="#00d" font-weight="bold">You:</tspan> who</text>
+        <text x="12" y="124"><tspan fill="#d00" font-weight="bold">BunBuddy42:</tspan> look →</text></g>
+      <rect x="158" y="88" width="80" height="80" fill="#fff" stroke="#808080"/>${img(p, 158, 88, 80, 80)}
+      <rect x="6" y="180" width="238" height="30" fill="#fff" stroke="#808080"/><text x="12" y="200" font-family="Arial" font-size="12" fill="#999">${f ? '|' : ''}</text>
+      <text x="10" y="238" font-family="Arial Black" font-size="15" fill="#0a246a">You've got BUN!</text>
+      <rect x="180" y="220" width="62" height="24" fill="#d4d0c8" stroke="#000" stroke-width="${f ? 2 : 1}"/><text x="211" y="236" text-anchor="middle" font-family="Tahoma" font-size="11">Send</text>` } },
+
+  // The travel agency deal -> Bun Island.
+  { name: 'island', w: 300, h: 250, async make() {
+    const p = await pic(38, 300, 250, 'centre')
+    return f => `${img(p, 0, 0, 300, 250)}
+      <rect x="0" y="0" width="300" height="56" fill="#fff" opacity="0.88"/>
+      <text x="150" y="26" text-anchor="middle" font-family="Georgia" font-style="italic" font-size="22" fill="#0a5aa8">Escape to Bun Island</text>
+      <text x="150" y="46" text-anchor="middle" font-family="Arial" font-size="11" fill="#333">Sun. Sea. Absolutely no red candles.</text>
+      <g transform="rotate(-10 238 150)"><circle cx="238" cy="150" r="40" fill="#ffd200" stroke="#fff" stroke-width="3"/>
+        <text x="238" y="146" text-anchor="middle" font-family="Arial Black" font-size="12" fill="#c00">ALL</text><text x="238" y="162" text-anchor="middle" font-family="Arial Black" font-size="12" fill="#c00">INCLUSIVE</text></g>
+      ${pill(14, 206, 128, 30, 'BOOK NOW »', { from: '#4fa3ff', to: '#0a5aa8', ink: '#fff', size: 13, lit: f === 1 })}` } },
+
+  // The dating site -> single knights in your area.
+  { name: 'singles', w: 300, h: 250, async make() {
+    const p = await pic(6, 124, 150, 'north'), q = await pic(45, 124, 150, 'north')
+    return f => `<rect width="300" height="250" fill="#ffe8f0"/>
+      <text x="150" y="30" text-anchor="middle" font-family="Georgia" font-weight="bold" font-size="20" fill="#c2185b">Lonely this weekend?</text>
+      <text x="150" y="50" text-anchor="middle" font-family="Arial" font-size="12" fill="#555">Meet single knights in your area!</text>
+      <rect x="18" y="60" width="128" height="154" fill="#fff" stroke="#e8a0bd" stroke-width="2"/>${img(p, 20, 62, 124, 150)}
+      <rect x="154" y="60" width="128" height="154" fill="#fff" stroke="#e8a0bd" stroke-width="2"/>${img(q, 156, 62, 124, 150)}
+      <rect x="20" y="192" width="124" height="20" fill="#000" opacity="0.6"/><text x="82" y="206" text-anchor="middle" font-family="Arial" font-size="10" fill="#fff">Sir Bun, 3 · 0.2 mi</text>
+      <rect x="156" y="192" width="124" height="20" fill="#000" opacity="0.6"/><text x="218" y="206" text-anchor="middle" font-family="Arial" font-size="10" fill="#fff">Lady Bun, 2 · 0.4 mi</text>
+      <text x="150" y="136" text-anchor="middle" font-size="28" fill="${f ? '#ff2a6a' : '#c2185b'}">♥</text>
+      <rect x="90" y="220" width="120" height="24" rx="12" fill="${f ? '#ff2a6a' : '#c2185b'}"/><text x="150" y="236" text-anchor="middle" font-family="Arial Black" font-size="11" fill="#fff">VIEW PROFILES</text>` } },
+
+  // The free-screensaver download -> the Bun screensaver.
+  { name: 'screensaver', w: 250, h: 250, async make() {
+    const p = await pic(16, 180, 110, 'centre')
+    return f => `<rect width="250" height="250" fill="#008080"/>
+      <text x="125" y="30" text-anchor="middle" font-family="Arial Black" font-size="21" fill="#fff" stroke="#003" stroke-width="1">FREE SCREENSAVER!</text>
+      <rect x="30" y="42" width="190" height="130" rx="6" fill="#d4d0c8" stroke="#000"/>
+      <rect x="40" y="50" width="170" height="104" fill="#000"/>${img(p, 40, 50, 170, 104)}
+      <rect x="100" y="172" width="50" height="8" fill="#d4d0c8" stroke="#000"/><rect x="80" y="180" width="90" height="6" fill="#d4d0c8" stroke="#000"/>
+      <text x="125" y="204" text-anchor="middle" font-family="Verdana" font-size="11" fill="#fff">The Bun is ALWAYS watching.</text>
+      <rect x="54" y="214" width="142" height="28" fill="#d4d0c8" stroke="${f ? '#000' : '#fff'}" stroke-width="2"/>
+      <text x="125" y="233" text-anchor="middle" font-family="Tahoma" font-weight="bold" font-size="13">Get it now!</text>` } },
+
+  // The personality-quiz skyscraper -> WHICH BUN ARE YOU?
+  { name: 'quiz', w: 160, h: 600, async make() {
+    const ps = await Promise.all([6, 13, 33, 12].map(n => pic(n, 68, 68, 'north')))
+    const names = ['Brave', 'Chill', 'Happy', 'Ninja']
+    return f => `<rect width="160" height="600" fill="#6a1b9a"/>
+      ${stars(20, 160, 600)}
+      <text x="80" y="40" text-anchor="middle" font-family="Arial Black" font-size="21" fill="#ffeb3b">WHICH</text>
+      <text x="80" y="70" text-anchor="middle" font-family="Arial Black" font-size="27" fill="#fff">BUN</text>
+      <text x="80" y="98" text-anchor="middle" font-family="Arial Black" font-size="21" fill="#ffeb3b">ARE YOU?</text>
+      ${ps.map((p, i) => { const x = 8 + (i % 2) * 76, y = 116 + Math.floor(i / 2) * 104
+        return `<rect x="${x}" y="${y}" width="68" height="92" fill="#fff"/>${img(p, x, y, 68, 68)}<text x="${x + 34}" y="${y + 84}" text-anchor="middle" font-family="Arial Black" font-size="11" fill="#6a1b9a">${names[i]}</text>` }).join('')}
+      <g font-family="Arial" font-size="12" fill="#fff" text-anchor="middle"><text x="80" y="356">Take the 10-second</text><text x="80" y="372">quiz and find out!</text></g>
+      <text x="80" y="420" text-anchor="middle" font-family="Arial Black" font-size="15" fill="#ffeb3b">98% of cats</text>
+      <text x="80" y="438" text-anchor="middle" font-family="Arial Black" font-size="15" fill="#ffeb3b">get this wrong!</text>
+      ${pill(14, 470, 132, 40, 'START QUIZ', { from: '#ffeb3b', to: '#f5a700', ink: '#4a0072', size: 15, lit: f === 1 })}
+      <text x="80" y="560" text-anchor="middle" font-family="Arial" font-size="9" fill="#d1a6e8">Results not scientific.</text>` } },
+
+  // HOT or NOT -> rate this cat.
+  { name: 'hotornot', w: 160, h: 600, async make() {
+    const p = await pic(21, 144, 200, 'centre')
+    return f => `<rect width="160" height="600" fill="#fff"/>
+      <rect width="160" height="70" fill="#d81e1e"/>
+      <text x="80" y="34" text-anchor="middle" font-family="Arial Black" font-size="23" fill="#fff">HOT <tspan font-size="14">or</tspan></text>
+      <text x="80" y="60" text-anchor="middle" font-family="Arial Black" font-size="23" fill="#fff">NOT?</text>
+      <rect x="6" y="80" width="148" height="204" fill="#000"/>${img(p, 8, 82, 144, 200)}
+      <text x="80" y="310" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="13" fill="#333">Rate this cat!</text>
+      ${[...Array(10)].map((_, i) => { const x = 10 + (i % 5) * 29, y = 324 + Math.floor(i / 5) * 32, on = f && i === 9
+        return `<rect x="${x}" y="${y}" width="26" height="26" fill="${on ? '#d81e1e' : '#eee'}" stroke="#999"/><text x="${x + 13}" y="${y + 18}" text-anchor="middle" font-family="Arial Black" font-size="12" fill="${on ? '#fff' : '#333'}">${i + 1}</text>` }).join('')}
+      <text x="80" y="424" text-anchor="middle" font-family="Arial" font-size="11" fill="#666">Average: <tspan font-weight="bold" fill="#d81e1e">10.0</tspan></text>
+      <text x="80" y="442" text-anchor="middle" font-family="Arial" font-size="11" fill="#666">(4,201 votes)</text>
+      ${pill(14, 488, 132, 38, 'VOTE NOW!', { from: '#ff4a2e', to: '#c3170b', ink: '#fff', size: 14, lit: f === 1 })}
+      <rect x="0.5" y="0.5" width="159" height="599" fill="none" stroke="#999"/>` } },
+
+  // PUNCH THE MONKEY -> hit the rat.
+  { name: 'punch', w: 468, h: 60, async make() {
+    const p = await pic(23, 90, 60, 'centre')
+    const rx = [300, 340, 380][0]
+    return f => `<rect width="468" height="60" fill="#ffe600"/>
+      ${img(p, 0, 0, 90, 60)}
+      <text x="100" y="26" font-family="Impact" font-size="20" fill="#d81e1e">HIT THE RAT</text>
+      <text x="100" y="48" font-family="Arial Black" font-size="11" fill="#000">AND WIN A HIGH FIVE!</text>
+      ${[0, 1, 2, 3, 4].map(i => `<rect x="${250 + i * 34}" y="10" width="30" height="40" fill="#fff" stroke="#000"/>`).join('')}
+      <text x="${f ? 299 : 367}" y="40" text-anchor="middle" font-size="22">🐀</text>
+      <text x="${f ? 299 : 367}" y="24" text-anchor="middle" font-family="Arial Black" font-size="9" fill="#d81e1e">${f ? '' : 'POW!'}</text>
+      <rect x="428" y="12" width="34" height="36" fill="#d81e1e"/><text x="445" y="35" text-anchor="middle" font-family="Arial Black" font-size="10" fill="#fff">GO!</text>
+      <rect x="0.5" y="0.5" width="467" height="59" fill="none" stroke="#000"/>` } },
+
+  // The dial-up free-hours CD -> 700 HOURS OF BUN.
+  { name: 'dialup', w: 468, h: 60, async make() {
+    const p = await pic(42, 70, 60, 'centre')
+    return f => `<defs><linearGradient id="cd" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9bf"/><stop offset="0.5" stop-color="#fdf"/><stop offset="1" stop-color="#9fd"/></linearGradient></defs>
+      <rect width="468" height="60" fill="#0b2a7a"/>
+      <circle cx="35" cy="30" r="27" fill="url(#cd)" stroke="#fff"/><circle cx="35" cy="30" r="5" fill="#0b2a7a"/>
+      ${img(p, 72, 0, 70, 60)}
+      <text x="152" y="27" font-family="Arial Black" font-size="19" fill="#ffd200">700 HOURS OF BUN</text>
+      <text x="152" y="46" font-family="Arial" font-size="11" fill="#fff">Dial in at 56k. ${f ? 'Connected!' : 'Connecting...'}</text>
+      ${pill(372, 16, 88, 28, 'SIGN ON', { from: '#ffd200', to: '#e08a00', ink: '#0b2a7a', size: 12, lit: f === 1 })}` } },
+
+  // The search-engine banner -> Ask Bun.
+  { name: 'askbun', w: 468, h: 60, async make() {
+    const p = await pic(21, 70, 60, 'centre')
+    return f => `<rect width="468" height="60" fill="#fff"/>
+      ${img(p, 0, 0, 70, 60)}
+      <text x="80" y="26" font-family="Georgia" font-weight="bold" font-size="20" fill="#c2185b">Ask Bun<tspan font-size="11" fill="#666">.com</tspan></text>
+      <text x="80" y="46" font-family="Arial" font-size="11" fill="#555">Got a question? Ask a cat.</text>
+      <rect x="248" y="18" width="150" height="24" fill="#fff" stroke="#7a9cc6"/><text x="254" y="34" font-family="Arial" font-size="11" fill="#999">is bun the one?${f ? '|' : ''}</text>
+      <rect x="404" y="18" width="56" height="24" fill="#d4d0c8" stroke="#808080"/><text x="432" y="34" text-anchor="middle" font-family="Tahoma" font-weight="bold" font-size="11">Ask!</text>
+      <rect x="0.5" y="0.5" width="467" height="59" fill="none" stroke="#7a9cc6"/>` } },
+)
+
+/** The size the page shows an ad at (lib/banners MEME_ADS): no wider than its column. */
+const shown = ad => {
+  const max = ad.h === 60 ? 468 : ad.h >= 600 ? 160 : 250
+  const k = Math.min(1, max / ad.w)
+  return [Math.round(ad.w * k), Math.round(ad.h * k)]
+}
 // "node scripts/make-memeads.mjs comfy storm" makes just those.
 const only = process.argv.slice(2)
 for (const ad of ADS.filter(a => !only.length || only.includes(a.name))) {
   const draw = await ad.make()
   const dir = join(tmpdir(), 'memead-' + ad.name)
   rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true })
+  const [sw, sh] = shown(ad)
   for (const f of [0, 1]) {
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${ad.w}" height="${ad.h}">${draw(f)}</svg>`
-    await sharp(Buffer.from(svg)).png().toFile(join(dir, `f00${f}.png`))
+    // The ad's own coordinates (viewBox), rasterised at 2x the shown size, then brought down.
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${sw * X}" height="${sh * X}" viewBox="0 0 ${ad.w} ${ad.h}">${draw(f)}</svg>`
+    await sharp(Buffer.from(svg)).resize(sw, sh, { kernel: 'lanczos3' }).png().toFile(join(dir, `f00${f}.png`))
   }
-  const out = join(OUT, `bun-x-${ad.name}.gif`)
-  // Photos: a full palette and a fine dither, or the fur bands.
+  const out = join(OUT, `bun-x-${ad.name}.webp`)
   const r = spawnSync(FFMPEG, ['-v', 'error', '-y', '-framerate', '1.5', '-i', join(dir, 'f%03d.png'),
-    '-filter_complex', '[0]split[a][b];[a]palettegen=max_colors=256:stats_mode=full[p];[b][p]paletteuse=dither=bayer:bayer_scale=4',
-    '-loop', '0', out], { stdio: 'inherit' })
+    '-c:v', 'libwebp_anim', '-quality', '90', '-compression_level', '6', '-loop', '0', out], { stdio: 'inherit' })
   rmSync(dir, { recursive: true, force: true })
   if (r.status) throw new Error('ffmpeg failed for ' + out)
   console.log('ok', out)

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { CELL_H, TRACKING, cell, glyph } from '@/lib/font'
-import { BANNER_TOKENS, bannerFile } from '@/lib/banners'
+import { BANNER_TOKENS, MEME_ADS, bannerFile } from '@/lib/banners'
 import { ANNOUNCERS, voiceFile } from '@/lib/announcers'
 import { VOICE_MS } from '@/lib/announcerVoice'
 import { CURTAIN_H, CURTAIN_INKS, CURTAIN_MS, CURTAIN_W, CurtainHalves } from '@/components/MapDive'
@@ -374,7 +374,7 @@ export function Ratxecutioner({ face }: { face: string }) {
         const im = await load(url)
         return { frames: [mount(im, im.width, im.height)], ms: [1000], total: 1000 }
       }
-      const dec = new Dec({ data: await (await fetch(url)).arrayBuffer(), type: 'image/gif' })
+      const dec = new Dec({ data: await (await fetch(url)).arrayBuffer(), type: url.endsWith('.webp') ? 'image/webp' : 'image/gif' })
       await dec.tracks.ready
       const n = dec.tracks.selectedTrack.frameCount
       const frames: ImageData[] = [], ms: number[] = []
@@ -387,7 +387,9 @@ export function Ratxecutioner({ face }: { face: string }) {
       return { frames, ms, total: ms.reduce((a, b) => a + b, 0) }
     }
     Promise.all(BANNER_TOKENS.flatMap((_, i) => [['-sq', 3], ['-won', 2]].map(([sfx, step]) =>
-      posterOf(bannerFile(i, sfx as string), step as number).catch(() => null))))
+      posterOf(bannerFile(i, sfx as string), step as number).catch(() => null)))
+      // ... and the Bundle Cat meme ads (JP: "put them on the website and in the game").
+      .concat([...MEME_ADS.square, ...MEME_ADS.tall].map(a => posterOf(a.file, 1).catch(() => null))))
       .then(list => { posters = list.filter((p): p is NonNullable<typeof p> => !!p) })
     /*
      * THE MEMES (JP: "get the memes from here and add them as posters in the game",
@@ -434,10 +436,10 @@ export function Ratxecutioner({ face }: { face: string }) {
       const rest = faces.filter(f => !near.includes(f)).sort(() => Math.random() - 0.5)
       const others = Array.from({ length: 48 }, (_, i) => i + 1).filter(n => !MEME_PICKS.includes(n)).sort(() => Math.random() - 0.5)
       const memeDeck = [...[...MEME_PICKS].sort(() => Math.random() - 0.5), ...others]
-      let ad = Math.floor(Math.random() * 10), mi = 0
-      ;[...near, ...rest].slice(0, 30).forEach((f, i) => {
+      let ad = Math.floor(Math.random() * 1000), mi = 0          // a random start in the whole ad list
+      ;[...near, ...rest].slice(0, 40).forEach((f, i) => {
         if (posterAt.has(f.k)) return
-        if (i % 3 === 1) posterAt.set(f.k, ad++)
+        if (i % 2 === 1) posterAt.set(f.k, ad++)     // every other poster is an ad
         else { const n = memeDeck[mi++ % memeDeck.length]; posterAt.set(f.k, -n); memeOf(n) }
       })
     }
