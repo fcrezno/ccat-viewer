@@ -15,8 +15,8 @@ interface IBUN {
  * are 3 agents."
  *
  *      10% + 10% + 10%   the three agents, an even cut of the agents' 30
- *      30%               the creator
- *      40% and all dust  burnt
+ *      40%               the creator (JP, 2026-10-14; was 30)
+ *      30% and all dust  burnt (was 40)
  *
  * THE EVEN CUT IS AN ASSUMPTION. "30 toward agents" with three agents reads as
  * ten each, and that is what is compiled in. Uneven shares are a one-line change
@@ -62,8 +62,8 @@ contract CatToll {
     address public immutable creator;
 
     uint256 public constant AGENT_BPS   = 1000;   // 10% each, 30% together
-    uint256 public constant CREATOR_BPS = 3000;   // 30%
-    // the remainder, 40% plus any dust, is burnt
+    uint256 public constant CREATOR_BPS = 4000;   // 40% (JP, 2026-10-14: "40 me 30-burn/agents")
+    // the remainder, 30% plus any dust, is burnt
 
     uint256 public totalSettled;
 
@@ -93,7 +93,7 @@ contract CatToll {
     }
 
     /**
-     * @notice Split everything this contract holds: 10% to each agent, 30% to
+     * @notice Split everything this contract holds: 10% to each agent, 40% to
      *         the creator, the rest burnt. Callable by anyone — there is nothing
      *         to abuse, because every destination is fixed at deploy.
      */

@@ -12,7 +12,7 @@
  * Needed in .env.local (or the environment):
  *
  *   TOLL_AGENT_1 / _2 / _3   the three agent wallets, 10% each
- *   TOLL_CREATOR             JP's wallet, 30%
+ *   TOLL_CREATOR             JP's wallet, 40% (2026-10-14)
  *   BUN_TOKEN_ADDRESS        already pinned and verified on chain
  *   DEPLOYER_KEY             only for --send. DELETE IT AFTERWARDS.
  *
@@ -83,7 +83,7 @@ if (a1 === a2 || a1 === a3 || a2 === a3) {
   process.exit(1)
 }
 if ([a1, a2, a3].includes(cr)) {
-  console.error('WARNING: the creator is also an agent, so that wallet takes 40%, not 30%.')
+  console.error('WARNING: the creator is also an agent, so that wallet takes 50%, not 40%.')
   console.error('If that is deliberate, ignore this. It is printed because it cannot be undone.')
 }
 
@@ -105,7 +105,7 @@ const symbol   = await pub.readContract({ address: bn, abi: erc20, functionName:
 const decimals = await pub.readContract({ address: bn, abi: erc20, functionName: 'decimals' })
 
 /*
- * settle() ENDS IN A BURN, so a token without a working burn() would strand 40%
+ * settle() ENDS IN A BURN, so a token without a working burn() would strand 30%
  * of every payment in this contract forever. Simulated from an address that
  * holds BUN, because eth_call defaults the sender to 0x0 and OpenZeppelin
  * rejects a burn by the zero address — a false failure that already fooled me
@@ -142,7 +142,7 @@ console.log('  token    ', bn + '  ' + symbol + ', ' + decimals + ' decimals, bu
 console.log('  agent 1  ', a1, ' 10%')
 console.log('  agent 2  ', a2, ' 10%')
 console.log('  agent 3  ', a3, ' 10%')
-console.log('  creator  ', cr, ' 30%')
+console.log('  creator  ', cr, ' 40%')
 console.log('  burned          the remaining 40%, plus all rounding dust')
 
 if (!burnable) {
