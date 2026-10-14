@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { NO_CHAIN } from '@/lib/appmode'
 import { BANNER_TOKENS, MEME_ADS, MEME_AD_HREF, MEME_AD_NAME, bannerFile, pickMosh, pickOne, type MemeAd } from '@/lib/banners'
 
@@ -57,129 +57,121 @@ function fitAds() {
   html.dataset.rail = tier
 }
 
+/*
+ * UNIFORM, AND FULL TO THE FOOT (JP, 2026-10-14: "make sure the empty spaces are
+ * filled; make the ads be uniform"). Each table is a stack of same-size cells,
+ * as many as the window's height holds: 250x250 squares on wide screens, 125x125
+ * on medium ones, 88x31 buttons on narrow ones. The squares take turns: a Mosh
+ * token's ad, then a Bundle Cat meme ad (lib/banners MEME_ADS, all 250x250), and
+ * the two sides start on different kinds. A table that still runs past the
+ * window's foot after drawing (fonts, zoom) drops its last cell.
+ */
+type Tier = 'full' | 'slim' | 'tiny' | 'strip'
+type Slot = { mosh: number } | { meme: MemeAd }
+const CELLS: Record<Exclude<Tier, 'strip'>, { size: number; cell: number }> = {
+  full: { size: 250, cell: 250 + 27 },
+  slim: { size: 125, cell: 125 + 27 },
+  tiny: { size: 31, cell: 31 + 24 },
+}
+const TOP = 96, HEAD = 23, FOOT = 12, MAX = 16
+
+/** One side's cells, alternating Mosh / meme from `first`. */
+function column(n: number, first: 0 | 1, mosh: number[], memes: MemeAd[]): Slot[] {
+  return Array.from({ length: n }, (_, i) => ((i + first) % 2 === 0 ? { mosh: mosh[i] } : { meme: memes[i] }))
+}
+
 export function SideAds() {
+  const [tier, setTier] = useState<Tier | null>(null)
+  const [room, setRoom] = useState(0)            // the window's height, in the page's CSS pixels
+  const [trim, setTrim] = useState(0)
   useEffect(() => {
     if (NO_CHAIN) return
-    fitAds()
-    addEventListener('resize', fitAds)
-    return () => { removeEventListener('resize', fitAds); document.documentElement.style.zoom = ''; delete document.documentElement.dataset.rail }
+    const on = () => {
+      fitAds()
+      const html = document.documentElement
+      setTier(html.dataset.rail as Tier)
+      setRoom(innerHeight / parseFloat(html.style.zoom || '1'))
+      setTrim(0)
+    }
+    on()
+    addEventListener('resize', on)
+    return () => { removeEventListener('resize', on); document.documentElement.style.zoom = ''; delete document.documentElement.dataset.rail }
   }, [])
-  // [left square, two small squares, two buttons] and [pop-up, two buttons].
-  const [extra, setExtra] = useState<{ tallL: MemeAd; tallR: MemeAd; square: MemeAd } | null>(null)
-  const [mix, setMix] = useState<{ left: number[]; right: number[]; slimL: number[]; slimR: number[]; tinyL: number[]; tinyR: number[]; strip: number; stripStory: boolean; memeL: MemeAd | null; memeR: MemeAd | null; memeSlim: MemeAd | null; memeStrip: MemeAd | null } | null>(null)
+
+  const [deck, setDeck] = useState<{ moshL: number[]; moshR: number[]; memes: MemeAd[]; firstL: 0 | 1; strip: number; stripStory: boolean; memeStrip: MemeAd | null } | null>(null)
   useEffect(() => {
     if (NO_CHAIN) return
-    const roll = () => setMix({ left: pickMosh(5), right: pickMosh(3), slimL: pickMosh(3), slimR: pickMosh(3), tinyL: pickMosh(4), tinyR: pickMosh(4), strip: pickMosh(1)[0], stripStory: Math.random() < 0.5,
-      memeL: Math.random() < 0.5 ? pickOne(MEME_ADS.square) : null, memeR: Math.random() < 0.5 ? pickOne(MEME_ADS.tall) : null,
-      memeSlim: null, memeStrip: Math.random() < 0.4 ? pickOne(MEME_ADS.strip) : null })
+    const roll = () => {
+      const memes = [...MEME_ADS.square].sort(() => Math.random() - 0.5)
+      setDeck({
+        moshL: pickMosh(MAX), moshR: pickMosh(MAX), memes, firstL: Math.random() < 0.5 ? 0 : 1,
+        strip: pickMosh(1)[0], stripStory: Math.random() < 0.5, memeStrip: Math.random() < 0.4 ? pickOne(MEME_ADS.strip) : null,
+      })
+    }
     roll()
     const t = setInterval(roll, ROTATE_MS)
-    const rollExtra = () => {
-      const [a, b] = [...MEME_ADS.tall].sort(() => Math.random() - 0.5)
-      setExtra({ tallL: a, tallR: b ?? a, square: pickOne(MEME_ADS.square) })
-    }
-    rollExtra()
-    const t2 = setInterval(rollExtra, ROTATE_MS)
-    return () => { clearInterval(t); clearInterval(t2) }
+    return () => clearInterval(t)
   }, [])
-  if (!mix || !extra) return null
+
+  // After drawing: a table that runs past the window's foot loses a cell.
+  const left = useRef<HTMLElement>(null), right = useRef<HTMLElement>(null)
+  useLayoutEffect(() => {
+    if (!tier || tier === 'strip') return
+    // getBoundingClientRect is already in the window's pixels under CSS zoom.
+    const over = [left.current, right.current].some(e => e && e.getBoundingClientRect().bottom > innerHeight - 4)
+    if (over) setTrim(t => t + 1)
+  })
+
+  if (!deck || !tier) return null
 
   // The old-forum table: a header, then a cell per ad (globals.css .forum-*).
   const label = <div className="forum-head">SPONSORS</div>
-  const cell = (children: React.ReactNode, more = '') => (
-    <div className={'forum-cell ' + more}><span className="forum-cap">Advertisement</span>{children}</div>
+  const cell = (children: React.ReactNode, key: number) => (
+    <div key={key}><div className="forum-cell"><span className="forum-cap">Advertisement</span>{children}</div></div>
   )
-  /*
-   * THE EMPTY SPACE UNDER THE TABLES (JP, 2026-10-14: "we have extra space here").
-   * Each table gets one more ad at its foot: a skyscraper, or on the wide left a
-   * second square. It shows only when the window is tall enough to hold all of it
-   * (globals.css .rail-more-*), so an ad is never cut off at the bottom.
-   */
+
+  if (tier === 'strip') return (
+    // Narrow screens and phones: one old-school 468x60 banner at the foot of the page.
+    <div className="cc-foot" aria-label="Mosh friends">
+      <span className="forum-cap">Advertisement</span>
+      {deck.memeStrip ? <div style={{ maxWidth: 468, width: '100%' }}><Meme ad={deck.memeStrip} maxW={468} fluid /></div> :
+      <a href={BANNER_TOKENS[deck.strip].href} target="_blank" rel="noopener" style={{ display: 'block', lineHeight: 0, maxWidth: 468, width: '100%' }}>
+        <img src={bannerFile(deck.strip, deck.stripStory ? '-story' : '')} alt={BANNER_TOKENS[deck.strip].name} width={468} height={60} style={{ width: '100%', height: 'auto', imageRendering: 'pixelated', display: 'block' }} />
+      </a>}
+    </div>
+  )
+
+  const { size, cell: cellH } = CELLS[tier]
+  const fit = Math.max(1, Math.min(MAX, Math.floor((room - TOP - HEAD - FOOT) / cellH)))
+  // The room under the last square, too short for another, takes rows of 88x31 buttons.
+  const BTN = 31 + 24
+  const rows = tier === 'tiny' ? 0 : Math.floor((room - TOP - HEAD - FOOT - fit * cellH) / BTN)
+  const n = Math.max(1, fit - Math.max(0, trim - rows))
+  const btnRows = Math.max(0, rows - trim)
+  const cls = tier === 'full' ? 'cc-rail' : tier === 'slim' ? 'cc-rail-slim' : 'cc-rail-tiny'
+  const half = Math.ceil(deck.memes.length / 2)
+  const draw = (s: Slot, i: number) => cell(
+    tier === 'tiny' ? <Ad token={'mosh' in s ? s.mosh : (deck.moshL[i] ?? 1)} suffix="-btn" w={88} h={31} />
+      : 'mosh' in s ? <Ad token={s.mosh} suffix={tier === 'full' ? '-sq' : '-sm'} w={size} h={size} />
+      : <Meme ad={s.meme} maxW={size} />, i)
+  // Buttons only on the narrow tables: a meme square does not shrink to 88x31.
+  const sides: [React.RefObject<HTMLElement | null>, string, Slot[]][] = [
+    [left, 'cc-rail-left', tier === 'tiny' ? deck.moshL.slice(0, n).map(m => ({ mosh: m })) : column(n, deck.firstL, deck.moshL, deck.memes.slice(0, half))],
+    [right, 'cc-rail-right', tier === 'tiny' ? deck.moshR.slice(0, n).map(m => ({ mosh: m })) : column(n, deck.firstL ? 0 : 1, deck.moshR, deck.memes.slice(half))],
+  ]
   return (
     <>
-      <aside className="cc-rail cc-rail-left" aria-label="Mosh friends">
-        {label}
-        {cell(
-          mix.memeL ? <Meme ad={mix.memeL} maxW={250} /> : <Ad token={mix.left[0]} suffix="-sq" w={250} h={250} />
-        )}
-        {cell(
-        <div className="forum-row">
-          <Ad token={mix.left[1]} suffix="-sm" w={122} h={122} />
-          <Ad token={mix.left[2]} suffix="-sm" w={122} h={122} />
-        </div>
-        )}
-        {cell(
-        <div className="forum-row">
-          <Ad token={mix.left[3]} suffix="-btn" w={88} h={31} />
-          <Ad token={mix.left[4]} suffix="-btn" w={88} h={31} />
-        </div>
-        )}
-        {cell(<Meme ad={extra.square} maxW={250} />, 'rail-more-850')}
-      </aside>
-      {/* The slim columns, for medium screens: 125 wide (globals.css .cc-rail-slim). */}
-      <aside className="cc-rail-slim cc-rail-left" aria-label="Mosh friends">
-        {label}
-        {cell(
-          <Ad token={mix.slimL[0]} suffix="-sm" w={125} h={125} />
-        )}
-        {cell(
-        <Ad token={mix.slimL[1]} suffix="-btn" w={88} h={31} />
-        )}
-        {cell(
-        <Ad token={mix.slimL[2]} suffix="-btn" w={88} h={31} />
-        )}
-        {cell(<Meme ad={extra.tallL} maxW={125} />, 'rail-more-900')}
-      </aside>
-      <aside className="cc-rail-slim cc-rail-right" aria-label="Mosh friends">
-        {label}
-        {cell(
-          mix.memeSlim ? <Meme ad={mix.memeSlim} maxW={125} /> : <Ad token={mix.slimR[0]} suffix="-won" w={125} h={156} />
-        )}
-        {cell(
-        <Ad token={mix.slimR[1]} suffix="-sm" w={125} h={125} />
-        )}
-        {cell(
-        <Ad token={mix.slimR[2]} suffix="-btn" w={88} h={31} />
-        )}
-        {cell(<Meme ad={extra.tallR} maxW={125} />, 'rail-more-1010')}
-      </aside>
-      <aside className="cc-rail cc-rail-right" aria-label="Mosh friends">
-        {label}
-        {cell(
-          mix.memeR ? <Meme ad={mix.memeR} maxW={250} /> : <Ad token={mix.right[0]} suffix="-won" w={250} h={312} />
-        )}
-        {cell(
-        <div className="forum-row">
-          <Ad token={mix.right[1]} suffix="-btn" w={88} h={31} />
-          <Ad token={mix.right[2]} suffix="-btn" w={88} h={31} />
-        </div>
-        )}
-        {!mix.memeR && cell(<Meme ad={extra.tallR} maxW={160} />, 'rail-more-1150')}
-      </aside>
-      {/* The tiny columns (globals.css .cc-rail-tiny): four 88x31 buttons a side. */}
-      <aside className="cc-rail-tiny cc-rail-left" aria-label="Mosh friends">
-        {label}
-        {mix.tinyL.map((t, i) => <div key={i}>{cell(<Ad token={t} suffix="-btn" w={88} h={31} />)}</div>)}
-        <div>{cell(<Meme ad={extra.tallL} maxW={88} />, 'rail-more-700')}</div>
-      </aside>
-      <aside className="cc-rail-tiny cc-rail-right" aria-label="Mosh friends">
-        {label}
-        {mix.tinyR.map((t, i) => <div key={i}>{cell(<Ad token={t} suffix="-btn" w={88} h={31} />)}</div>)}
-        <div>{cell(<Meme ad={extra.tallR} maxW={88} />, 'rail-more-700')}</div>
-      </aside>
-      {/* Narrow screens and phones: one old-school 468x60 banner at the foot of the page. */}
-      <div className="cc-foot" aria-label="Mosh friends">
-        <span className="forum-cap">Advertisement</span>
-        {mix.memeStrip ? <div style={{ maxWidth: 468, width: '100%' }}><Meme ad={mix.memeStrip} maxW={468} fluid /></div> :
-        <a href={BANNER_TOKENS[mix.strip].href} target="_blank" rel="noopener" style={{ display: 'block', lineHeight: 0, maxWidth: 468, width: '100%' }}>
-          <img src={bannerFile(mix.strip, mix.stripStory ? '-story' : '')} alt={BANNER_TOKENS[mix.strip].name} width={468} height={60} style={{ width: '100%', height: 'auto', imageRendering: 'pixelated', display: 'block' }} />
-        </a>}
-      </div>
+      {sides.map(([ref, side, slots]) => (
+        <aside key={side} ref={ref as React.RefObject<HTMLElement>} className={`${cls} ${side} cc-rail-uniform`} aria-label="Mosh friends">
+          {label}
+          {slots.map(draw)}
+          {Array.from({ length: btnRows }, (_, r) => cell(
+            <div className="forum-row">{(tier === 'full' ? [0, 1] : [0]).map(k => {
+              const pool = side === 'cc-rail-left' ? deck.moshL : deck.moshR
+              return <Ad key={k} token={pool[(n + r * 2 + k) % pool.length]} suffix="-btn" w={88} h={31} />
+            })}</div>, 100 + r))}
+        </aside>
+      ))}
     </>
   )
-}
-
-const st: Record<string, React.CSSProperties> = {
-  label: { fontSize: 11, letterSpacing: 1, color: '#000080', textAlign: 'center' },
-  pair:  { display: 'flex', justifyContent: 'space-between', gap: 6 },
 }

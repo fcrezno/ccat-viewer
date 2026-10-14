@@ -69,15 +69,16 @@ export type MemeAd = { file: string; w: number; h: number }
 const memeAd = (name: string, w: number, h: number): MemeAd => ({ file: `/flyers/bun-x-${name}.webp`, w, h })
 /*
  * 35 ads (JP, 2026-10-14: "make at least 33 ads and put them on the website and in
- * the game"), drawn sharp at the size they are SHOWN: a 300x250 is made 250x208 for
+ * the game"), drawn sharp at the size they are SHOWN: every square is 250x250 for
  * the 250 column (scripts/make-memeads.mjs). RATXECUTIONER hangs the squares and
  * the tall ones on its walls too.
  */
-const sq = (n: string) => memeAd(n, 250, 208), sq250 = (n: string) => memeAd(n, 250, 250)
+// Every square is saved 250x250 ("make the ads be uniform"), whatever its design size.
+const sq = (n: string) => memeAd(n, 250, 250), sq250 = sq
 export const MEME_ADS = {
   /** For the 250-wide top of the left column. */
   square: [
-    sq('getby'), sq250('career'), memeAd('nowall', 200, 200), sq('beforeyougo'), sq('comfy'), sq250('bundog'),
+    sq('getby'), sq250('career'), sq('nowall'), sq('beforeyougo'), sq('comfy'), sq250('bundog'),
     sq('throne'), sq('storm'), sq250('energy'), sq('trick'), sq('virus'), sq('bunmania'), sq('stone'),
     sq('infinity'), sq('bunwich'), sq250('aisle9'), sq('pillow'), sq250('smiling'), sq('theory'), sq250('doom'),
     sq('extreme'), sq250('buddy'), sq('island'), sq('singles'), sq250('screensaver'),

@@ -552,9 +552,17 @@ ADS.push(
 /** The size the page shows an ad at (lib/banners MEME_ADS): no wider than its column. */
 const shown = ad => {
   const max = ad.h === 60 ? 468 : ad.h >= 600 ? 160 : 250
-  const k = Math.min(1, max / ad.w)
+  // The squares are drawn to fill 250 wide (a 200x200 grows; vector, so it stays sharp).
+  const k = ad.h === 60 || ad.h >= 600 ? Math.min(1, max / ad.w) : max / ad.w
   return [Math.round(ad.w * k), Math.round(ad.h * k)]
 }
+/*
+ * UNIFORM SQUARES (JP, 2026-10-14: "make the ads be uniform"): every square-slot ad
+ * is saved 250x250. A 300x250 design, drawn 250x208, gets a band above and below in
+ * the average colour of its own top and bottom edge, so every
+ * column cell is the same size.
+ */
+const square = ad => ad.h !== 60 && ad.h < 600
 // "node scripts/make-memeads.mjs comfy storm" makes just those.
 const only = process.argv.slice(2)
 for (const ad of ADS.filter(a => !only.length || only.includes(a.name))) {
@@ -565,7 +573,18 @@ for (const ad of ADS.filter(a => !only.length || only.includes(a.name))) {
   for (const f of [0, 1]) {
     // The ad's own coordinates (viewBox), rasterised at 2x the shown size, then brought down.
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${sw * X}" height="${sh * X}" viewBox="0 0 ${ad.w} ${ad.h}">${draw(f)}</svg>`
-    await sharp(Buffer.from(svg)).resize(sw, sh, { kernel: 'lanczos3' }).png().toFile(join(dir, `f00${f}.png`))
+    const px = sharp(await sharp(Buffer.from(svg)).resize(sw, sh, { kernel: 'lanczos3' }).png().toBuffer())
+    const pad = square(ad) ? 250 - sh : 0
+    if (pad > 0) {
+      // Each band in the average colour of the edge it continues: no streaks from a photo's edge.
+      const raw = await px.clone().png().toBuffer()
+      const avg = async top => { const { data } = await sharp(raw).extract({ left: 0, top, width: sw, height: 2 }).resize(1, 1).raw().toBuffer({ resolveWithObject: true }); return { r: data[0], g: data[1], b: data[2], alpha: 1 } }
+      const top = await avg(3), bot = await avg(sh - 5)          // inside any 1px border
+      const t = Math.floor(pad / 2), b = Math.ceil(pad / 2)
+      await sharp({ create: { width: sw, height: 250, channels: 4, background: top } })
+        .composite([{ input: { create: { width: sw, height: b + 1, channels: 4, background: bot } }, left: 0, top: 250 - b - 1 }, { input: raw, left: 0, top: t }])
+        .png().toFile(join(dir, `f00${f}.png`))
+    } else await px.png().toFile(join(dir, `f00${f}.png`))
   }
   const out = join(OUT, `bun-x-${ad.name}.webp`)
   const r = spawnSync(FFMPEG, ['-v', 'error', '-y', '-framerate', '1.5', '-i', join(dir, 'f%03d.png'),
