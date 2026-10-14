@@ -30,7 +30,7 @@ export function bevel(x, y, w, h, label, { size = 14, lit = false, font = 'Arial
     <text x="${x + w / 2 + d}" y="${y + h / 2 + size * 0.36 + d}" text-anchor="middle" font-family="${font}" font-weight="bold" font-size="${size}" fill="${lit ? '#c00000' : ink}">${esc(label)}</text>`
 }
 
-const NO_STAR = new Set(['anger', 'lostcrown', 'mail', 'buddy', 'virus', 'beforeyougo', 'callnow', 'tenten', 'trick', 'doom'])
+const NO_STAR = new Set(['uup', 'secret', 'watching', 'code', 'point', 'anger', 'lostcrown', 'mail', 'buddy', 'virus', 'beforeyougo', 'callnow', 'tenten', 'trick', 'doom'])
 const hash = s => [...s].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7)
 const RAINBOW = ['#ff0000', '#ff8000', '#ffff00', '#00e000', '#00c0ff', '#0040ff', '#a000ff', '#ff00c0']
 

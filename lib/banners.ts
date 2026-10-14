@@ -64,7 +64,7 @@ export function pickMosh(n: number): number[] {
  * Round two ("use the images we gain and make more ads"): ten more, same script.
  */
 export type MemeAd = { file: string; mini?: string; w: number; h: number; href: string; name: string }
-const BUN = BANNER_TOKENS[1], BORK = BANNER_TOKENS[4]
+const BUN = BANNER_TOKENS[1], BPEPE = BANNER_TOKENS[2], BORK = BANNER_TOKENS[4]
 const bun = (name: string, w: number, h: number, mini = false): MemeAd =>
   ({ file: `/flyers/bun-x-${name}.gif`, mini: mini ? `/flyers/bun-x-${name}-mini.gif` : undefined, w, h, href: BUN.href, name: BUN.name })
 const bork = (name: string, w: number, h: number): MemeAd =>
@@ -77,6 +77,10 @@ const bork = (name: string, w: number, h: number): MemeAd =>
  * columns ("make sure its readable to users"). Each links to its own token.
  * RATXECUTIONER hangs the squares and the tall ones on its walls too.
  */
+// Bundle Pepe (make-borkads.mjs --brand=bpepe): the $BPEPE MemeHub chat memes.
+const bpepe = (name: string, w: number, h: number): MemeAd =>
+  ({ file: `/flyers/bpepe-x-${name}.gif`, mini: `/flyers/bpepe-x-${name}-mini.gif`, w, h, href: BPEPE.href, name: BPEPE.name })
+const psq = (n: string) => bpepe(n, 250, 250)
 const sq = (n: string) => bun(n, 250, 250, true)
 const ksq = (n: string) => bork(n, 250, 250)
 export const MEME_ADS = {
@@ -89,12 +93,16 @@ export const MEME_ADS = {
     ksq('tenten'), ksq('lostcrown'), ksq('court'), ksq('anger'), ksq('tour'), ksq('bakery'), ksq('yoga'), ksq('borktv'),
     ksq('driving'), ksq('seal'), ksq('shades'), ksq('queen'), ksq('castle'), ksq('mattress'), ksq('mail'), ksq('callnow'),
     ksq('gala'), ksq('spa'), ksq('builders'),
+    ...['perfume', 'valentine', 'code', 'lounge', 'uup', 'firesale', 'spa', 'catcafe', 'feelsgood', 'crier', 'bff', 'fivestars', 'mindblown',
+      'swamp', 'secret', 'magic', 'coffee', 'button', 'arcade', 'point', 'cleaning', 'watching', 'hotline', 'tower'].map(psq),
   ],
   /** The skyscrapers (the game's walls). */
   tall: [bun('side', 160, 600), bun('fighter', 160, 600), bun('quiz', 160, 600), bun('hotornot', 160, 600),
-    bork('chocolate', 160, 600), bork('party', 160, 600), bork('borkooor', 160, 600)],
+    bork('chocolate', 160, 600), bork('party', 160, 600), bork('borkooor', 160, 600),
+    bpepe('raid', 160, 600), bpepe('hotel', 160, 600), bpepe('fanclub', 160, 600)],
   /** The 468x60s, for the strip at the foot. */
   strip: [bun('hearing', 468, 60), bun('creation', 468, 60), bun('bear', 468, 60), bun('punch', 468, 60), bun('dialup', 468, 60), bun('askbun', 468, 60),
-    bork('bait', 468, 60), bork('soback', 468, 60), bork('spicy', 468, 60)],
+    bork('bait', 468, 60), bork('soback', 468, 60), bork('spicy', 468, 60),
+    bpepe('raidbanner', 468, 60), bpepe('tiedye', 468, 60), bpepe('science', 468, 60), bpepe('tailor', 468, 60)],
 }
 export const pickOne = <T,>(a: readonly T[]) => a[Math.floor(Math.random() * a.length)]

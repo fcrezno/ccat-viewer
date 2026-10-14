@@ -41,6 +41,8 @@ export default function DocsPage() {
           <a style={S.a} href="#cats">The cats</a>
           <a style={S.a} href="#token">The token</a>
           <a style={S.a} href="#boards">Leaderboards</a>
+          <a style={S.a} href="#clans">Clans</a>
+          <a style={S.a} href="#pot">The pot</a>
           <a style={S.a} href="#dates">Dates</a>
           <a style={S.a} href="#links">Links</a>
         </nav>
@@ -90,6 +92,34 @@ export default function DocsPage() {
           <li>Multiplayer is for bragging rights.</li>
           <li>Any event with a prize will come with its own official rules — and a free way in (winning 3 fights earns a cat).</li>
         </ul>
+      </section>
+
+      {/*
+        CLANS AND THE POT (JP, 2026-10-14, spoken): "the tokens are their own clans ... a giant
+        pot ... half goes into the regular game for the solo people, and the other half goes into
+        the group ... a portion goes to adding more to the pot, and a portion goes to me ... I just
+        want this to be fair." Split decided by JP the same day: "make it 40% for both so i get 10%"
+        (40 solo / 40 clans / 10 rollover / 10 developer). The fee weights that FILL the pot stay
+        unpublished (see The token).
+      */}
+      <section id="clans" className="win98" data-title="Clans" style={S.win}>
+        <ul style={S.ul}>
+          <li>Every Mosh token is a clan: <b style={S.b}>BUN</b>, <b style={S.b}>BPEPE</b>, <b style={S.b}>ALF</b>, <b style={S.b}>BORK</b> and <b style={S.b}>Clanker Cats</b>. Pick the one you fight for.</li>
+          <li>Your clan stays with your cat for the whole season. You can switch between seasons.</li>
+          <li>Everything counts for your clan: cat fights and <a style={S.a} href="/ratxecutioner">RATXECUTIONER</a> runs.</li>
+          <li>A clan&apos;s score is the <b style={S.b}>average of its 10 best players</b>, not the total. A small clan that plays well beats a big one that does not.</li>
+        </ul>
+      </section>
+
+      <section id="pot" className="win98" data-title="The pot" style={S.win}>
+        <ul style={S.ul}>
+          <li>Each season has one pot. It is filled from the token&apos;s player-rewards share. <b style={S.b}>Nobody pays to enter.</b></li>
+          <li>The split: <b style={S.b}>40%</b> to the solo board, <b style={S.b}>40%</b> to the clan board, <b style={S.b}>10%</b> rolls into next season&apos;s pot, <b style={S.b}>10%</b> to the developer.</li>
+          <li><b style={S.b}>Solo:</b> the top players share it, more for higher ranks. No one player takes more than 10%.</li>
+          <li><b style={S.b}>Clans:</b> 1st gets 40%, 2nd 25%, 3rd 15%, and every other clan shares the last 20%, so everyone gets a little. Inside a clan, every member who qualified gets an <b style={S.b}>equal share</b>.</li>
+          <li>To qualify, you need a cat and real play in the season (a minimum number of fights or runs, set in each season&apos;s rules).</li>
+        </ul>
+        <p style={S.fine}>Season length, the exact payout table and the official rules are published before the first prize season. Scores are checked on the server. Not available in the App Store version. Nothing here is financial advice or a promise of value.</p>
       </section>
 
       <section id="dates" className="win98" data-title="Dates" style={S.win}>

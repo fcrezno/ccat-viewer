@@ -1,0 +1,12 @@
+# RATXECUTIONER's room server. JP deploys it himself: `npx wrangler login`, then `npm run deploy`.
+name = "ratx-server"
+main = "src/index.ts"
+compatibility_date = "2025-09-01"
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "RatxRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RatxRoom"]

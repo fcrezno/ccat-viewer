@@ -6,6 +6,8 @@ import { BANNER_TOKENS, MEME_ADS, bannerFile } from '@/lib/banners'
 import { ANNOUNCERS, voiceFile } from '@/lib/announcers'
 import { VOICE_MS } from '@/lib/announcerVoice'
 import { CURTAIN_H, CURTAIN_INKS, CURTAIN_MS, CURTAIN_W, CurtainHalves } from '@/components/MapDive'
+import { MAP as SIM_MAP, TICK_S } from '@/lib/ratxSim'
+import { RatxNet, keyBits } from '@/lib/ratxNet'
 
 /**
  * RATXECUTIONER — the first-person rat hunt, as a Doom mod with cats.
@@ -139,7 +141,36 @@ function makeMap(): string[] {
 }
 const solid = (x: number, y: number) => MAP[Math.floor(y)]?.[Math.floor(x)] === '#' || MAP[Math.floor(y)]?.[Math.floor(x)] === undefined
 
-type Rat = { x: number; y: number; hp: number; hurt: number; dead: number }
+/*
+ * THE RATS (JP, 2026-10-14: "we do need like a giant boss rat or a stronger rats"):
+ *   rat    the old one: 2 hits, quick
+ *   brute  from wave 2: big, slow, 6 hits, bites hard
+ *   king   THE RAT KING, every 5th wave: huge, a health bar, 40 hits
+ */
+type RatKind = 'rat' | 'brute' | 'king'
+type Rat = { x: number; y: number; hp: number; hurt: number; dead: number; kind?: RatKind; max?: number }
+const RAT_KIND: Record<RatKind, { hp: number; speed: number; bite: number; scale: number; filter: string; pts: number }> = {
+  rat:   { hp: 2,  speed: 1.15, bite: 9,  scale: 0.42, filter: 'none', pts: 100 },
+  brute: { hp: 6,  speed: 0.85, bite: 16, scale: 0.62, filter: 'brightness(0.75) saturate(1.6) hue-rotate(-20deg)', pts: 300 },
+  king:  { hp: 40, speed: 0.7,  bite: 28, scale: 1.15, filter: 'hue-rotate(250deg) saturate(2.2) brightness(0.9)', pts: 3000 },
+}
+const kindOf = (r: Rat) => RAT_KIND[r.kind ?? 'rat']
+
+/*
+ * THE WEAPONS (JP: "add three more weapons: a melee weapon, a repeater type weapon,
+ * and ... a bazooka or like a BFG ... borrow from Doom ... loadouts"). Keys 1-4 or
+ * the mouse wheel, Doom's way.
+ *   1 CLAW          melee: free, short reach, 2 damage, a swipe
+ *   2 CAN CANNON    the old gun: 1 can, 1 damage
+ *   3 REPEATER      hold to fire: 1 can a shot, half damage, fast
+ *   4 B.F.G.        Big Furball Gun: 10 cans, 6 damage to every rat in sight
+ */
+const WEAPONS = [
+  { name: 'CLAW', cost: 0, cool: 0.38, dmg: 2, auto: false },
+  { name: 'CAN CANNON', cost: 1, cool: 0.22, dmg: 1, auto: false },
+  { name: 'REPEATER', cost: 1, cool: 0.085, dmg: 0.5, auto: true },
+  { name: 'B.F.G.', cost: 10, cool: 1.2, dmg: 6, auto: false },
+] as const
 type Nug = { x: number; y: number; taken: boolean }
 type Boom = { x: number; y: number; t: number }
 
@@ -147,7 +178,12 @@ const load = (src: string) => new Promise<HTMLImageElement>((ok, no) => {
   const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = src
 })
 
-export function Ratxecutioner({ face }: { face: string }) {
+/**
+ * `room` set: ONLINE, the timed deathmatch in that room (lib/ratxNet, ratx-server).
+ * The renderer is the same; the server owns the rats, the nuggets, the hits and the
+ * clock, and the other players are drawn as their framed cat pictures.
+ */
+export function Ratxecutioner({ face, room, name }: { face: string; room?: string; name?: string }) {
   const canvas = useRef<HTMLCanvasElement>(null)
   const [locked, setLocked] = useState(false)
   /** The how-to line, only until the game starts: it sat over the game-over text. */
@@ -253,19 +289,29 @@ export function Ratxecutioner({ face }: { face: string }) {
     // Nothing moves until the player clicks in: the rats wait for you.
     let started = false
     let paused = false
-    const begin = (_why = '') => { if (!started) { started = true; setHint(false); intro.current(1, true) } musicOn(true); cursor() }
+    const begin = (_why = '') => { if (!started) { started = true; setHint(false); if (!room) intro.current(1, true) } musicOn(true); cursor() }
     /** No arrow over the game while you play; it comes back for the start, the menu and game over. */
     const cursor = () => { cv.style.cursor = started && !paused && !over ? 'none' : 'default' }
     /** Looking up and down, Doom's way: the horizon slides; the world never tilts. */
     let pitch = 0
     const PITCH_MAX = 50 * S
     let hp = 100, ammo = START_AMMO, kills = 0, wave = 1, flash = 0, hurt = 0, over = false, banner = 2.2
+    /*
+     * A WAVE IS A RACE (JP: "it times you on how long it takes for you to kill all
+     * the mice ... a ticker of how many mice are left ... nuggets ... give you a bonus
+     * score"): the clock runs from GO! to the last rat, and the results screen adds
+     * it all up, Melee's bonus-points way.
+     */
+    let score = 0, waveTime = 0, waveShots = 0, waveHits = 0, waveHurt = 0, waveNugs = 0, waveClawOnly = true, waveKing = false
+    let results: null | { t: number; lines: { label: string; pts: number }[]; total: number; time: number } = null
+    let weapon = 1, cool = 0, swing = 0, bfgFlash = 0
+    let fireHeld = false
     let rats: Rat[] = [], nugs: Nug[] = [], booms: Boom[] = []
     let dens: [number, number][] = []
     let spawnX = 1.5, spawnY = 1.5
     /** A new lair: the walls, the dens, the nuggets, where you stand, and the posters. */
     const newMap = () => {
-      MAP = makeMap()
+      MAP = room ? [...SIM_MAP] : makeMap()     // online, everyone plays the server's lair
       dens = []; nugs = []
       MAP.forEach((row, y) => [...row].forEach((c, x) => {
         if (c === 'P') { spawnX = x + 0.5; spawnY = y + 0.5 }
@@ -290,14 +336,24 @@ export function Ratxecutioner({ face }: { face: string }) {
     const spawnWave = () => {
       theme = waveTheme(wave); inkWall()
       const n = 4 + wave * 2
+      const brutes = wave >= 2 ? Math.min(n - 2, Math.floor(wave / 2)) : 0
       rats = Array.from({ length: n }, (_, i) => {
         const [x, y] = dens[(i + wave) % dens.length]
-        return { x: x + (Math.random() - 0.5) * 0.4, y: y + (Math.random() - 0.5) * 0.4, hp: RAT_HP + Math.floor(wave / 3), hurt: 0, dead: 0 }
+        const kind: RatKind = i < brutes ? 'brute' : 'rat'
+        const hp = RAT_KIND[kind].hp + Math.floor(wave / 3)
+        return { x: x + (Math.random() - 0.5) * 0.4, y: y + (Math.random() - 0.5) * 0.4, hp, max: hp, hurt: 0, dead: 0, kind }
       })
+      if (wave % 5 === 0) {
+        // The Rat King comes out of the den furthest from you.
+        const far = [...dens].sort((a, b) => Math.hypot(b[0] - px, b[1] - py) - Math.hypot(a[0] - px, a[1] - py))[0]
+        const hp = RAT_KIND.king.hp + wave * 2
+        rats.push({ x: far[0], y: far[1], hp, max: hp, hurt: 0, dead: 0, kind: 'king' })
+      }
+      waveTime = 0; waveShots = 0; waveHits = 0; waveHurt = 0; waveNugs = 0; waveClawOnly = true; waveKing = false
       nugs.forEach(n => (n.taken = false))
       banner = 2.2
     }
-    const restart = () => { musicOn(true); cleared = 0; hp = 100; ammo = START_AMMO; kills = 0; wave = 1; over = false; booms = []; newMap(); hangPosters(); spawnWave(); cursor(); intro.current(1, true) }
+    const restart = () => { musicOn(true); cleared = 0; results = null; score = 0; hp = 100; ammo = START_AMMO; kills = 0; wave = 1; over = false; booms = []; newMap(); hangPosters(); spawnWave(); cursor(); intro.current(1, true) }
 
     // ── sound: plain elements, a small pool each ──
     const pool = (src: string, n = 4, vol = 0.5) => {
@@ -448,7 +504,7 @@ export function Ratxecutioner({ face }: { face: string }) {
     hangPosters()
     // ?demo: a read-only look at the game for the demo-video bot (clanker-clips/ratx-demo.js). Changes nothing.
     if (new URLSearchParams(location.search).has('demo'))
-      (window as unknown as { __ratx?: () => unknown }).__ratx = () => ({ px, py, dx, dy, hp, kills, wave, map: MAP, rats: rats.filter(r => !r.dead).map(r => [r.x, r.y]) })
+      (window as unknown as { __ratx?: () => unknown }).__ratx = () => ({ px, py, dx, dy, hp, kills, wave, map: MAP, rats: rats.filter(r => !r.dead).map(r => [r.x, r.y]), net: net && { id: net.id, status: net.status, mine: net.mine, phase: net.latest?.phase, others: net.view().players } })
     /** The game's bitmap font, tinted once per colour. */
     const sheetFor = (color: string) => {
       let sheet = tinted.get(color)
@@ -495,13 +551,23 @@ export function Ratxecutioner({ face }: { face: string }) {
       if (/^(Key[WASDQE]|Arrow|Space)/.test(e.code)) begin('key ' + e.code)
       keys.add(e.code)
       if (e.code === 'Space') { fire.current = true; e.preventDefault() }
+      if (e.code === 'Tab' && room) e.preventDefault()
       // Without a lock the browser does not pause for us: Esc toggles it here.
       if (e.code === 'Escape' && free && started && !over) {
         paused = !paused; setPaused(paused); letGo(); musicOn(!paused); cursor()
       }
       if (over && e.code === 'KeyR') restart()
+      if (!room && /^Digit[1-4]$/.test(e.code)) weapon = +e.code.slice(5) - 1
+      if (e.code === 'Space') fireHeld = true
+      if (results && results.t > resultsDone(results) && /^(Space|Enter|KeyE)$/.test(e.code)) nextWave()
     }
-    const up = (e: KeyboardEvent) => keys.delete(e.code)
+    const up = (e: KeyboardEvent) => { keys.delete(e.code); if (e.code === 'Space') fireHeld = false }
+    const wheel = (e: WheelEvent) => { if (!room && started && !paused) { weapon = (weapon + (e.deltaY > 0 ? 1 : 3)) % 4 } }
+    const mouseUp = () => { fireHeld = false }
+    /** The results screen is done adding up once every line and the total are in. */
+    const resultsDone = (r: { lines: unknown[] }) => 0.8 + r.lines.length * 0.45 + 0.6
+    /** CONTINUE: into the next wave, through the curtain. */
+    const nextWave = () => { results = null; wave++; spawnWave(); intro.current(wave, false) }
     // A key-up missed (the window lost focus mid-press) must not leave the cat walking on its own.
     const letGo = () => { keys.clear(); stick.current.mx = 0; stick.current.my = 0; stick.current.turn = 0 }
     const hidden = () => { if (document.hidden) letGo() }
@@ -571,6 +637,8 @@ export function Ratxecutioner({ face }: { face: string }) {
     }
     // Clicking a free mouse locks it in (and starts or resumes); a locked click shoots.
     const click = () => {
+      if (results) { if (results.t > resultsDone(results)) nextWave(); return }
+      fireHeld = true
       if (over) { restart(); if (!coarse) lock(); return }
       if (!coarse && !free && document.pointerLockElement !== cv) { begin('click'); lock(); return }
       begin('click')
@@ -583,7 +651,7 @@ export function Ratxecutioner({ face }: { face: string }) {
     const startTouch = () => begin('touch')
     addEventListener('ratx-start', startTouch)
     addEventListener('blur', letGo); document.addEventListener('visibilitychange', hidden)
-    addEventListener('keydown', down); addEventListener('keyup', up); addEventListener('mousemove', look)
+    addEventListener('keydown', down); addEventListener('keyup', up); addEventListener('mousemove', look); addEventListener('mouseup', mouseUp); cv.addEventListener('wheel', wheel, { passive: true })
     document.addEventListener('pointerlockchange', lockChange); cv.addEventListener('mousedown', click); cv.addEventListener('mouseleave', leave)
 
     function turn(a: number) {
@@ -674,7 +742,7 @@ export function Ratxecutioner({ face }: { face: string }) {
     }
 
     /** A billboard: drawn a column at a time, behind any wall that is nearer. */
-    function sprite(im: CanvasImageSource, sx: number, sy: number, sw: number, sh: number, wx: number, wy: number, scale: number, lift = 0) {
+    function sprite(im: CanvasImageSource, sx: number, sy: number, sw: number, sh: number, wx: number, wy: number, scale: number, lift = 0, squash = 1) {
       const rx = wx - px, ry = wy - py
       const inv = 1 / (plx * dy - dx * ply)
       const tX = inv * (dy * rx - dx * ry), tY = inv * (-ply * rx + plx * ry)
@@ -682,14 +750,200 @@ export function Ratxecutioner({ face }: { face: string }) {
       const cx = Math.floor((W / 2) * (1 + tX / tY))
       const h = Math.abs(Math.floor(VIEW_H / tY)) * scale
       const w = h * (sw / sh)
-      const y0 = Math.floor(VIEW_H / 2 + pitch + (VIEW_H / tY) / 2 - h + lift / tY)
+      const hh = h * squash                     // squashed from the top: the feet stay on the floor
+      const y0 = Math.floor(VIEW_H / 2 + pitch + (VIEW_H / tY) / 2 - hh + lift / tY)
       const x0 = Math.floor(cx - w / 2)
       for (let x = Math.max(0, x0); x < Math.min(W, x0 + w); x++) {
         if (tY >= zbuf[x]) continue
         const col = sx + Math.floor(((x - x0) / w) * sw)
-        ctx.drawImage(im, col, sy, 1, sh, x, y0, 1, h)
+        ctx.drawImage(im, col, sy, 1, sh, x, y0, 1, hh)
       }
-      return { x0, x1: x0 + w, depth: tY }
+      return { x0, x1: x0 + w, y0, cx, depth: tY, seen: cx >= 0 && cx < W && tY < (zbuf[Math.max(0, Math.min(W - 1, cx))] ?? 0) }
+    }
+
+    // ── online ──
+    const net = room ? new RatxNet(room, name ?? 'CAT', face) : null
+    let netAcc = 0
+    /** Knocked-over cats: they tip back for KO_TIP s, then go up in the explosion. */
+    const KO_TIP = 0.4
+    /** How tall a player's framed picture stands (JP: "make the player sprites look a little bit bigger"). */
+    const PLAYER_SCALE = 0.85
+    let knocked: { x: number; y: number; face: string; t: number }[] = []
+    const pHurt = new Map<string, number>()
+    /** Each player's picture, framed like a poster (JP: "have the pfps be static"). */
+    const framedFaces = new Map<string, HTMLCanvasElement | null>()
+    const framed = (src: string) => {
+      if (framedFaces.has(src)) return framedFaces.get(src)!
+      framedFaces.set(src, null)
+      load(src).then(im => {
+        const c = document.createElement('canvas'); c.width = 72; c.height = 84
+        const x = c.getContext('2d')!
+        x.fillStyle = '#101018'; x.fillRect(0, 0, 72, 84)                 // the edge
+        x.fillStyle = '#f4f1e8'; x.fillRect(3, 3, 66, 78)                 // the paper
+        x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high'
+        x.drawImage(im, 8, 8, 56, 56)
+        x.fillStyle = '#000080'; x.fillRect(8, 68, 56, 9)                  // a navy name plate
+        framedFaces.set(src, c)
+      }).catch(() => {})
+      return null
+    }
+    if (net) {
+      net.onEvents = evs => {
+        for (const e of evs) {
+          if (e.e === 'shot' && e.by !== net.id) sShot()
+          if (e.e === 'hit') { pHurt.set(e.on, 0.25); if (e.by === net.id) hitMark = 0.18; if (e.on === net.id) hurt = 0.3 }
+          if (e.e === 'ko') {
+            if (e.on === net.id) { hurt = 0.6; sBoom() }
+            else {
+              const who = net.latest?.players.find(p => p.id === e.on)
+              knocked.push({ x: e.x, y: e.y, face: who?.face ?? face, t: 0 })
+              if (e.by === net.id) hitMark = 0.3
+            }
+          }
+          if (e.e === 'rat') { booms.push({ x: e.x, y: e.y, t: 0 }); sBoom(); if (e.by === net.id) hitMark = 0.18 }
+          if (e.e === 'pick' && e.id === net.id) sPick()
+        }
+      }
+      net.connect()
+      framed(face)
+    }
+    /** One frame of the online game: turn here, send inputs on the fixed tick, read the rest from the server. */
+    function netStep(dt: number) {
+      if (!net) return
+      const live = started && !paused
+      let fwd = 0, str = 0
+      if (live) {
+        if (keys.has('KeyW') || keys.has('ArrowUp')) fwd += 1
+        if (keys.has('KeyS') || keys.has('ArrowDown')) fwd -= 1
+        if (keys.has('KeyD')) str += 1
+        if (keys.has('KeyA')) str -= 1
+        if (keys.has('ArrowLeft') || keys.has('KeyQ')) turn(-TURN * dt)
+        if (keys.has('ArrowRight') || keys.has('KeyE')) turn(TURN * dt)
+        fwd += -stick.current.my; str += stick.current.mx
+        if (free && edge && document.pointerLockElement !== cv) turn(edge * TURN * 1.4 * opts.current.sens * dt)
+        if (stick.current.turn) turn(stick.current.turn * TURN * dt)
+      }
+      netAcc = Math.min(netAcc + dt, TICK_S * 4)
+      while (netAcc >= TICK_S) { netAcc -= TICK_S; net.input(live ? keyBits(fwd, str) : 0, Math.atan2(dy, dx)) }
+      px = net.me.x; py = net.me.y
+      const mine = net.mine
+      if (mine) { hp = mine.hp; ammo = mine.ammo; kills = mine.score }
+      if (fire.current) {
+        fire.current = false
+        if (live && mine?.alive && ammo > 0 && net.latest?.phase === 'live') {
+          flash = 0.08; sShot()
+          // The ray through the crosshair's column, the way it is drawn.
+          const camX = 2 * Math.round(aimX) / W - 1
+          net.fire(Math.atan2(dy + ply * camX, dx + plx * camX))
+        }
+      }
+      for (const [k, v] of pHurt) { if (v - dt <= 0) pHurt.delete(k); else pHurt.set(k, v - dt) }
+      knocked = knocked.filter(k => (k.t += dt) < KO_TIP + 0.7)
+    }
+    /** The scoreboard: Tab during the match, on its own when the match is over. */
+    function scoreboard(title: string, sub: string) {
+      if (!net) return
+      ctx.fillStyle = 'rgba(10,10,20,0.8)'; ctx.fillRect(0, 0, LW, LVIEW)
+      text(title, LW / 2, 12, '#ffd166', 1, true, 'outline')
+      const list = [...(net.latest?.players ?? [])].sort((a, b) => b.score - a.score)
+      list.forEach((p, i) => {
+        const y = 40 + i * 17, ink = p.id === net.id ? '#ffd166' : '#ffffff'
+        text(`${i + 1}. ${p.name}`, 70, y, ink, 0.75, false, 'outline')
+        text(String(p.score), LW - 70, y, ink, 0.75, true, 'outline')
+      })
+      if (sub) text(sub, LW / 2, LVIEW - 18, '#c8d6ff', 0.6, true, 'outline')
+    }
+    const mmss = (n: number) => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}`
+
+    /*
+     * THE TITLE (JP: "the title screen not to have the cat show up ... the rat
+     * executioner text just be on there and to say get ready"): no game behind it,
+     * the bricks dark, the name, GET READY, and the keys.
+     */
+    function drawTitle() {
+      ctx.fillStyle = '#0b0e24'; ctx.fillRect(0, 0, LW, LH)
+      if (wall) {
+        // The lair's own bricks, dim, in rows.
+        ctx.globalAlpha = 0.18
+        for (let y = 0; y < LH; y += 16) for (let x = (y / 16) % 2 ? -16 : 0; x < LW; x += 32) { ctx.fillStyle = '#3b5bdb'; ctx.fillRect(x + 1, y + 1, 30, 14) }
+        ctx.globalAlpha = 1
+      }
+      text('RATXECUTIONER', LW / 2, 44, '#ffd166', 1.6, true, 'outline')
+      text('GET READY TO XECUTE SOME RATS', LW / 2, 86, '#ffffff', 0.7, true, 'outline')
+      if (Math.floor(t * 2) % 2 === 0) text('CLICK TO START', LW / 2, 118, '#ff6060', 1, true, 'outline')
+      text('WASD MOVE · MOUSE AIM · CLICK FIRE · 1-4 WEAPONS · ESC PAUSE', LW / 2, LH - 22, '#c8d6ff', 0.45, true, 'outline')
+    }
+    /*
+     * THE RESULTS, IN THE GAME (JP: "the same result screen, but ... within the game
+     * itself of just it fades out ... the Smash Bros. Melee bonus score stuff ...
+     * continue, and then ... wave two"): the view fades, the lines land one by one
+     * with their points, the total, then CONTINUE.
+     */
+    function drawResults(r: NonNullable<typeof results>) {
+      ctx.fillStyle = `rgba(8,10,28,${Math.min(0.88, r.t * 1.6)})`; ctx.fillRect(0, 0, LW, LVIEW)
+      if (r.t < 0.35) return
+      text(`WAVE ${wave} CLEAR!`, LW / 2, 8, '#ffd166', 1.2, true, 'outline')
+      text(`TIME ${Math.floor(r.time / 60)}:${(r.time % 60).toFixed(2).padStart(5, '0')}`, LW / 2, 32, '#ffffff', 0.7, true, 'outline')
+      const shown = Math.max(0, Math.min(r.lines.length, Math.floor((r.t - 0.8) / 0.45) + 1))
+      r.lines.slice(0, shown).forEach((l, i) => {
+        const y = 50 + i * 11
+        text(l.label, 60, y, i === 0 || l.label.startsWith('NUGGETS') ? '#c8d6ff' : '#7dff9a', 0.55, false, 'outline')
+        text(`+${l.pts}`, LW - 60 - 30, y, '#ffffff', 0.55, false, 'outline')
+      })
+      if (r.t > 0.8 + r.lines.length * 0.45) text(`TOTAL  ${r.total}`, LW / 2, LVIEW - 34, '#ffd166', 0.9, true, 'outline')
+      if (r.t > 0.8 + r.lines.length * 0.45 + 0.6 && Math.floor(t * 2.5) % 2 === 0) text('CONTINUE ▶  CLICK', LW / 2, LVIEW - 16, '#ffffff', 0.7, true, 'outline')
+    }
+    /*
+     * THE WEAPONS, DRAWN (JP: "make a custom sprite for the gun"): pixel art in the
+     * 320 layout, a 1px ink outline round every part, in the paw at the bottom.
+     */
+    function drawWeapon(wp: number, kick: number, bob: number) {
+      const cx = LW / 2, base = LVIEW + kick + bob
+      const box = (x: number, y: number, w: number, h: number, fill: string, ink = '#101018') => {
+        ctx.fillStyle = ink; ctx.fillRect(Math.round(x) - 1, Math.round(y) - 1, w + 2, h + 2)
+        ctx.fillStyle = fill; ctx.fillRect(Math.round(x), Math.round(y), w, h)
+      }
+      const paw = (x: number, y: number) => {
+        box(x - 17, y - 16, 34, 18, '#f5d9a8')
+        ctx.fillStyle = '#e8bf86'; for (let i = 0; i < 4; i++) ctx.fillRect(x - 15 + i * 8, y - 20, 6, 6)
+        ctx.fillStyle = '#101018'; for (let i = 0; i < 4; i++) { ctx.fillRect(x - 15 + i * 8, y - 21, 6, 1) }
+        ctx.fillStyle = '#ffb3c1'; ctx.fillRect(x - 4, y - 10, 8, 4)          // a toe bean
+      }
+      if (wp === 0) {
+        // CLAW: the paw raised, swiping across on a hit, with three white streaks.
+        const sw = swing > 0 ? 1 - swing / 0.25 : 0
+        const x = cx + 50 - sw * 90, y = base - 10 - Math.sin(sw * Math.PI) * 30
+        box(x - 18, y - 30, 36, 30, '#f5d9a8')
+        ctx.fillStyle = '#e8bf86'; ctx.fillRect(x - 18, y - 6, 36, 6)
+        ctx.fillStyle = '#ffffff'; for (let i = 0; i < 4; i++) { ctx.fillRect(x - 15 + i * 9, y - 40, 3, 10); ctx.fillStyle = '#101018'; ctx.fillRect(x - 15 + i * 9, y - 41, 3, 1); ctx.fillStyle = '#ffffff' }
+        if (swing > 0) { ctx.fillStyle = 'rgba(255,255,255,0.8)'; for (let i = 0; i < 3; i++) ctx.fillRect(cx - 50 + i * 10, LVIEW / 2 - 30 + i * 8, 100, 2) }
+        return
+      }
+      if (wp === 1) {
+        // CAN CANNON: a soda can with a red band and a pull-tab muzzle.
+        box(cx - 10, base - 52, 20, 36, '#8a8a99')
+        ctx.fillStyle = '#c0c0c8'; ctx.fillRect(cx - 10, base - 52, 4, 36)
+        ctx.fillStyle = '#d81e1e'; ctx.fillRect(cx - 10, base - 40, 20, 10)
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(cx - 6, base - 37, 12, 2)
+        box(cx - 7, base - 57, 14, 5, '#c0c0c8')
+      } else if (wp === 2) {
+        // REPEATER: three barrels that turn while it fires, on a drum.
+        const spin = Math.floor(t * (fireHeld ? 30 : 2)) % 3
+        for (let i = 0; i < 3; i++) box(cx - 13 + i * 9, base - 64, 7, 44, i === spin ? '#c0c0c8' : '#8a8a99')
+        box(cx - 16, base - 30, 32, 12, '#5c5c6a')
+        ctx.fillStyle = '#ffd166'; ctx.fillRect(cx - 12, base - 26, 24, 3)
+      } else {
+        // B.F.G.: a big green furball cannon with a glowing core.
+        const glow = 0.6 + Math.sin(t * 6) * 0.4
+        box(cx - 30, base - 44, 60, 30, '#1f5f34')
+        ctx.fillStyle = '#2d8a4a'; ctx.fillRect(cx - 30, base - 44, 60, 6)
+        ctx.fillStyle = `rgba(120,255,150,${glow})`; ctx.beginPath(); ctx.arc(cx, base - 30, 9, 0, 7); ctx.fill()
+        ctx.fillStyle = '#eaffef'; ctx.beginPath(); ctx.arc(cx, base - 30, 3, 0, 7); ctx.fill()
+        for (let i = 0; i < 3; i++) box(cx - 26 + i * 4, base - 40 + i * 0, 2, 20, '#0f3a1f')
+        for (let i = 0; i < 3; i++) box(cx + 20 + i * 4, base - 40, 2, 20, '#0f3a1f')
+      }
+      paw(cx, base)
+      if (flash > 0 && wp !== 3) { ctx.fillStyle = '#ffd166'; ctx.beginPath(); ctx.arc(cx, base - (wp === 2 ? 70 : 62), 9, 0, 7); ctx.fill(); ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(cx, base - (wp === 2 ? 70 : 62), 4, 0, 7); ctx.fill() }
     }
 
     // ── a frame ──
@@ -698,7 +952,8 @@ export function Ratxecutioner({ face }: { face: string }) {
       if (!alive) return
       const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt
 
-      if (!over && started && !paused && !hold.current) {
+      if (net) netStep(dt)
+      else if (!over && started && !paused && !hold.current) {
         // Move and turn.
         let fwd = 0, str = 0
         if (keys.has('KeyW') || keys.has('ArrowUp')) fwd += 1
@@ -715,76 +970,142 @@ export function Ratxecutioner({ face }: { face: string }) {
           tryMove(px + (dx * fwd + (-dy) * str) * k, py + (dy * fwd + dx * str) * k)
         }
 
-        // Rats come for you, and bite.
+        waveTime += dt
+        // Rats come for you, and bite — each kind at its own pace.
         for (const r of rats) {
           if (r.dead) { r.dead += dt; continue }
           r.hurt = Math.max(0, r.hurt - dt)
+          const K = kindOf(r)
           const vx = px - r.x, vy = py - r.y, d = Math.hypot(vx, vy)
-          if (d > 0.55) {
-            const s = RAT_SPEED * dt / d
+          if (d > 0.45 + K.scale * 0.25) {
+            const s = K.speed * dt / d
             const nx = r.x + vx * s, ny = r.y + vy * s
             if (!solid(nx, r.y)) r.x = nx
             if (!solid(r.x, ny)) r.y = ny
           } else {
-            hp -= BITE_DPS * dt; hurt = 0.25
+            hp -= K.bite * dt; waveHurt += K.bite * dt; hurt = 0.25
             if (Math.random() < dt * 2) sBite()
           }
         }
         if (hp <= 0) { hp = 0; over = true; musicOn(false); cursor() }
 
-        // Nuggets: ammo and a little health.
+        // Nuggets: ammo, a little health, and bonus score.
         for (const n of nugs) if (!n.taken && Math.hypot(n.x - px, n.y - py) < 0.5) {
-          n.taken = true; ammo = Math.min(MAX_AMMO, ammo + 12); hp = Math.min(100, hp + 10); sPick()
+          n.taken = true; ammo = Math.min(MAX_AMMO, ammo + 12); hp = Math.min(100, hp + 10); waveNugs++; score += 250; sPick()
         }
 
-        // Fire: a hitscan down the middle of the screen.
-        if (fire.current) {
-          fire.current = false
-          if (ammo > 0) {
-            ammo--; flash = 0.08; sShot()
-            const col = Math.round(aimX)
-            let best: Rat | null = null, bestD = zbuf[col] ?? Infinity
+        // Fire, by weapon. The repeater keeps going while the button is held.
+        cool = Math.max(0, cool - dt)
+        const Wp = WEAPONS[weapon]
+        const want = fire.current || (Wp.auto && fireHeld)
+        fire.current = false
+        if (want && cool <= 0 && ammo >= Wp.cost) {
+          cool = Wp.cool; ammo -= Wp.cost; waveShots++
+          if (weapon !== 0) waveClawOnly = false
+          /** The rat under the crosshair (its drawn box, a little generous), nearest first. */
+          const under = (ax: number, ay: number, reach: number) => {
+            let best: Rat | null = null, bestD = Math.min(reach, zbuf[Math.round(ax)] ?? Infinity)
             for (const r of rats) {
               if (r.dead) continue
               const rx = r.x - px, ry = r.y - py
               const inv = 1 / (plx * dy - dx * ply)
               const tX = inv * (dy * rx - dx * ry), tY = inv * (-ply * rx + plx * ry)
               if (tY <= 0.1 || tY > bestD) continue
-              // Exactly the box the rat is drawn in (see sprite(): scale 0.42), a little generous.
-              const h = (VIEW_H / tY) * 0.42, w = h * (ratImg ? ratImg.width / ratImg.height : 1.7)
+              const sc = kindOf(r).scale
+              const h = (VIEW_H / tY) * sc, w = h * (ratImg ? ratImg.width / ratImg.height : 1.7)
               const cx = (W / 2) * (1 + tX / tY)
               const y0 = VIEW_H / 2 + pitch + (VIEW_H / tY) / 2 - h
               const padX = w * 0.12, padY = h * 0.25
-              if (aimX > cx - w / 2 - padX && aimX < cx + w / 2 + padX && aimY > y0 - padY && aimY < y0 + h + padY) { best = r; bestD = tY }
+              if (ax > cx - w / 2 - padX && ax < cx + w / 2 + padX && ay > y0 - padY && ay < y0 + h + padY) { best = r; bestD = tY }
             }
-            if (best) {
-              hitMark = 0.18
-              best.hp--; best.hurt = 0.15
-              if (best.hp <= 0) { best.dead = 0.001; kills++; booms.push({ x: best.x, y: best.y, t: 0 }); sBoom() }
+            return best
+          }
+          const hurtRat = (r: Rat, dmg: number) => {
+            r.hp -= dmg; r.hurt = 0.15
+            if (r.hp <= 0) {
+              r.dead = 0.001; kills++; score += kindOf(r).pts; booms.push({ x: r.x, y: r.y, t: 0 }); sBoom()
+              if (r.kind === 'king') waveKing = true
             }
           }
+          if (weapon === 0) {
+            // The claw: a swipe that reaches about one cell.
+            swing = 0.25
+            const r = under(aimX, aimY, 1.25)
+            if (r) { hurtRat(r, Wp.dmg); hitMark = 0.18; waveHits++ }
+          } else if (weapon === 3) {
+            // The B.F.G.: every rat in sight, in front, within eight cells.
+            flash = 0.12; bfgFlash = 0.35; sBoom()
+            let hit = false
+            for (const r of rats) {
+              if (r.dead) continue
+              const rx = r.x - px, ry = r.y - py
+              const inv = 1 / (plx * dy - dx * ply)
+              const tX = inv * (dy * rx - dx * ry), tY = inv * (-ply * rx + plx * ry)
+              const col = Math.round((W / 2) * (1 + tX / tY))
+              if (tY <= 0.1 || tY > 8 || col < 0 || col >= W || tY > zbuf[col]) continue
+              hurtRat(r, Wp.dmg); hit = true
+            }
+            if (hit) { hitMark = 0.3; waveHits++ }
+          } else {
+            flash = 0.08; sShot()
+            // The repeater sprays a little.
+            const ax = weapon === 2 ? aimX + (Math.random() - 0.5) * 14 * S : aimX
+            const r = under(ax, aimY, Infinity)
+            if (r) { hurtRat(r, Wp.dmg); hitMark = 0.18; waveHits++ }
+          }
         }
-        // The round is won: "WAVE CLEARED!" (JP: "when u finish a round; say WAVE CLEARED!"), then the next wave.
-        if (!cleared && rats.every(r => r.dead) && !booms.length) {
-          cleared = CLEARED_S
+
+        // The last rat down: the results screen, in the game (JP: "it should just be within the game itself").
+        if (!results && rats.every(r => r.dead) && !booms.length) {
+          const lines: { label: string; pts: number }[] = []
+          const par = 10 + rats.length * 3
+          const killed = rats.length
+          lines.push({ label: `RATS XECUTED  x${killed}`, pts: rats.reduce((n, r) => n + kindOf(r).pts, 0) })
+          if (waveNugs) lines.push({ label: `NUGGETS  x${waveNugs}`, pts: waveNugs * 250 })
+          if (waveTime < par) lines.push({ label: 'TIME BONUS', pts: Math.round((par - waveTime) * 50) })
+          if (waveTime < par * 0.5) lines.push({ label: 'SPEED DEMON', pts: 1000 })
+          if (waveHurt < 0.5) lines.push({ label: 'UNTOUCHABLE', pts: 1500 })
+          if (waveShots >= 5 && waveHits / waveShots >= 0.75) lines.push({ label: 'SHARPSHOOTER', pts: 800 })
+          if (nugs.every(n => n.taken)) lines.push({ label: 'CLEAN SWEEP', pts: 1000 })
+          if (waveClawOnly) lines.push({ label: 'BARE PAWS', pts: 2000 })
+          if (hp <= 15) lines.push({ label: 'CLOSE CALL', pts: 500 })
+          if (waveKing) lines.push({ label: 'KINGSLAYER', pts: 3000 })
+          // Kills and nuggets were already counted as they happened; the bonuses add now.
+          const bonus = lines.slice(waveNugs ? 2 : 1).reduce((n, l) => n + l.pts, 0)
+          results = { t: 0, lines, total: score + bonus, time: waveTime }
+          score += bonus
           try { const a = new Audio('/game/announcer/wave-cleared.mp3'); a.volume = 0.8; void a.play().catch(() => {}) } catch {}
         }
-        if (cleared) {
-          cleared = Math.max(0, cleared - dt)
-          if (!cleared) { wave++; spawnWave(); intro.current(wave, false) }
-        }
       }
-      flash = Math.max(0, flash - dt); hurt = Math.max(0, hurt - dt); banner = Math.max(0, banner - dt); hitMark = Math.max(0, hitMark - dt)
+      if (results) {
+        const before = results.t
+        results.t += dt
+        // A tick as each line lands.
+        const landed = (t: number) => Math.floor((t - 0.8) / 0.45)
+        if (results.t > 0.8 && landed(results.t) !== landed(before) && landed(results.t) <= results.lines.length) sPick()
+      }
+      swing = Math.max(0, swing - dt); bfgFlash = Math.max(0, bfgFlash - dt)
+            flash = Math.max(0, flash - dt); hurt = Math.max(0, hurt - dt); banner = Math.max(0, banner - dt); hitMark = Math.max(0, hitMark - dt)
       booms = booms.filter(b => (b.t += dt) < 0.7)
 
       // ── draw ──
+      const tags: { name: string; x: number; y: number }[] = []
+      let netPlayers: { id: string; name: string; face: string; x: number; y: number }[] = []
+      if (net) {
+        const v = net.view()
+        rats = v.rats.filter(r => r.alive).map(r => ({ x: r.x, y: r.y, hp: 1, hurt: 0, dead: 0 }))
+        const gone = new Set(net.latest?.nugs ?? [])
+        nugs.forEach((n, i) => (n.taken = gone.has(i)))
+        netPlayers = v.players.filter(p => p.alive)
+      }
       renderWalls()
       const things: { d: number; draw: () => void }[] = []
       const dist = (x: number, y: number) => (x - px) ** 2 + (y - py) ** 2
       if (ratImg) for (const r of rats) if (!r.dead) things.push({ d: dist(r.x, r.y), draw: () => {
         // A hit rat flashes red, so a shot that landed never looks like a miss.
-        if (r.hurt > 0) ctx.filter = 'sepia(1) saturate(8) hue-rotate(-40deg) brightness(1.1)'
-        sprite(ratImg!, 0, 0, ratImg!.width, ratImg!.height, r.x, r.y, 0.42)
+        const K = kindOf(r)
+        ctx.filter = r.hurt > 0 ? 'sepia(1) saturate(8) hue-rotate(-40deg) brightness(1.1)' : K.filter
+        sprite(ratImg!, 0, 0, ratImg!.width, ratImg!.height, r.x, r.y, K.scale)
         ctx.filter = 'none'
       } })
       if (nugImg) for (const n of nugs) if (!n.taken) things.push({ d: dist(n.x, n.y), draw: () => {
@@ -795,18 +1116,25 @@ export function Ratxecutioner({ face }: { face: string }) {
         const f = Math.min(7, Math.floor((b.t / 0.7) * 8))
         sprite(boomImg!, f * 71, 0, 71, 98, b.x, b.y, 0.7, 30 * S)
       } })
+      for (const p of netPlayers) things.push({ d: dist(p.x, p.y), draw: () => {
+        const im = framed(p.face); if (!im) return
+        if (pHurt.has(p.id)) ctx.filter = 'sepia(1) saturate(8) hue-rotate(-40deg) brightness(1.1)'
+        const at = sprite(im, 0, 0, im.width, im.height, p.x, p.y, PLAYER_SCALE)
+        ctx.filter = 'none'
+        if (at?.seen) tags.push({ name: p.name, x: at.cx / S, y: at.y0 / S - 9 })
+      } })
+      // Knocked over: the picture tips back, then goes up in the explosion.
+      for (const k of knocked) things.push({ d: dist(k.x, k.y), draw: () => {
+        if (k.t < KO_TIP) { const im = framed(k.face); if (im) sprite(im, 0, 0, im.width, im.height, k.x, k.y, PLAYER_SCALE, 0, Math.max(0.05, Math.cos((k.t / KO_TIP) * Math.PI / 2))) }
+        else if (boomImg) { const f = Math.min(7, Math.floor(((k.t - KO_TIP) / 0.7) * 8)); sprite(boomImg, f * 71, 0, 71, 98, k.x, k.y, 0.7, 30 * S) }
+      } })
       things.sort((a, b) => b.d - a.d).forEach(s => s.draw())
 
       ctx.setTransform(S, 0, 0, S, 0, 0)
-      // The gun: a can-cannon in a paw, kicking on each shot.
-      const kick = flash > 0 ? 6 : 0, bob = Math.sin(t * 8) * (keys.size ? 2 : 0.5)
-      ctx.fillStyle = '#8a8a99'; ctx.fillRect(LW / 2 - 10, LVIEW - 46 + kick + bob, 20, 34)
-      ctx.fillStyle = '#5c5c6a'; ctx.fillRect(LW / 2 - 10, LVIEW - 46 + kick + bob, 4, 34)
-      ctx.fillStyle = '#c0c0c8'; ctx.fillRect(LW / 2 - 6, LVIEW - 50 + kick + bob, 12, 6)
-      ctx.fillStyle = '#f5d9a8'; ctx.fillRect(LW / 2 - 16, LVIEW - 18 + kick + bob, 32, 18)
-      ctx.fillStyle = '#e8bf86'; for (let i = 0; i < 4; i++) ctx.fillRect(LW / 2 - 14 + i * 8, LVIEW - 22 + kick + bob, 6, 6)
-      if (flash > 0) { ctx.fillStyle = '#ffd166'; ctx.beginPath(); ctx.arc(LW / 2, LVIEW - 56, 9, 0, 7); ctx.fill(); ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(LW / 2, LVIEW - 56, 4, 0, 7); ctx.fill() }
-      // Crosshair.
+      // The weapon in your paw (drawWeapon below), kicking on each shot.
+      if (started && !(net && false)) drawWeapon(net ? 1 : weapon, flash > 0 ? 6 : 0, Math.sin(t * 8) * (keys.size ? 2 : 0.5))
+      if (bfgFlash > 0) { ctx.fillStyle = `rgba(80,255,120,${bfgFlash})`; ctx.fillRect(0, 0, LW, LVIEW) }
+            // Crosshair.
       {
         const ax = Math.round(aimX / S), ay = Math.round(aimY / S)
         ctx.fillStyle = '#101018'
@@ -823,6 +1151,8 @@ export function Ratxecutioner({ face }: { face: string }) {
         }
       }
       if (hurt > 0) { ctx.fillStyle = `rgba(220,30,30,${hurt * 1.2})`; ctx.fillRect(0, 0, LW, LVIEW) }
+      // Name tags over the other players.
+      for (const g of tags) text(g.name, g.x, g.y, '#ffffff', 0.5, true, 'outline')
 
       // The status bar, Doom's: ammo, the face, health, kills.
       // A Windows 98 panel: grey, bevelled, navy labels.
@@ -835,8 +1165,9 @@ export function Ratxecutioner({ face }: { face: string }) {
       }
       stat('AMMO', String(ammo), 10)
       stat('HEALTH', `${Math.ceil(hp)}%`, 70, hp > 30 ? '#101018' : '#d81e1e')
-      stat('KILLS', String(kills), LW - 118)
-      stat('WAVE', String(wave), LW - 56)
+      stat('SCORE', String(net ? kills : score), LW - 118)
+      if (net) stat('TIME', mmss(net.latest?.phase === 'live' ? net.latest.left : 0), LW - 56)
+      else stat('WAVE', String(wave), LW - 56)
       ctx.fillStyle = '#101018'; ctx.fillRect(LW / 2 - 15, LVIEW + 2, 30, 28)
       if (faceImg) {
         // The player's own cat (JP: "just use their cat as the pfp face"), flashing red when bitten.
@@ -846,12 +1177,41 @@ export function Ratxecutioner({ face }: { face: string }) {
         if ((hurt > 0 && Math.floor(t * 16) % 2 === 0) || hp <= 0) { ctx.fillStyle = 'rgba(230,20,20,0.6)'; ctx.fillRect(LW / 2 - 13, LVIEW + 4, 26, 24) }
       }
 
-      if (cleared > 0) text('WAVE CLEARED!', LW / 2, LVIEW / 2 - 40, '#ffd166', 2, true, 'outline')
-      if (!started) text('CLICK TO PLAY', LW / 2, LVIEW / 2 - 30, '#ffd166', 1.5, true, 'outline')
+      if (!net && started && !over && !results) {
+        const left = rats.filter(r => !r.dead).length
+        text(`RATS LEFT ${left}`, 6, 5, left <= 2 ? '#ff6060' : '#ffffff', 0.6, false, 'outline')
+        text(`NUGGETS ${nugs.filter(n => n.taken).length}/${nugs.length}`, 6, 17, '#ffd166', 0.6, false, 'outline')
+        const sec = waveTime
+        text(`${Math.floor(sec / 60)}:${(sec % 60).toFixed(1).padStart(4, '0')}`, LW - 6 - 40, 5, '#ffffff', 0.6, false, 'outline')
+        text(WEAPONS[weapon].name, LW - 6 - 64, LVIEW - 14, '#c8d6ff', 0.55, false, 'outline')
+        const king = rats.find(r => r.kind === 'king' && !r.dead)
+        if (king) {
+          text('THE RAT KING', LW / 2, 26, '#ff6060', 0.7, true, 'outline')
+          ctx.fillStyle = '#101018'; ctx.fillRect(LW / 2 - 70, 40, 140, 7)
+          ctx.fillStyle = '#d81e1e'; ctx.fillRect(LW / 2 - 69, 41, Math.max(0, 138 * king.hp / (king.max ?? 40)), 5)
+        }
+      }
+      if (results) drawResults(results)
+      if (net) {
+        const l = net.latest
+        if (net.status === 'connecting') text('CONNECTING...', LW / 2, LVIEW / 2 - 50, '#ffffff', 1, true, 'outline')
+        else if (net.status === 'full') text('THIS ROOM IS FULL', LW / 2, LVIEW / 2 - 50, '#ff4040', 1, true, 'outline')
+        else if (net.status === 'closed') text('DISCONNECTED - RELOAD', LW / 2, LVIEW / 2 - 50, '#ff4040', 1, true, 'outline')
+        if (l?.phase === 'over') {
+          const top = [...l.players].sort((a, b) => b.score - a.score)[0]
+          scoreboard(top ? `${top.name} WINS!` : 'MATCH OVER', `NEXT MATCH IN ${l.left}`)
+        } else if (keys.has('Tab')) scoreboard('SCOREBOARD', `${mmss(l?.left ?? 0)} LEFT`)
+        else if (net.mine && !net.mine.alive) {
+          text('KNOCKED OUT', LW / 2, LVIEW / 2 - 40, '#ff4040', 1.5, true, 'outline')
+          text('BACK IN A MOMENT', LW / 2, LVIEW / 2 - 8, '#ffffff', 0.75, true, 'outline')
+        }
+      }
+      if (!started && !net) drawTitle()
+      else if (!started) text('CLICK TO PLAY', LW / 2, LVIEW / 2 - 30, '#ffd166', 1.5, true, 'outline')
       if (over) {
         ctx.fillStyle = 'rgba(10,10,20,0.7)'; ctx.fillRect(0, 0, LW, LVIEW)
         text('THE RATS GOT YOU', LW / 2, 50, '#ff4040', 1.5, true, 'outline')
-        text(`${kills} RATS XECUTED`, LW / 2, 90, '#ffd166', 1, true, 'outline')
+        text(`WAVE ${wave} · ${kills} RATS · ${score} PTS`, LW / 2, 90, '#ffd166', 0.8, true, 'outline')
         text('CLICK OR PRESS R', LW / 2, 122, '#ffffff', 1, true, 'outline')
       }
       ctx.setTransform(1, 0, 0, 1, 0, 0)
@@ -862,11 +1222,12 @@ export function Ratxecutioner({ face }: { face: string }) {
     return () => {
       alive = false; cancelAnimationFrame(raf)
       music.pause()
+      net?.close()
       removeEventListener('blur', letGo); document.removeEventListener('visibilitychange', hidden)
-      removeEventListener('ratx-start', startTouch); removeEventListener('keydown', down); removeEventListener('keyup', up); removeEventListener('mousemove', look)
+      removeEventListener('ratx-start', startTouch); removeEventListener('keydown', down); removeEventListener('keyup', up); removeEventListener('mousemove', look); removeEventListener('mouseup', mouseUp); cv.removeEventListener('wheel', wheel)
       document.removeEventListener('pointerlockchange', lockChange); cv.removeEventListener('mousedown', click); cv.removeEventListener('mouseleave', leave)
     }
-  }, [face])
+  }, [face, room, name])
 
   // Touch: the left half of the pad moves, the right half turns, FIRE fires.
   const pad = (e: React.TouchEvent, side: 'move' | 'turn') => {
@@ -884,12 +1245,12 @@ export function Ratxecutioner({ face }: { face: string }) {
         <canvas ref={canvas} width={W} height={H} style={st.canvas} />
         {curtain && <GameCurtain {...curtain} width={wrapRef.current?.clientWidth ?? 640} />}
       </div>
-      {!touch && !locked && hint && <div style={st.hint}>CLICK TO LOCK IN · MOUSE AIMS · CLICK SHOOTS · WASD MOVES · ESC PAUSES</div>}
+      {!touch && !locked && hint && room && <div style={st.hint}>CLICK TO LOCK IN · MOUSE AIMS · CLICK SHOOTS · WASD MOVES · ESC PAUSES</div>}
       {paused && (
         <div style={st.dim}>
           <section className="win98" data-title="PAUSED" style={st.menu}>
             <button className="plain" style={st.menuBtn} onClick={() => menu.current.resume()}>RESUME</button>
-            <button className="plain" style={st.menuBtn} onClick={() => menu.current.restart()}>RESTART</button>
+            {!room && <button className="plain" style={st.menuBtn} onClick={() => menu.current.restart()}>RESTART</button>}
             <a style={{ ...st.menuBtn, textDecoration: 'none', textAlign: 'center' }} href="/">QUIT</a>
             {/* Two rows of one grid: labels, sliders and values each line up (JP: "format this better so the sliders are uniform"). */}
             <div style={st.optGrid}>

@@ -24,7 +24,27 @@ import { FRAMES, bevel, blinkOf, decorate, encodeGif } from './classic.mjs'
 
 const FFMPEG = 'C:/Users/JPDom/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-8.1.1-full_build/bin/ffmpeg.exe'
 const OUT = 'public/flyers'
-const SRC = 'C:/Users/JPDom/clanker-clips/bork-src/hi'
+/*
+ * ONE ENGINE, ONE BRAND AT A TIME (JP, 2026-10-14: the $BPEPE MemeHub chat's memes,
+ * "add them to the ads"): the layouts are shared; each brand brings its memes, its
+ * colours, its site and its seal.   node scripts/make-borkads.mjs --brand=bpepe [name ...]
+ */
+const BRANDS = {
+  bork: {
+    prefix: 'bork', src: 'C:/Users/JPDom/clanker-clips/bork-src/hi', site: 'kingbork.fun', seal: 'KB',
+    // King Bork's colours: royal red, crown gold, cream, ink.
+    colors: { RED: '#b3122e', GOLD: '#f5c518', CREAM: '#fff4dc', INK: '#2a1408', NAVY: '#14214f' },
+  },
+  bpepe: {
+    // Bundle Pepe's: frog green, lime, a pale green paper, swamp ink, and the bow's pink for the second colour.
+    prefix: 'bpepe', src: 'C:/Users/JPDom/clanker-clips/bpepe-src/hi', site: 'mosh.trade', seal: 'BP',
+    colors: { RED: '#2f7d1c', GOLD: '#c6f432', CREAM: '#f1ffe0', INK: '#15200c', NAVY: '#7a2a5c' },
+  },
+}
+const BRAND_KEY = (process.argv.find(a => a.startsWith('--brand=')) ?? '--brand=bork').slice(8)
+const B = BRANDS[BRAND_KEY]
+if (!B) throw new Error('no brand ' + BRAND_KEY)
+const SRC = B.src
 const MEME = n => `${SRC}/${String(n).padStart(2, '0')}.img`
 const X = 2
 const MIN_PX = 10
@@ -36,8 +56,7 @@ async function withDecor(png, name, fw, fh, f) {
 }
 
 
-// King Bork's colours: royal red, crown gold, cream, ink.
-const RED = '#b3122e', GOLD = '#f5c518', CREAM = '#fff4dc', INK = '#2a1408', NAVY = '#14214f'
+const { RED, GOLD, CREAM, INK, NAVY } = B.colors
 
 async function pic(n, w0, h0, position = 'centre') {
   const w = w0 * X, h = h0 * X
@@ -125,7 +144,7 @@ const T = {
       ${img(p, 10, 30, 104, 104)}
       ${lines(a.head, 122, 46, 18, `font-family="Arial" font-weight="bold" font-size="15" fill="#1a0dab"`)}
       ${lines(a.sub, 122, 46 + a.head.length * 18 + 8, 16, `font-family="Arial" font-size="12" fill="#333"`)}
-      <text x="10" y="156" font-family="Arial" font-size="11" fill="#006621">www.kingbork.fun</text>
+      <text x="10" y="156" font-family="Arial" font-size="11" fill="#006621">www.${B.site}</text>
       ${lines(a.foot || [], 10, 176, 16, `font-family="Arial" font-size="12" fill="#333"`)}
       ${pill(112, 206, 128, 30, a.btn, { from: '#f7f7f7', to: '#d6d6d6', ink: f ? '#c00' : '#1a0dab', size: 12 })}` },
   /** A royal decree on parchment, with a wax seal. */
@@ -138,7 +157,7 @@ const T = {
       ${lines(a.sub, 24, 86, 17, `font-family="Times New Roman" font-style="italic" font-size="14" fill="${INK}"`)}
       <circle cx="186" cy="172" r="50" fill="#fff" stroke="#8a6d3b" stroke-width="2"/>
       <clipPath id="cd"><circle cx="186" cy="172" r="47"/></clipPath><g clip-path="url(#cd)">${img(p, 138, 124, 96, 96)}</g>
-      <circle cx="54" cy="200" r="${f ? 20 : 18}" fill="#a3122b" stroke="#6a0a1a" stroke-width="2"/><text x="54" y="205" text-anchor="middle" font-family="Times New Roman" font-weight="bold" font-size="14" fill="#f3e2b3">KB</text>
+      <circle cx="54" cy="200" r="${f ? 20 : 18}" fill="#a3122b" stroke="#6a0a1a" stroke-width="2"/><text x="54" y="205" text-anchor="middle" font-family="Times New Roman" font-weight="bold" font-size="14" fill="#f3e2b3">${B.seal}</text>
       ${pill(24, 142, 100, 28, a.btn, { from: RED, to: '#7a0a1e', ink: '#fff', size: 13, lit: f === 1, font: 'Georgia' })}` },
   /** 160x600 skyscraper: title, two pictures, words, button. */
   tall: async a => { const p = await pic(a.meme, 144, 180, a.pos || 'north'), q = a.meme2 ? await pic(a.meme2, 144, 150, a.pos2 || 'north') : null
@@ -148,7 +167,7 @@ const T = {
       ${q ? `<rect x="6" y="${250 + (a.head.length - 1) * 30}" width="148" height="154" fill="#fff"/>${img(q, 8, 252 + (a.head.length - 1) * 30, 144, 150)}` : ''}
       ${lines(a.sub, 80, q ? 448 : 300, 18, `text-anchor="middle" font-family="Verdana" font-weight="bold" font-size="13" fill="#fff"`)}
       ${pill(14, 518, 132, 40, a.btn, { lit: f === 1, size: 15 })}
-      <text x="80" y="584" text-anchor="middle" font-family="Verdana" font-size="10" fill="${GOLD}">kingbork.fun</text>` },
+      <text x="80" y="584" text-anchor="middle" font-family="Verdana" font-size="10" fill="${GOLD}">${B.site}</text>` },
   /** 468x60 banner. */
   strip: async a => { const p = await pic(a.meme, 96, 60, a.pos || 'north')
     return f => `<rect width="468" height="60" fill="${a.bg || RED}"/>${img(p, 0, 0, 96, 60)}
@@ -195,6 +214,47 @@ const ADS = [
   { name: 'spicy', t: 'strip', meme: 7, pos: 'south', head: 'ROYAL HOT SAUCE', sub: "You're gonna make me bork.", btn: 'TRY IT', bg: '#c2410c', mini: 'HOT SAUCE' },
 ]
 
+/*
+ * BUNDLE PEPE: 33 ads from the $BPEPE MemeHub chat export (JP, 2026-10-14). Left
+ * out: photos of people (01, 13, 21), other brands' marks (McDonald's 11, the
+ * Telegram/Discord logos 39, the Jumpman parody 35, the app icons 50, the ape 22,
+ * the crowd 40), and the money and trading ones (15, 19/43, 23, 27, 29, 49).
+ */
+const BPEPE_ADS = [
+  { name: 'perfume', t: 'photoTop', meme: 4, pos: [0, 0, 1, 0.585], head: 'EAU DE BUNDLE', sub: 'Pepe Perfume. Imagine the smell.', btn: 'SHOP', mini: 'PERFUME' },
+  { name: 'valentine', t: 'split', meme: 6, pos: [0.1, 0, 0.9, 0.8], head: ['Say it', 'with', 'Pepe'], sub: ['Valentine cards', 'for every frog'], btn: 'SEND', bg: '#ffe8f0', mini: 'VALENTINE' },
+  { name: 'code', t: 'classified', meme: 7, head: ['Learn to Code', 'in One Day'], sub: ['Pepe did it.', 'Mostly.'], foot: ['Laptop not included.'], btn: 'ENROLL »', mini: 'CODE CAMP' },
+  { name: 'lounge', t: 'overlay', meme: 8, top: 'TONIGHT AT 8', head: "PEPE'S LOUNGE", sub: 'Cocktails. Tuxedos. Croaks.', btn: 'RSVP', bar: '#111', mini: 'THE LOUNGE' },
+  { name: 'uup', t: 'window', meme: 9, title: 'New Message - Bundle Pepe', head: 'u up?', headInk: '#0a246a', sub: ['From: Pepe', 'Sent: 3:12 AM', 'Re: the bundle'], btns: ['Reply', 'Sleep'], mini: 'U UP?' },
+  { name: 'firesale', t: 'overlay', meme: 12, top: 'EVERYTHING MUST GO', head: 'FIRE SALE!', headSize: 28, sub: 'At the Pepe Mart. It is fine.', btn: 'SHOP NOW', mini: 'FIRE SALE' },
+  { name: 'spa', t: 'photoTop', meme: 14, pos: [0, 0, 1, 0.585], head: 'PEPE SPA RETREAT', headSize: 19, sub: 'Unbothered. Moisturized.', btn: 'RELAX', bg: '#2e7d5b', mini: 'PEPE SPA' },
+  { name: 'catcafe', t: 'overlay', meme: 17, top: 'NOW OPEN', head: 'THE CAT CAFE', sub: 'Pet every single cat.', btn: 'VISIT', bar: NAVY_OF('bpepe'), mini: 'CAT CAFE' },
+  { name: 'feelsgood', t: 'burst', meme: 18, head: 'FEELS GOOD, MAN', headSize: 24, badge: 'WOW', sub: 'Pepe Paint Co: every colour', btn: 'TRY IT', mini: 'FEELS GOOD' },
+  { name: 'crier', t: 'photoTop', meme: 20, head: 'TOWN CRIER WANTED', headSize: 18, sub: 'Must be loud. Must be green.', btn: 'APPLY', mini: 'NOW HIRING' },
+  { name: 'bff', t: 'split', meme: 24, head: ['Best', 'Friends', 'Forever'], headSize: 20, sub: ['Bun and Pepe.', 'Since day one.'], btn: 'JOIN', mini: 'BFF' },
+  { name: 'fivestars', t: 'burst', meme: 25, head: '★★★★★', headSize: 30, badge: '5/5', sub: 'Pepe rates this website', btn: 'THANKS', mini: '5 STARS' },
+  { name: 'mindblown', t: 'burst', meme: 26, head: 'MIND = BLOWN', headSize: 26, badge: 'NEW!', sub: 'Pepe Science Kit', btn: 'LEARN MORE', mini: 'MIND BLOWN' },
+  { name: 'swamp', t: 'overlay', meme: 28, top: 'BUNDLE PEPE TOURISM', head: 'VISIT THE SWAMP', headSize: 20, sub: 'Sunsets. Lily pads. Pepe.', btn: 'BOOK NOW', mini: 'THE SWAMP' },
+  { name: 'secret', t: 'window', meme: 30, title: 'Top Secret - Internet Explorer', head: 'SHHH...', sub: ['The bundle is', 'a secret.', "Don't tell."], btns: ['Keep it', 'Tell all'], mini: 'SHHH...' },
+  { name: 'magic', t: 'overlay', meme: 31, top: 'ONE NIGHT ONLY', head: "PEPE'S MAGIC SHOW", headSize: 18, sub: 'Special guest: Bundle Cat', btn: 'TICKETS', bar: '#2a1a5e', mini: 'MAGIC SHOW' },
+  { name: 'coffee', t: 'photoTop', meme: 32, head: 'PEPE COFFEE CO.', headSize: 19, sub: 'Brewed in a castle.', btn: 'ORDER', bg: '#5a3a1c', mini: 'COFFEE' },
+  { name: 'button', t: 'burst', meme: 33, pos: 'centre', head: 'DO NOT PRESS', badge: '!!', sub: 'Bundle Pepe Mode inside', btn: 'PRESS IT', mini: "DON'T PRESS" },
+  { name: 'arcade', t: 'overlay', meme: 34, top: 'INSERT COIN', head: 'PEPE ARCADE', sub: 'High score: Pepe', btn: 'PLAY', bar: '#111', mini: 'ARCADE' },
+  { name: 'point', t: 'classified', meme: 36, head: ['Pepe Has', 'A Point'], sub: ['Read his', 'new blog'], foot: ['Comments are open.'], btn: 'READ MORE »', mini: 'A POINT' },
+  { name: 'cleaning', t: 'photoTop', meme: 37, head: 'PEPE CLEANING', sub: 'We clean. Sometimes.', btn: 'CALL', mini: 'CLEANING' },
+  { name: 'watching', t: 'window', meme: 38, title: 'System Alert - Internet Explorer', head: 'PEPE IS WATCHING', sub: ['He sees you', 'scrolling.'], btns: ['OK', 'Hide'], mini: 'WATCHING' },
+  { name: 'hotline', t: 'split', meme: 41, head: ['Sad?', 'Call', 'Pepe'], sub: ['The Pepe Hotline.', 'We listen.'], btn: 'CALL', mini: 'HOTLINE' },
+  { name: 'tower', t: 'photoTop', meme: 42, head: 'PEPE TOWER', sub: 'Now leasing. Very green.', btn: 'VIEW', mini: 'PEPE TOWER' },
+  { name: 'raid', t: 'tall', meme: 52, pos: 'centre', meme2: 51, pos2: 'north', head: ['JOIN THE', 'RAID!'], sub: ['The Bundle Pepe', 'army wants you.'], btn: 'JOIN US', mini: 'RAID!' },
+  { name: 'hotel', t: 'tall', meme: 2, meme2: 3, pos2: 'centre', head: ['HOTEL', 'PEPE'], sub: ['Golden halls.', 'Frog service.'], btn: 'BOOK', bg: '#5a3a1c', mini: 'HOTEL PEPE' },
+  { name: 'fanclub', t: 'tall', meme: 6, pos: 'north', meme2: 25, pos2: 'north', head: ['PEPE', 'FAN CLUB'], sub: ['Members get', 'a free bow.'], btn: 'SIGN UP', bg: '#7a2a5c', mini: 'FAN CLUB' },
+  { name: 'raidbanner', t: 'strip', meme: 52, pos: 'centre', head: 'RAID!', sub: 'The Bundle Pepe army marches', btn: 'JOIN US', mini: 'RAID' },
+  { name: 'tiedye', t: 'strip', meme: 18, head: 'FEELS GOOD, MAN', sub: 'Pepe tie-dye shirts', btn: 'SHOP', mini: 'TIE-DYE' },
+  { name: 'science', t: 'strip', meme: 26, head: 'MIND = BLOWN', sub: 'The Pepe Science Kit', btn: 'LEARN', mini: 'SCIENCE' },
+  { name: 'tailor', t: 'strip', meme: 5, pos: 'north', head: 'PEPE TAILORS', sub: 'Every bow sewn by hand', btn: 'SEW ME', mini: 'TAILORS' },
+]
+function NAVY_OF(k) { return BRANDS[k].colors.NAVY }
+
 const readable = (svg, k) => svg.replace(/font-size="([0-9.]+)"([^>]*>)([^<]*)/g, (all, size, rest, text) =>
   text.trim().length <= 1 || +size * k >= MIN_PX ? all : `font-size="${(MIN_PX / k).toFixed(1)}"${rest}${text}`)
 const sizeOf = a => a.t === 'tall' ? [160, 600] : a.t === 'strip' ? [468, 60] : [250, 250]
@@ -210,20 +270,20 @@ async function mini(a) {
 }
 
 async function save(name, w, h, draw) {
-  const dir = join(tmpdir(), 'borkad-' + name)
+  const dir = join(tmpdir(), B.prefix + 'ad-' + name)
   rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true })
   for (let f = 0; f < FRAMES; f++) {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w * X}" height="${h * X}" viewBox="0 0 ${w} ${h}">${readable(draw(blinkOf(f)), 1)}</svg>`
     const png = await sharp(Buffer.from(svg)).resize(w, h, { kernel: 'lanczos3' }).png().toBuffer()
     await sharp(await withDecor(png, name, w, h, f)).toFile(join(dir, `f00${f}.png`))
   }
-  const out = join(OUT, `bork-x-${name}.gif`)
+  const out = join(OUT, `${B.prefix}-x-${name}.gif`)
   encodeGif(dir, out)
   rmSync(dir, { recursive: true, force: true })
 }
 
-const only = process.argv.slice(2)
-for (const a of ADS.filter(a => !only.length || only.includes(a.name))) {
+const only = process.argv.slice(2).filter(a => !a.startsWith('--'))
+for (const a of (BRAND_KEY === 'bpepe' ? BPEPE_ADS : ADS).filter(a => !only.length || only.includes(a.name))) {
   const [w, h] = sizeOf(a)
   await save(a.name, w, h, await T[a.t](a))
   await save(a.name + '-mini', 125, 125, await mini(a))
