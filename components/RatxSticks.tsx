@@ -35,6 +35,7 @@ export function RatxSticks({ stick, onFire }: {
   }, [stick])
   return (
     <div style={st.row}>
+      <button style={st.pause} onClick={() => window.dispatchEvent(new Event('ratx-pause'))}>II PAUSE</button>
       <div ref={left} style={st.zone}>MOVE</div>
       <button style={st.fire} onTouchStart={e => { e.preventDefault(); onFire(); window.dispatchEvent(new Event('ratx-start')) }}>FIRE</button>
       <div ref={right} style={st.zone}>TURN</div>
@@ -45,5 +46,6 @@ export function RatxSticks({ stick, onFire }: {
 const st: Record<string, React.CSSProperties> = {
   row:  { display: 'grid', gridTemplateColumns: '1fr 96px 1fr', gap: 8, userSelect: 'none' },
   zone: { position: 'relative', height: 150, background: '#3a3a46', color: '#80808c', display: 'grid', placeItems: 'center', fontSize: 16, touchAction: 'none', boxShadow: 'inset 2px 2px 0 #5a5a68, inset -2px -2px 0 #1a1a22' },
+  pause: { gridColumn: '1 / -1', padding: '8px 0', fontSize: 16, fontFamily: 'inherit', color: '#000', background: '#c0c0c0', border: 0, boxShadow: 'inset -1px -1px 0 #0a0a0a, inset 1px 1px 0 #fff, inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf' },
   fire: { background: '#c0392b', color: '#fff', border: 0, fontSize: 20, fontFamily: 'inherit', touchAction: 'none' },
 }

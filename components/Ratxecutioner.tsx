@@ -646,10 +646,13 @@ export function Ratxecutioner({ face, room, name }: { face: string; room?: strin
       fire.current = true
     }
     menu.current = {
-      resume: () => { if (free) { paused = false; setPaused(false); musicOn(true); cursor() } else lock() },
+      resume: () => { if (free || coarse) { paused = false; setPaused(false); musicOn(true); cursor() } else lock() },
       restart: () => { restart(); lock() },
     }
     const startTouch = () => begin('touch')
+    // PAUSE on a phone (JP, 2026-10-17: "needs a pause screen"): the button above the sticks.
+    const touchPause = () => { if (!started || over) return; paused = !paused; setPaused(paused); letGo(); musicOn(!paused); cursor() }
+    addEventListener('ratx-pause', touchPause)
     addEventListener('ratx-start', startTouch)
     addEventListener('blur', letGo); document.addEventListener('visibilitychange', hidden)
     addEventListener('keydown', down); addEventListener('keyup', up); addEventListener('mousemove', look); addEventListener('mouseup', mouseUp); cv.addEventListener('wheel', wheel, { passive: true })
@@ -1225,7 +1228,7 @@ export function Ratxecutioner({ face, room, name }: { face: string; room?: strin
       music.pause()
       net?.close()
       removeEventListener('blur', letGo); document.removeEventListener('visibilitychange', hidden)
-      removeEventListener('ratx-start', startTouch); removeEventListener('keydown', down); removeEventListener('keyup', up); removeEventListener('mousemove', look); removeEventListener('mouseup', mouseUp); cv.removeEventListener('wheel', wheel)
+      removeEventListener('ratx-start', startTouch); removeEventListener('ratx-pause', touchPause); removeEventListener('keydown', down); removeEventListener('keyup', up); removeEventListener('mousemove', look); removeEventListener('mouseup', mouseUp); cv.removeEventListener('wheel', wheel)
       document.removeEventListener('pointerlockchange', lockChange); cv.removeEventListener('mousedown', click); cv.removeEventListener('mouseleave', leave)
     }
   }, [face, room, name])
