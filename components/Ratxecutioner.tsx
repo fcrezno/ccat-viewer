@@ -673,6 +673,10 @@ export function Ratxecutioner({ face, room, name }: { face: string; room?: strin
     // ── the raycast: one DDA ray per column ──
     const zbuf = new Float32Array(W)
     const img = ctx.createImageData(W, VIEW_H)
+    // The view is built on a hidden canvas, then drawn in like everything else: mixing putImageData
+    // straight onto the screen with drawImage on top made the gun and HUD flicker on Android (JP, 2026-10-17).
+    const view = document.createElement('canvas'); view.width = W; view.height = VIEW_H
+    const vctx = view.getContext('2d')!
     function renderWalls() {
       const d = img.data
       // The sky and the floor in the wave's colour.
@@ -743,7 +747,8 @@ export function Ratxecutioner({ face, room, name }: { face: string; room?: strin
           d[o] = wall.data[s] * fog; d[o + 1] = wall.data[s + 1] * fog; d[o + 2] = wall.data[s + 2] * fog
         }
       }
-      ctx.putImageData(img, 0, 0)
+      vctx.putImageData(img, 0, 0)
+      ctx.drawImage(view, 0, 0)
     }
 
     /** A billboard: drawn a column at a time, behind any wall that is nearer. */
