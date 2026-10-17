@@ -280,7 +280,8 @@ export function Ratxecutioner({ face, room, name }: { face: string; room?: strin
   useEffect(() => {
     setTouch(matchMedia('(pointer: coarse)').matches)
     const cv = canvas.current!
-    const ctx = cv.getContext('2d')!
+    // Solid, not see-through: Android Chrome flickered blending a transparent canvas every frame (JP, 2026-10-17: "flickering ... all the time").
+    const ctx = cv.getContext('2d', { alpha: false })!
     ctx.imageSmoothingEnabled = false
     let raf = 0, alive = true
 
