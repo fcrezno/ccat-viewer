@@ -119,6 +119,10 @@ export default function DocsPage() {
           <li><b style={S.b}>Clans:</b> 1st gets 40%, 2nd 25%, 3rd 15%, and every other clan shares the last 20%, so everyone gets a little. Inside a clan, every member who qualified gets an <b style={S.b}>equal share</b>.</li>
           <li>To qualify, you need a cat and real play in the season (a minimum number of fights or runs, set in each season&apos;s rules).</li>
         </ul>
+        {/* The cap (JP, 2026-10-14: "give the pot a cap; so we dont just loose it all at once"). */}
+        <p style={S.p}><b style={S.b}>Addendum: the pot has a cap.</b> A season lasts <b style={S.b}>two months</b>, and never pays out more than <b style={S.b}>its season cap</b> or <b style={S.b}>25% of the pot</b>, whichever is lower. Everything else stays in the pot for the seasons after, so one big week of fees is spread over many seasons and the pot is never emptied at once.</p>
+        {/* Tournaments (JP, 2026-10-14): paid entry only where skill decides; cat fights pay out art. */}
+        <p style={S.p}><b style={S.b}>Tournaments.</b> <a style={S.a} href="/ratxecutioner">RATXECUTIONER</a> score-run tournaments may have an entry fee, which adds to that tournament&apos;s prizes on top of the pot. Cat-fight tournaments may have an entry fee too, but they pay out in <b style={S.b}>skins, art and titles</b>, never money. The season pot itself stays free to enter.</p>
         <p style={S.fine}>Season length, the exact payout table and the official rules are published before the first prize season. Scores are checked on the server. Not available in the App Store version. Nothing here is financial advice or a promise of value.</p>
       </section>
 

@@ -8,6 +8,7 @@ import { VOICE_MS } from '@/lib/announcerVoice'
 import { CURTAIN_H, CURTAIN_INKS, CURTAIN_MS, CURTAIN_W, CurtainHalves } from '@/components/MapDive'
 import { MAP as SIM_MAP, TICK_S } from '@/lib/ratxSim'
 import { RatxNet, keyBits } from '@/lib/ratxNet'
+import { RatxSticks } from '@/components/RatxSticks'
 
 /**
  * RATXECUTIONER — the first-person rat hunt, as a Doom mod with cats.
@@ -1265,13 +1266,7 @@ export function Ratxecutioner({ face, room, name }: { face: string; room?: strin
           </section>
         </div>
       )}
-      {touch && (
-        <div style={st.pads}>
-          <div style={st.pad} onTouchStart={e => pad(e, 'move')} onTouchMove={e => pad(e, 'move')} onTouchEnd={e => pad(e, 'move')}>MOVE</div>
-          <button style={st.fire} onTouchStart={e => { e.preventDefault(); fire.current = true; window.dispatchEvent(new Event('ratx-start')) }}>FIRE</button>
-          <div style={st.pad} onTouchStart={e => pad(e, 'turn')} onTouchMove={e => pad(e, 'turn')} onTouchEnd={e => pad(e, 'turn')}>TURN</div>
-        </div>
-      )}
+      {touch && <RatxSticks stick={stick} onFire={() => { fire.current = true }} />}
     </div>
   )
 }
