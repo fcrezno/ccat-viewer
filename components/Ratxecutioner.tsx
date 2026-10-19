@@ -9,6 +9,9 @@ import { CURTAIN_H, CURTAIN_INKS, CURTAIN_MS, CURTAIN_W, CurtainHalves } from '@
 import { MAP as SIM_MAP, TICK_S } from '@/lib/ratxSim'
 import { RatxNet, keyBits } from '@/lib/ratxNet'
 import { RatxSticks } from '@/components/RatxSticks'
+import { babble } from '@/lib/babble'
+/** One game loop at a time, ever (the phone flicker: two loops drawing over each other). */
+let LOOP_ID = 0
 
 /**
  * RATXECUTIONER — the first-person rat hunt, as a Doom mod with cats.
@@ -284,6 +287,8 @@ export function Ratxecutioner({ face, room, name }: { face: string; room?: strin
     const ctx = cv.getContext('2d', { alpha: false })!
     ctx.imageSmoothingEnabled = false
     let raf = 0, alive = true
+    const myLoop = ++LOOP_ID
+    const COARSE = matchMedia('(pointer: coarse)').matches
 
     // ── state ──
     const keys = new Set<string>()
@@ -291,7 +296,7 @@ export function Ratxecutioner({ face, room, name }: { face: string; room?: strin
     // Nothing moves until the player clicks in: the rats wait for you.
     let started = false
     let paused = false
-    const begin = (_why = '') => { if (!started) { started = true; setHint(false); if (!room) intro.current(1, true) } musicOn(true); cursor() }
+    const begin = (_why = '') => { if (!started) { started = true; setHint(false); if (!room) { intro.current(1, true); babble('get ready to xecute some rats', { pitch: 0.8 }) } } musicOn(true); cursor() }
     /** No arrow over the game while you play; it comes back for the start, the menu and game over. */
     const cursor = () => { cv.style.cursor = started && !paused && !over ? 'none' : 'default' }
     /** Looking up and down, Doom's way: the horizon slides; the world never tilts. */
@@ -959,7 +964,7 @@ export function Ratxecutioner({ face, room, name }: { face: string; room?: strin
     // ── a frame ──
     let last = performance.now(), t = 0
     function frame(now: number) {
-      if (!alive) return
+      if (!alive || myLoop !== LOOP_ID) return
       const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt
 
       if (net) netStep(dt)
@@ -994,10 +999,11 @@ export function Ratxecutioner({ face, room, name }: { face: string; room?: strin
             if (!solid(r.x, ny)) r.y = ny
           } else {
             hp -= K.bite * dt; waveHurt += K.bite * dt; hurt = 0.25
+            if (Math.random() < dt * 0.8) babble(['eek', 'skree', 'nyik nyik', 'chit'][Math.floor(Math.random() * 4)], { pitch: r.kind === 'king' ? 0.9 : r.kind === 'brute' ? 1.4 : 2.4, speed: 1.6, vol: 0.06 })
             if (Math.random() < dt * 2) sBite()
           }
         }
-        if (hp <= 0) { hp = 0; over = true; musicOn(false); cursor() }
+        if (hp <= 0) { hp = 0; over = true; musicOn(false); cursor(); babble('the rats got you', { pitch: 0.6, speed: 0.8 }) }
 
         // Nuggets: ammo, a little health, and bonus score.
         for (const n of nugs) if (!n.taken && Math.hypot(n.x - px, n.y - py) < 0.5) {
@@ -1092,7 +1098,7 @@ export function Ratxecutioner({ face, room, name }: { face: string; room?: strin
         results.t += dt
         // A tick as each line lands.
         const landed = (t: number) => Math.floor((t - 0.8) / 0.45)
-        if (results.t > 0.8 && landed(results.t) !== landed(before) && landed(results.t) <= results.lines.length) sPick()
+        if (results.t > 0.8 && landed(results.t) !== landed(before) && landed(results.t) <= results.lines.length) { const l = results.lines[landed(results.t) - 1]; babble(l ? l.label : 'total', { pitch: 1.2, speed: 1.4 }) }
       }
       swing = Math.max(0, swing - dt); bfgFlash = Math.max(0, bfgFlash - dt)
             flash = Math.max(0, flash - dt); hurt = Math.max(0, hurt - dt); banner = Math.max(0, banner - dt); hitMark = Math.max(0, hitMark - dt)
@@ -1114,7 +1120,7 @@ export function Ratxecutioner({ face, room, name }: { face: string; room?: strin
       if (ratImg) for (const r of rats) if (!r.dead) things.push({ d: dist(r.x, r.y), draw: () => {
         // A hit rat flashes red, so a shot that landed never looks like a miss.
         const K = kindOf(r)
-        ctx.filter = r.hurt > 0 ? 'sepia(1) saturate(8) hue-rotate(-40deg) brightness(1.1)' : K.filter
+        if (!COARSE) ctx.filter = r.hurt > 0 ? 'sepia(1) saturate(8) hue-rotate(-40deg) brightness(1.1)' : K.filter
         sprite(ratImg!, 0, 0, ratImg!.width, ratImg!.height, r.x, r.y, K.scale)
         ctx.filter = 'none'
       } })
@@ -1128,7 +1134,7 @@ export function Ratxecutioner({ face, room, name }: { face: string; room?: strin
       } })
       for (const p of netPlayers) things.push({ d: dist(p.x, p.y), draw: () => {
         const im = framed(p.face); if (!im) return
-        if (pHurt.has(p.id)) ctx.filter = 'sepia(1) saturate(8) hue-rotate(-40deg) brightness(1.1)'
+        if (!COARSE && pHurt.has(p.id)) ctx.filter = 'sepia(1) saturate(8) hue-rotate(-40deg) brightness(1.1)'
         const at = sprite(im, 0, 0, im.width, im.height, p.x, p.y, PLAYER_SCALE)
         ctx.filter = 'none'
         if (at?.seen) tags.push({ name: p.name, x: at.cx / S, y: at.y0 / S - 9 })
@@ -1252,7 +1258,7 @@ export function Ratxecutioner({ face, room, name }: { face: string; room?: strin
   return (
     <div style={st.wrap}>
       <div ref={wrapRef} style={{ position: 'relative' }}>
-        <canvas ref={canvas} width={W} height={H} style={st.canvas} />
+        <canvas ref={canvas} width={W} height={H} style={touch ? { ...st.canvas, imageRendering: 'auto' } : st.canvas} />
         {curtain && <GameCurtain {...curtain} width={wrapRef.current?.clientWidth ?? 640} />}
       </div>
       {!touch && !locked && hint && room && <div style={st.hint}>CLICK TO LOCK IN · MOUSE AIMS · CLICK SHOOTS · WASD MOVES · ESC PAUSES</div>}
