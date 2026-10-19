@@ -37,63 +37,71 @@ export const VOICE: Record<Style, { pitch: number; speed: number }> = {
   odd:    { pitch: 1.05, speed: 1.0 },
 }
 
-/** Catchphrases, one per cat, picked by seed. */
-const PHRASES = ['meowza', 'clank', 'purrhaps', 'nya', 'mrrp', 'whiskers', 'bloop', 'pawsome', 'mew mew', 'zoomies', 'kibble', 'beans']
+/*
+ * 2000s INTERNET SPEAK (JP, 2026-10-19: "use more 2000s internet speak", "look up
+ * conversation patterns from that time"). The patterns the lines borrow:
+ *   AIM        "hey wuts up", away messages ("brb food"), the buddy-list wave
+ *   LOLCATS    "i can has", "teh", "ceiling cat is watching", broken grammar on purpose
+ *   LEET/GAMES pwned, n00b, gg, ftw, 1337, "all ur spot r belong to us"
+ *   FORUMS     "o rly? ya rly", "pics or it didnt happen", "+1", "this.", "epic fail"
+ *   MYSPACE    rawr XD, :3, <3, ~*~sparkles~*~, "ur in my top 8"
+ */
+const PHRASES = ['lolz', 'rawr XD', 'kthxbai', ':3', 'ftw', 'omg', 'roflcopter', 'nyan', 'teh pwn', '<3', 'w00t', 'srsly']
 export const catchphrase = (seed: number) => PHRASES[Math.abs(seed) % PHRASES.length]
 
-const PLACES = ['the fence', 'the food bowl', 'the sunny spot', 'the big box', 'the window']
+const PLACES = ['teh fence', 'teh food bowl', 'teh sunny spot', 'teh big box', 'teh window']
 
 /** [openers, replies] per style and topic. */
 const LINES: Record<Style, Partial<Record<Topic, [string[], string[]]>>> = {
   sweet: {
-    greet:  [['Hiii {you}! I missed you, {phrase}!', '{you}! Want to sit by {place} with me?'], ['Aww, hi {you}!', 'Yes please, {phrase}!']],
-    share:  [['I saved you some {thing}, {you}!'], ['You are the best, {phrase}!']],
-    groom:  [['Hold still, your ear is all fluffy!'], ['Hehe, that tickles!']],
-    clash:  [['That was mine... but okay.'], ['S-sorry, {phrase}...']],
-    makeup: [['Friends again, {you}?'], ['Always, {phrase}!']],
-    gossip: [['Did you see {other} today? So cute!'], ['{other} is the cutest, {phrase}!']],
-    won:    [['I won a fight today! I was so scared, {phrase}!'], ['I knew you could do it!']],
-    lost:   [['I lost today... but I tried my best.'], ['That is what counts, {phrase}!']],
+    greet:  [['hiii {you}!!! ~*~ {phrase}', '{you} ur in my top 8 <3'], ['omg hiii :3', 'aww ur in mine 2!! <3']],
+    share:  [['i saved u sum {thing} {you} <3'], ['ur teh best evar {phrase}']],
+    groom:  [['hold still ur ear iz all fluffeh'], ['hehe tickles :3']],
+    clash:  [['dat was mine... but ok :('], ['sowwy {phrase}...']],
+    makeup: [['bffs again {you}?? <3'], ['4 evar {phrase}!!']],
+    gossip: [['did u see {other} today?? sooo cute'], ['{other} is 2 cute {phrase}']],
+    won:    [['i won a fite!! i wuz so scared {phrase}'], ['yay!!! ~*~']],
+    lost:   [['i lost... but i tried :('], ['*hugs* {phrase}']],
   },
   smug: {
-    greet:  [['Oh. {you}. You may sit near me, {phrase}.'], ['How generous, {phrase}.']],
-    share:  [['Take some {thing}. I have plenty, naturally.'], ['Hmph. Thank you, {phrase}.']],
-    groom:  [['Your fur is a mess. Allow me.'], ['If you insist.']],
-    clash:  [['Move. That is my spot, {phrase}.'], ['Make me, {phrase}.']],
-    makeup: [['Fine. I forgive you. This time.'], ['How kind of you, {phrase}.']],
-    gossip: [['{other} tried to beat me today. Tried, {phrase}.'], ['Of course they did.']],
-    won:    [['Another win. Is anyone even surprised, {phrase}?'], ['Not me.']],
-    lost:   [['That loss was the arena\'s fault, {phrase}.'], ['Clearly.']],
+    greet:  [['oh. {you}. u may sit near me {phrase}'], ['o rly?', 'how generous lol']],
+    share:  [['take sum {thing}. i haz plenty. obvs'], ['k thx {phrase}']],
+    groom:  [['ur fur = epic fail. allow me'], ['...fine']],
+    clash:  [['all ur spot r belong to me {phrase}'], ['ya rly? make me n00b']],
+    makeup: [['fine. ur forgiven. this time'], ['o wow so kind {phrase}']],
+    gossip: [['{other} tried 2 pwn me today. TRIED {phrase}'], ['pics or it didnt happen']],
+    won:    [['gg ez. another win {phrase}'], ['this.']],
+    lost:   [['lag. totally lag {phrase}'], ['srsly lag', 'sure it wuz lol']],
   },
   lazy: {
-    greet:  [['Oh, hey {you}... is it snack time, {phrase}?'], ['Heh. Always, {phrase}.']],
-    share:  [['You want some {thing}? I was gonna nap anyway.'], ['Ooh, {thing}, {phrase}!']],
-    groom:  [['Mmm... I will groom you after my nap.'], ['Zzz... okay.']],
-    clash:  [['Ugh. Fine. Take the spot, {phrase}.'], ['Thanks I guess.']],
-    makeup: [['Let\'s just... nap it off?'], ['Best idea ever, {phrase}.']],
-    gossip: [['{other} ran around all day. Why, {phrase}?'], ['Too much energy...']],
-    won:    [['I won? Huh. Can I nap now, {phrase}?'], ['You earned it.']],
-    lost:   [['Lost again... at least there is {thing}.'], ['There is always {thing}, {phrase}.']],
+    greet:  [['hey {you} wuts up... is it snack tiem {phrase}'], ['lol always {phrase}']],
+    share:  [['u want sum {thing}? brb nap'], ['i can has {thing}?? {phrase}']],
+    groom:  [['mmm grooming after mah nap'], ['zzz ok']],
+    clash:  [['ugh. fine. take teh spot {phrase}'], ['kthx']],
+    makeup: [['lets just... nap it off?'], ['best idea evar {phrase}']],
+    gossip: [['{other} ran around all day. y {phrase}'], ['2 much energy lol']],
+    won:    [['i won? huh. can i nap now {phrase}'], ['u earned it']],
+    lost:   [['lost again... at least theres {thing}'], ['theres always {thing} {phrase}']],
   },
   plucky: {
-    greet:  [['{you}! Race you to {place}, {phrase}!', 'Morning, {you}! Ready to train?'], ['You\'re on, {phrase}!', 'Always ready!']],
-    share:  [['Here, {you}! {thing} makes you strong!'], ['Thanks! Training fuel, {phrase}!']],
-    groom:  [['Gotta look sharp for the arena!'], ['Looking good, {phrase}!']],
-    clash:  [['Hey! I was here first, {phrase}!'], ['Rematch later, then!']],
-    makeup: [['Good fight, {you}. Friends?'], ['Friends! {phrase}!']],
-    gossip: [['{other} has a great left paw, {phrase}!'], ['I want to train with them!']],
-    won:    [['I WON! All that training, {phrase}!'], ['Yeah! Next one too!']],
-    lost:   [['Lost one. Back to training, {phrase}!'], ['That\'s the spirit!']],
+    greet:  [['{you}!!! race u 2 {place} {phrase}', 'yo {you} ready 2 train??'], ['ur on!!1!', 'always lets goooo']],
+    share:  [['{thing} = power up {you}!! eat it'], ['w00t ty {phrase}!!']],
+    groom:  [['gotta look 1337 4 teh arena'], ['lookin gud {phrase}']],
+    clash:  [['hey i wuz here first {phrase}!!'], ['rematch l8r then!!']],
+    makeup: [['gg {you}. friends?'], ['gg!! friends {phrase}']],
+    gossip: [['{other} haz a sick left paw {phrase}'], ['+1 wanna train w/ them']],
+    won:    [['I WON!!1! all dat training ftw {phrase}'], ['PWNED lets gooo']],
+    lost:   [['lost 1. back 2 training {phrase}'], ['thats teh spirit!!']],
   },
   odd: {
-    greet:  [['{you}? Or are you a very big {thing}, {phrase}?'], ['Uh... it\'s me, {phrase}.']],
-    share:  [['I found {thing} inside {place}. Want it?'], ['Why was it there, {phrase}?']],
-    groom:  [['Your fur smells like the moon, {phrase}.'], ['...Thanks?']],
-    clash:  [['This spot hums. It is mine now, {phrase}.'], ['What does that mean?']],
-    makeup: [['Let\'s be friends. The box told me to.'], ['Okay, {phrase}!']],
-    gossip: [['I think {other} is three cats in a coat.'], ['That explains a lot, {phrase}.']],
-    won:    [['I won. I don\'t know how, {phrase}.'], ['Me neither!']],
-    lost:   [['I lost. But I learned a new noise, {phrase}.'], ['Show me!']],
+    greet:  [['{you}? or r u a very big {thing} {phrase}'], ['...its me {phrase}']],
+    share:  [['i found {thing} in {place}. want it'], ['y wuz it there {phrase}']],
+    groom:  [['ur fur smellz like teh moon {phrase}'], ['...ty?']],
+    clash:  [['dis spot hums. it iz mine now {phrase}'], ['wut does dat even mean']],
+    makeup: [['lets b friends. ceiling cat told me 2'], ['ok {phrase}!!']],
+    gossip: [['i think {other} iz 3 cats in a coat'], ['dat explains a lot {phrase}']],
+    won:    [['i won. idk how {phrase}'], ['me neither lol']],
+    lost:   [['i lost. but i lernd a new noise {phrase}'], ['show me!!']],
   },
 }
 
