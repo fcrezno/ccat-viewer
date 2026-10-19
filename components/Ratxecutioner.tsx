@@ -9,6 +9,7 @@ import { CURTAIN_H, CURTAIN_INKS, CURTAIN_MS, CURTAIN_W, CurtainHalves } from '@
 import { MAP as SIM_MAP, TICK_S } from '@/lib/ratxSim'
 import { RatxNet, keyBits } from '@/lib/ratxNet'
 import { RatxSticks } from '@/components/RatxSticks'
+import { babble } from '@/lib/babble'
 /** One game loop at a time, ever (the phone flicker: two loops drawing over each other). */
 let LOOP_ID = 0
 
@@ -295,7 +296,7 @@ export function Ratxecutioner({ face, room, name }: { face: string; room?: strin
     // Nothing moves until the player clicks in: the rats wait for you.
     let started = false
     let paused = false
-    const begin = (_why = '') => { if (!started) { started = true; setHint(false); if (!room) intro.current(1, true) } musicOn(true); cursor() }
+    const begin = (_why = '') => { if (!started) { started = true; setHint(false); if (!room) { intro.current(1, true); babble('get ready to xecute some rats', { pitch: 0.8 }) } } musicOn(true); cursor() }
     /** No arrow over the game while you play; it comes back for the start, the menu and game over. */
     const cursor = () => { cv.style.cursor = started && !paused && !over ? 'none' : 'default' }
     /** Looking up and down, Doom's way: the horizon slides; the world never tilts. */
@@ -309,6 +310,12 @@ export function Ratxecutioner({ face, room, name }: { face: string; room?: strin
      * it all up, Melee's bonus-points way.
      */
     let score = 0, waveTime = 0, waveShots = 0, waveHits = 0, waveHurt = 0, waveNugs = 0, waveClawOnly = true, waveKing = false
+    /*
+     * THE EXIT (JP, 2026-10-19: "an option to find an exit to move into the next stage ... it wont
+     * appear untill u get 75% of the enmies defeated; or collect all the nuggets"): a green door at
+     * the far end of the lair. Walk in to end the stage early; clearing every rat still ends it too.
+     */
+    let exitAt: { x: number; y: number } | null = null, exitMsg = 0
     let results: null | { t: number; lines: { label: string; pts: number }[]; total: number; time: number } = null
     let weapon = 1, cool = 0, swing = 0, bfgFlash = 0
     let fireHeld = false
@@ -355,6 +362,7 @@ export function Ratxecutioner({ face, room, name }: { face: string; room?: strin
         const hp = RAT_KIND.king.hp + wave * 2
         rats.push({ x: far[0], y: far[1], hp, max: hp, hurt: 0, dead: 0, kind: 'king' })
       }
+      exitAt = null; exitMsg = 0
       waveTime = 0; waveShots = 0; waveHits = 0; waveHurt = 0; waveNugs = 0; waveClawOnly = true; waveKing = false
       nugs.forEach(n => (n.taken = false))
       banner = 2.2
@@ -573,7 +581,8 @@ export function Ratxecutioner({ face, room, name }: { face: string; room?: strin
     /** The results screen is done adding up once every line and the total are in. */
     const resultsDone = (r: { lines: unknown[] }) => 0.8 + r.lines.length * 0.45 + 0.6
     /** CONTINUE: into the next wave, through the curtain. */
-    const nextWave = () => { results = null; wave++; spawnWave(); intro.current(wave, false) }
+    const nextWave = () => { results = null; wave++; newMap(); hangPosters(); spawnWave();   // a new lair each stage
+      intro.current(wave, false) }
     // A key-up missed (the window lost focus mid-press) must not leave the cat walking on its own.
     const letGo = () => { keys.clear(); stick.current.mx = 0; stick.current.my = 0; stick.current.turn = 0 }
     const hidden = () => { if (document.hidden) letGo() }
@@ -874,6 +883,19 @@ export function Ratxecutioner({ face, room, name }: { face: string; room?: strin
      * executioner text just be on there and to say get ready"): no game behind it,
      * the bricks dark, the name, GET READY, and the keys.
      */
+    /** The exit door, drawn once: a green frame, a dark doorway, a lit EXIT sign. */
+    let door: HTMLCanvasElement | null = null
+    function exitDoor() {
+      if (door) return door
+      door = document.createElement('canvas'); door.width = 64; door.height = 96
+      const x = door.getContext('2d')!
+      x.fillStyle = '#0f3a1f'; x.fillRect(0, 14, 64, 82)
+      x.fillStyle = '#2bd45a'; x.fillRect(4, 18, 56, 78)
+      x.fillStyle = '#06140a'; x.fillRect(12, 26, 40, 70)
+      x.fillStyle = '#c80000'; x.fillRect(8, 0, 48, 14)
+      x.fillStyle = '#ffffff'; x.font = 'bold 11px Arial'; x.textAlign = 'center'; x.fillText('EXIT', 32, 11)
+      return door
+    }
     function drawTitle() {
       ctx.fillStyle = '#0b0e24'; ctx.fillRect(0, 0, LW, LH)
       if (wall) {
@@ -998,10 +1020,11 @@ export function Ratxecutioner({ face, room, name }: { face: string; room?: strin
             if (!solid(r.x, ny)) r.y = ny
           } else {
             hp -= K.bite * dt; waveHurt += K.bite * dt; hurt = 0.25
+            if (Math.random() < dt * 0.8) babble(['eek', 'skree', 'nyik nyik', 'chit'][Math.floor(Math.random() * 4)], { pitch: r.kind === 'king' ? 0.9 : r.kind === 'brute' ? 1.4 : 2.4, speed: 1.6, vol: 0.06 })
             if (Math.random() < dt * 2) sBite()
           }
         }
-        if (hp <= 0) { hp = 0; over = true; musicOn(false); cursor() }
+        if (hp <= 0) { hp = 0; over = true; musicOn(false); cursor(); babble('the rats got you', { pitch: 0.6, speed: 0.8 }) }
 
         // Nuggets: ammo, a little health, and bonus score.
         for (const n of nugs) if (!n.taken && Math.hypot(n.x - px, n.y - py) < 0.5) {
@@ -1069,18 +1092,29 @@ export function Ratxecutioner({ face, room, name }: { face: string; room?: strin
           }
         }
 
-        // The last rat down: the results screen, in the game (JP: "it should just be within the game itself").
-        if (!results && rats.every(r => r.dead) && !booms.length) {
+        // The exit opens at 75% of the rats down, or every nugget taken: the far floor cell from you.
+        const down = rats.filter(r => r.dead).length
+        if (!exitAt && !results && (down >= Math.ceil(rats.length * 0.75) || nugs.every(n => n.taken))) {
+          let best = { x: px, y: py }, bd = -1
+          MAP.forEach((row, y) => [...row].forEach((c, x) => { if (c === '#') return; const d = Math.hypot(x + 0.5 - px, y + 0.5 - py); if (d > bd) { bd = d; best = { x: x + 0.5, y: y + 0.5 } } }))
+          exitAt = best; exitMsg = 2.5; sPick()
+        }
+        exitMsg = Math.max(0, exitMsg - dt)
+        const atExit = !!exitAt && Math.hypot(exitAt.x - px, exitAt.y - py) < 0.6
+        // The last rat down, or the exit: the results screen, in the game (JP: "it should just be within the game itself").
+        if (!results && ((rats.every(r => r.dead) && !booms.length) || atExit)) {
           const lines: { label: string; pts: number }[] = []
           const par = 10 + rats.length * 3
-          const killed = rats.length
-          lines.push({ label: `RATS XECUTED  x${killed}`, pts: rats.reduce((n, r) => n + kindOf(r).pts, 0) })
+          const gone = rats.filter(r => r.dead)
+          lines.push({ label: `RATS XECUTED  x${gone.length}/${rats.length}`, pts: gone.reduce((n, r) => n + kindOf(r).pts, 0) })
           if (waveNugs) lines.push({ label: `NUGGETS  x${waveNugs}`, pts: waveNugs * 250 })
           if (waveTime < par) lines.push({ label: 'TIME BONUS', pts: Math.round((par - waveTime) * 50) })
           if (waveTime < par * 0.5) lines.push({ label: 'SPEED DEMON', pts: 1000 })
           if (waveHurt < 0.5) lines.push({ label: 'UNTOUCHABLE', pts: 1500 })
           if (waveShots >= 5 && waveHits / waveShots >= 0.75) lines.push({ label: 'SHARPSHOOTER', pts: 800 })
-          if (nugs.every(n => n.taken)) lines.push({ label: 'CLEAN SWEEP', pts: 1000 })
+          const allNugs = nugs.every(n => n.taken)
+          if (allNugs) lines.push({ label: 'CLEAR BONUS', pts: 1000 })
+          if (allNugs && gone.length === rats.length) lines.push({ label: 'PERFECT BONUS!', pts: 5000 })
           if (waveClawOnly) lines.push({ label: 'BARE PAWS', pts: 2000 })
           if (hp <= 15) lines.push({ label: 'CLOSE CALL', pts: 500 })
           if (waveKing) lines.push({ label: 'KINGSLAYER', pts: 3000 })
@@ -1096,7 +1130,7 @@ export function Ratxecutioner({ face, room, name }: { face: string; room?: strin
         results.t += dt
         // A tick as each line lands.
         const landed = (t: number) => Math.floor((t - 0.8) / 0.45)
-        if (results.t > 0.8 && landed(results.t) !== landed(before) && landed(results.t) <= results.lines.length) sPick()
+        if (results.t > 0.8 && landed(results.t) !== landed(before) && landed(results.t) <= results.lines.length) { const l = results.lines[landed(results.t) - 1]; babble(l ? l.label : 'total', { pitch: 1.2, speed: 1.4 }) }
       }
       swing = Math.max(0, swing - dt); bfgFlash = Math.max(0, bfgFlash - dt)
             flash = Math.max(0, flash - dt); hurt = Math.max(0, hurt - dt); banner = Math.max(0, banner - dt); hitMark = Math.max(0, hitMark - dt)
@@ -1138,6 +1172,7 @@ export function Ratxecutioner({ face, room, name }: { face: string; room?: strin
         if (at?.seen) tags.push({ name: p.name, x: at.cx / S, y: at.y0 / S - 9 })
       } })
       // Knocked over: the picture tips back, then goes up in the explosion.
+      if (exitAt && !net) { const e = exitAt; things.push({ d: dist(e.x, e.y), draw: () => sprite(exitDoor(), 0, 0, 64, 96, e.x, e.y, 0.95) }) }
       for (const k of knocked) things.push({ d: dist(k.x, k.y), draw: () => {
         if (k.t < KO_TIP) { const im = framed(k.face); if (im) sprite(im, 0, 0, im.width, im.height, k.x, k.y, PLAYER_SCALE, 0, Math.max(0.05, Math.cos((k.t / KO_TIP) * Math.PI / 2))) }
         else if (boomImg) { const f = Math.min(7, Math.floor(((k.t - KO_TIP) / 0.7) * 8)); sprite(boomImg, f * 71, 0, 71, 98, k.x, k.y, 0.7, 30 * S) }
@@ -1194,6 +1229,8 @@ export function Ratxecutioner({ face, room, name }: { face: string; room?: strin
       if (!net && started && !over && !results) {
         const left = rats.filter(r => !r.dead).length
         text(`RATS LEFT ${left}`, 6, 5, left <= 2 ? '#ff6060' : '#ffffff', 0.6, false, 'outline')
+        if (exitAt) text('EXIT OPEN', 6, 29, '#7dff9a', 0.6, false, 'outline')
+        if (exitMsg > 0 && Math.floor(t * 4) % 2 === 0) text('EXIT OPEN!', LW / 2, 60, '#7dff9a', 1.3, true, 'outline')
         text(`NUGGETS ${nugs.filter(n => n.taken).length}/${nugs.length}`, 6, 17, '#ffd166', 0.6, false, 'outline')
         const sec = waveTime
         text(`${Math.floor(sec / 60)}:${(sec % 60).toFixed(1).padStart(4, '0')}`, LW - 6 - 40, 5, '#ffffff', 0.6, false, 'outline')
