@@ -137,7 +137,6 @@ contract ClankerCatsV3 {
     error BadRoyalty();
     error AlreadyBunBurner();
     error BunBurnFailed();
-    error NoFreeCatYet();
     error ExtraCapReached();
 
     modifier onlyOwner() {
@@ -188,7 +187,7 @@ contract ClankerCatsV3 {
      *         One per wallet, forever.
      */
     function mint(uint256 deadline, bytes calldata signature) external returns (uint256 tokenId) {
-        if (!mintOpen)                 revert MintClosed();
+        if (!mintOpen || !freeMintOpen) revert MintClosed();
         if (totalSupply >= maxSupply)  revert SoldOut();
         if (minted[msg.sender])        revert AlreadyMinted();
         if (block.timestamp > deadline) revert VoucherExpired();
@@ -225,18 +224,20 @@ contract ClankerCatsV3 {
     }
 
     /**
-     * @notice Burn BUN for an extra cat. Only after the wallet's free cat (minted[]) - see mint().
+     * @notice Burn BUN for a cat: your first (if you have none yet) or an extra one.
      *         Approve this contract for extraPrice(you) BUN first.
      */
     function mintWithBun() external returns (uint256 tokenId) {
         if (!mintOpen)                         revert MintClosed();
         if (totalSupply >= maxSupply)          revert SoldOut();
-        if (!minted[msg.sender])               revert NoFreeCatYet();
-        if (extraMinted[msg.sender] >= MAX_EXTRA) revert ExtraCapReached();
-        uint256 price = extraPrice(msg.sender);
+        // A wallet with no cat yet buys its FIRST cat at the base price (the Oct 28 early
+        // launch); after that, extras at the rising price, up to MAX_EXTRA more.
+        bool first = !minted[msg.sender];
+        if (!first && extraMinted[msg.sender] >= MAX_EXTRA) revert ExtraCapReached();
+        uint256 price = first ? bunBurnPrice : extraPrice(msg.sender);
 
         // Effects before the external call.
-        extraMinted[msg.sender] += 1;
+        if (first) minted[msg.sender] = true; else extraMinted[msg.sender] += 1;
         tokenId = ++totalSupply;
         _owners[tokenId] = msg.sender;
         _balances[msg.sender] += 1;
@@ -290,6 +291,18 @@ contract ClankerCatsV3 {
     }
 
     // ── admin ──────────────────────────────────────────────────────────────────
+
+    /*
+     * TWO SWITCHES (JP, 2026-10-26: "28 (if u burn your buns) / 30 for main launch / EVERYONE CAN
+     * GET A FREE CAT"): mintOpen opens the BUN mint (Oct 28); freeMintOpen opens the free,
+     * earned mint (Oct 30). Both must be on for the free one.
+     */
+    bool public freeMintOpen;
+    event FreeMintOpenSet(bool open);
+    function setFreeMintOpen(bool open) external onlyOwner {
+        freeMintOpen = open;
+        emit FreeMintOpenSet(open);
+    }
 
     function setMintOpen(bool open) external onlyOwner {
         mintOpen = open;
