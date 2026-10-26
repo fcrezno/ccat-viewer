@@ -267,6 +267,13 @@ export default function MintV3Page() {
       {/* Everything under the title screen in one light Windows 98 window, as on every page (JP, 2026-10-06). */}
       <section className="win98" data-title="Claim a Robinhood Cat" style={s.window}>
 
+      {/*
+        BUY A CAT WITH BUN (ClankerCatsV3.mintWithBun: 500, 750, 1,000, 1,250 BUN, up to 4 a wallet,
+        separate from the free cat). Shown greyed out until it is live (JP, 2026-10-26: "build the
+        burn button but grey it out"): turn it on after V3 is deployed and setMintOpen(true).
+      */}
+      <button type="button" disabled title="Opens October 28" style={{ ...s.burnSoon }}>BURN 500 BUN FOR A CAT · OPENS OCT 28</button>
+
       {/* This wallet's own cat, once it has one. */}
       {catId !== null && (
         <div style={{ ...s.heroBox, ...(burner ? s.heroBurner : {}) }}>
@@ -274,7 +281,7 @@ export default function MintV3Page() {
         </div>
       )}
       {catId !== null && <div style={s.title}>#{String(catId)} is yours</div>}
-      <div ref={actionRef} style={s.subtitle}>Robinhood Chain · free for BUN holders</div>
+      <div ref={actionRef} style={s.subtitle}>Robinhood Chain · your first cat is free</div>
 
       {!V3_DEPLOYED ? (
         <>
@@ -287,7 +294,7 @@ export default function MintV3Page() {
         <>
           <div style={s.notice}>
             {open === false
-              ? 'Claiming opens soon. Free for BUN holders, one per wallet.'
+              ? 'Oct 28: burn BUN for a cat. Oct 30: everyone gets a free cat (win 3 fights). Up to 4 more for BUN.'
               : 'Free to mint, one per wallet. Connect to claim yours.'}
           </div>
           {webConnectors.map(c => (
@@ -356,6 +363,7 @@ export default function MintV3Page() {
 }
 
 const s: Record<string, React.CSSProperties> = {
+  burnSoon: { display: 'block', width: '100%', margin: '0 0 12px', padding: '12px 16px', fontSize: 20, fontFamily: 'inherit', color: '#808080', background: '#c0c0c0', border: 0, cursor: 'not-allowed', textShadow: '1px 1px 0 #ffffff', boxShadow: 'inset -1px -1px 0 0 #0a0a0a, inset 1px 1px 0 0 #ffffff, inset -2px -2px 0 0 #808080, inset 2px 2px 0 0 #dfdfdf' },
   window:       { width: '100%', maxWidth: 440, boxSizing: 'border-box', background: '#c0c0c0', color: '#000000', border: '1px solid #c0c0c0', borderRadius: 0, padding: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 },
   root:         { background: 'transparent', minHeight: '100vh', color: '#000000', padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 },
   header:       { width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },

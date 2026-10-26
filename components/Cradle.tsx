@@ -1866,6 +1866,9 @@ export function Cradle() {
                     {/* THE YARD AS AN OPTION (JP, 2026-09-28), beside the fights. */}
                     <a href="/yard" className="fx-host" style={s.yardBtn}><FxLabel text="THE YARD" tone="green" /></a>
                     <p style={s.modeFine}>your cats and the cats of people you follow</p>
+                    {/* RATXECUTIONER beside the yard (JP, 2026-10-26: "add the ratxecutoner game button as well"). */}
+                    <a href="/ratxecutioner" className="fx-host" style={s.yardBtn}><FxLabel text="RATXECUTIONER" tone="green" /></a>
+                    <p style={s.modeFine}>a Doom-style rat hunt · waves, bosses, four weapons</p>
                   </div>
                   <FighterPortrait
                     name={nameFor(picked.uid) ?? picked.meta?.name ?? `#${picked.id}`}
@@ -1918,6 +1921,8 @@ export function Cradle() {
                   {/* THE YARD AS AN OPTION (JP, 2026-09-28). /yard shows the demo yard to a guest. */}
                   <a href="/yard" className="fx-host" style={s.yardBtn}><FxLabel text="THE YARD" tone="green" /></a>
                   <p style={s.modeFine}>the cats together, when nobody is fighting</p>
+                  <a href="/ratxecutioner" className="fx-host" style={s.yardBtn}><FxLabel text="RATXECUTIONER" tone="green" /></a>
+                  <p style={s.modeFine}>a Doom-style rat hunt · waves, bosses, four weapons</p>
                 </div>
                 {myCode > 0 && (
                   <FighterPortrait
