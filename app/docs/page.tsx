@@ -70,8 +70,9 @@ export default function DocsPage() {
       <section id="cats" className="win98" data-title="The cats" style={S.win}>
         <ul style={S.ul}>
           <li><b style={S.b}>V1</b> — 200 cats on Base. <b style={S.b}>V2</b> — 1111 free-mint cats on Base. (<a style={S.a} href="https://opensea.io/collection/clanker-cats">OpenSea</a>)</li>
-          <li><b style={S.b}>V3</b> — on Robinhood Chain. You do not buy one: you <b style={S.b}>earn</b> it, by <b style={S.b}>burning BUN</b> or by <b style={S.b}>winning 3 fights</b>.</li>
-          <li><b style={S.b}>One cat per wallet</b>, however you got it — a wallet that already earned a cat cannot burn for a second.</li>
+          <li><b style={S.b}>V3</b> — on Robinhood Chain. Your <b style={S.b}>first cat is free</b>: you <b style={S.b}>earn</b> it by <b style={S.b}>winning 3 fights</b>.</li>
+          <li><b style={S.b}>More cats:</b> once you have your free cat, burn BUN for up to 4 more: <b style={S.b}>500, 750, 1,000, 1,250 BUN</b>. More cats means more play, because cats <b style={S.b}>nap</b> after fights.</li>
+          <li><b style={S.b}>Burner perks</b> (any cat you burn BUN for): an <b style={S.b}>animated name</b> in your choice of style, early access to new modes, exclusive daily-reward cosmetics, and a vote on what we build next.</li>
           <li>Your cat is your save file: its record, its name and its friends go with it.</li>
         </ul>
       </section>
@@ -102,7 +103,9 @@ export default function DocsPage() {
         (40 solo / 40 clans / 10 rollover / 10 developer). The fee weights that FILL the pot stay
         unpublished (see The token).
       */}
-      <section id="clans" className="win98" data-title="Clans" style={S.win}>
+      {/* JP, 2026-10-26: ship the NFT, no pot games yet; these two sections are the plan, not live. */}
+      <section id="clans" className="win98" data-title="Clans (coming later)" style={S.win}>
+        <p style={S.fine}>Not live at launch. This is the plan, and it may change.</p>
         <ul style={S.ul}>
           <li>Every Mosh token is a clan: <b style={S.b}>BUN</b>, <b style={S.b}>BPEPE</b>, <b style={S.b}>ALF</b>, <b style={S.b}>BORK</b> and <b style={S.b}>Clanker Cats</b>. Pick the one you fight for.</li>
           <li>Your clan stays with your cat for the whole season. You can switch between seasons.</li>
@@ -111,7 +114,7 @@ export default function DocsPage() {
         </ul>
       </section>
 
-      <section id="pot" className="win98" data-title="The pot" style={S.win}>
+      <section id="pot" className="win98" data-title="The pot (coming later)" style={S.win}>
         <ul style={S.ul}>
           <li>Each season has one pot. It is filled from the token&apos;s player-rewards share. <b style={S.b}>Nobody pays to enter.</b></li>
           <li>The split: <b style={S.b}>40%</b> to the solo board, <b style={S.b}>40%</b> to the clan board, <b style={S.b}>10%</b> rolls into next season&apos;s pot, <b style={S.b}>10%</b> to the developer.</li>

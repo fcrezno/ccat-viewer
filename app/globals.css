@@ -1170,3 +1170,13 @@ html:not([data-rail="strip"]) .cc-foot { display: none; }
  * just short of room for the tiny columns is zoomed out a touch (html zoom) so the
  * game and the sponsors fit together — what JP was doing by hand.
  */
+
+/* BunBurner names (components/CatName): four styles a burner can pick. */
+.cn-rainbow { background: linear-gradient(90deg, #ff3b3b, #ffb13b, #ffe93b, #3bff7a, #3bb8ff, #a03bff, #ff3b3b); background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: cn-slide 3s linear infinite; }
+.cn-gold { background: linear-gradient(100deg, #b8860b 20%, #fff6c8 40%, #b8860b 60%); background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: cn-slide 2.4s linear infinite; }
+.cn-sparkle { position: relative; color: #000080; text-shadow: 0 0 6px #ffe93b; animation: cn-twinkle 1.2s ease-in-out infinite; }
+.cn-wave span { display: inline-block; animation: cn-bob 1.2s ease-in-out infinite; }
+@keyframes cn-slide { to { background-position: 300% 0; } }
+@keyframes cn-twinkle { 50% { text-shadow: 0 0 12px #ffe93b, 0 0 2px #fff; } }
+@keyframes cn-bob { 50% { transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) { .cn-rainbow, .cn-gold, .cn-sparkle, .cn-wave span { animation: none; } }

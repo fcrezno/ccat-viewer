@@ -96,6 +96,15 @@ contract ClankerCatsV3 {
     /// Token → has burned BUN through this cat. Permanent; once per cat.
     mapping(uint256 => bool) public bunBurner;
 
+    /*
+     * EXTRA CATS (JP, 2026-10-26: "first cat free, extras by burning BUN"). A wallet that has
+     * earned its free cat may burn BUN for more, up to MAX_EXTRA, each dearer than the last:
+     * the 1st extra costs bunBurnPrice, then +50% each: 1x, 1.5x, 2x, 2.5x (500, 750, 1000, 1250 BUN).
+     * Extra cats are BunBurners from birth (the animated-name perk).
+     */
+    uint256 public constant MAX_EXTRA = 4;              // 5 cats a wallet, the free one included
+    mapping(address => uint256) public extraMinted;
+
     // ── EIP-712 ────────────────────────────────────────────────────────────────
     bytes32 private constant MINT_TYPEHASH =
         keccak256("Mint(address to,uint256 deadline)");
@@ -128,6 +137,8 @@ contract ClankerCatsV3 {
     error BadRoyalty();
     error AlreadyBunBurner();
     error BunBurnFailed();
+    error NoFreeCatYet();
+    error ExtraCapReached();
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert NotOwner();
@@ -206,8 +217,41 @@ contract ClankerCatsV3 {
      *         BUN has no permit(), so that is a separate transaction.
      *
      *         The BUN goes straight from the owner to the CatToll, which pays the
-     *         30/30/40 split when anyone calls its settle().
+     *         40/30/30 split (40 creator, 30 agents, 30 burnt) when anyone calls its settle().
      */
+    /// @notice What the caller's next extra cat costs in BUN.
+    function extraPrice(address who) public view returns (uint256) {
+        return bunBurnPrice + (bunBurnPrice * extraMinted[who]) / 2;
+    }
+
+    /**
+     * @notice Burn BUN for an extra cat. Only after the wallet's free cat (minted[]) - see mint().
+     *         Approve this contract for extraPrice(you) BUN first.
+     */
+    function mintWithBun() external returns (uint256 tokenId) {
+        if (!mintOpen)                         revert MintClosed();
+        if (totalSupply >= maxSupply)          revert SoldOut();
+        if (!minted[msg.sender])               revert NoFreeCatYet();
+        if (extraMinted[msg.sender] >= MAX_EXTRA) revert ExtraCapReached();
+        uint256 price = extraPrice(msg.sender);
+
+        // Effects before the external call.
+        extraMinted[msg.sender] += 1;
+        tokenId = ++totalSupply;
+        _owners[tokenId] = msg.sender;
+        _balances[msg.sender] += 1;
+        bunBurner[tokenId] = true;
+
+        (bool ok, bytes memory ret) = bun.call(
+            abi.encodeWithSelector(0x23b872dd, msg.sender, bunToll, price)
+        );
+        if (!ok || (ret.length > 0 && !abi.decode(ret, (bool)))) revert BunBurnFailed();
+
+        emit Transfer(address(0), msg.sender, tokenId);
+        emit Minted(tokenId, msg.sender);
+        emit BunBurner(tokenId, msg.sender, price);
+    }
+
     function burnBun(uint256 tokenId) external {
         if (ownerOf(tokenId) != msg.sender) revert NotOwnerOrApproved();
         if (bunBurner[tokenId])             revert AlreadyBunBurner();
