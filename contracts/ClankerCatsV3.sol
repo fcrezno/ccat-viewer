@@ -230,14 +230,14 @@ contract ClankerCatsV3 {
     function mintWithBun() external returns (uint256 tokenId) {
         if (!mintOpen)                         revert MintClosed();
         if (totalSupply >= maxSupply)          revert SoldOut();
-        // A wallet with no cat yet buys its FIRST cat at the base price (the Oct 28 early
-        // launch); after that, extras at the rising price, up to MAX_EXTRA more.
-        bool first = !minted[msg.sender];
-        if (!first && extraMinted[msg.sender] >= MAX_EXTRA) revert ExtraCapReached();
-        uint256 price = first ? bunBurnPrice : extraPrice(msg.sender);
+        // Up to MAX_EXTRA cats a wallet by BUN (500, 750, 1000, 1250), any time the mint is open,
+        // with or without the free cat. The free cat (mint) is separate and still claimable,
+        // so an Oct 28 burner also gets the free one on Oct 30 (JP, 2026-10-26: "do that").
+        if (extraMinted[msg.sender] >= MAX_EXTRA) revert ExtraCapReached();
+        uint256 price = extraPrice(msg.sender);
 
         // Effects before the external call.
-        if (first) minted[msg.sender] = true; else extraMinted[msg.sender] += 1;
+        extraMinted[msg.sender] += 1;
         tokenId = ++totalSupply;
         _owners[tokenId] = msg.sender;
         _balances[msg.sender] += 1;
