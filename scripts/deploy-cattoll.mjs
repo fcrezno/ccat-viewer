@@ -143,7 +143,7 @@ console.log('  agent 1  ', a1, ' 10%')
 console.log('  agent 2  ', a2, ' 10%')
 console.log('  agent 3  ', a3, ' 10%')
 console.log('  creator  ', cr, ' 40%')
-console.log('  burned          the remaining 40%, plus all rounding dust')
+console.log('  burned          the remaining 30%, plus all rounding dust')
 
 if (!burnable) {
   console.error('\nRefusing: burn() could not be simulated, and settle() ends in a burn.')
