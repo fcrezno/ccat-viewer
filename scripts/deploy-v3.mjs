@@ -191,7 +191,7 @@ console.log('  supply   ', MAX_SUPPLY)
 console.log('  baseURI  ', BASE_URI)
 console.log('  royalty  ', `${receiver} @ ${Number(ROYALTY_BPS) / 100}%`)
 console.log('  BUN      ', BUN_TOKEN_ADDRESS)
-console.log('  toll     ', BUN_TOLL_ADDRESS, '(30/30/40 CatToll)')
+console.log('  toll     ', BUN_TOLL_ADDRESS, '(40 creator / 30 agents / 30 burn)')
 console.log('  burn     ', `${BUN_BURN_AMOUNT} BUN = ${BUN_BURN_WEI} wei, per BunBurner`)
 
 if (!SEND) {

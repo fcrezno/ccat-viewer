@@ -72,6 +72,17 @@ export const V3_ABI = [
     name: 'burnBun', type: 'function', stateMutability: 'nonpayable',
     inputs: [{ name: 'tokenId', type: 'uint256' }], outputs: [],
   },
+  // ── a cat for BUN (ClankerCatsV3.mintWithBun), up to MAX_EXTRA a wallet ──
+  { name: 'MAX_EXTRA', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  {
+    name: 'extraMinted', type: 'function', stateMutability: 'view',
+    inputs: [{ name: 'wallet', type: 'address' }], outputs: [{ type: 'uint256' }],
+  },
+  {
+    name: 'extraPrice', type: 'function', stateMutability: 'view',
+    inputs: [{ name: 'who', type: 'address' }], outputs: [{ type: 'uint256' }],
+  },
+  { name: 'mintWithBun', type: 'function', stateMutability: 'nonpayable', inputs: [], outputs: [{ type: 'uint256' }] },
   {
     name: 'Minted', type: 'event',
     inputs: [

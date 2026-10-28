@@ -134,6 +134,21 @@ export default function MintV3Page() {
     return () => { alive = false }
   }, [client, address])
 
+  /* What this wallet's next cat for BUN costs, and how many it has bought (max MAX_EXTRA). */
+  const [extra, setExtra] = useState<{ price: bigint; count: number; max: number } | null>(null)
+  const readExtra = useCallback(async () => {
+    if (!V3_DEPLOYED || !client || !address) return
+    try {
+      const [price, count, max] = await Promise.all([
+        client.readContract({ address: V3, abi: V3_ABI, functionName: 'extraPrice', args: [address] }),
+        client.readContract({ address: V3, abi: V3_ABI, functionName: 'extraMinted', args: [address] }),
+        client.readContract({ address: V3, abi: V3_ABI, functionName: 'MAX_EXTRA' }),
+      ])
+      setExtra({ price: price as bigint, count: Number(count), max: Number(max) })
+    } catch { /* the button stays at the base price */ }
+  }, [client, address])
+  useEffect(() => { readExtra() }, [readExtra])
+
   /* Is that cat a BunBurner already. */
   useEffect(() => {
     if (!client || catId === null) return
@@ -149,6 +164,9 @@ export default function MintV3Page() {
       : /chain|network|switch/i.test(msg)               ? 'Could not switch to Robinhood Chain. Add it in your wallet and try again.'
       : /insufficient|exceeds balance/i.test(msg)       ? 'Not enough BUN in that wallet.'
       : /AlreadyBunBurner/i.test(msg)                   ? 'That cat is already a BunBurner.'
+      : /ExtraCapReached/i.test(msg)                    ? 'This wallet has bought all its BUN cats.'
+      : /MintClosed/i.test(msg)                         ? 'The BUN mint is not open yet.'
+      : /SoldOut/i.test(msg)                            ? 'All cats have been claimed.'
       : 'Something went wrong. Try again.'
   }
 
@@ -232,6 +250,43 @@ export default function MintV3Page() {
     }
   }, [address, client, terms, catId, toRobinhood, writeContractAsync])
 
+  /* ── 3. a cat for BUN: approve extraPrice, then mintWithBun ─────────────── */
+  const buyWithBun = useCallback(async () => {
+    if (!address || !client || !terms) return
+    setError(null)
+    try {
+      await toRobinhood()
+      const cost = await client.readContract({
+        address: V3, abi: V3_ABI, functionName: 'extraPrice', args: [address],
+      }) as bigint
+      const allowance = await client.readContract({
+        address: terms.bun, abi: ERC20, functionName: 'allowance', args: [address, V3],
+      }) as bigint
+      if (allowance < cost) {
+        setBusy('Approve BUN in your wallet… (1 of 2)')
+        const approval = await writeContractAsync({
+          address: terms.bun, abi: ERC20, functionName: 'approve', args: [V3, cost], chainId: robinhood.id,
+        })
+        setBusy('Waiting for the approval…')
+        await client.waitForTransactionReceipt({ hash: approval })
+      }
+      setBusy('Confirm the burn in your wallet… (2 of 2)')
+      const hash = await writeContractAsync({
+        address: V3, abi: V3_ABI, functionName: 'mintWithBun', chainId: robinhood.id,
+      })
+      setBusy('Burning…')
+      const receipt = await client.waitForTransactionReceipt({ hash })
+      if (receipt.status !== 'success') throw new Error('reverted')
+      const [minted] = parseEventLogs({ abi: V3_ABI, logs: receipt.logs, eventName: 'Minted' })
+      if (minted) { setCatId(minted.args.tokenId); setBurner(true) }
+      await readExtra()
+    } catch (e: unknown) {
+      setError(explain(e))
+    } finally {
+      setBusy(null)
+    }
+  }, [address, client, terms, toRobinhood, writeContractAsync, readExtra])
+
   /* A cat bought rather than minted: let its owner name it. ownerOf decides. */
   const pickTyped = useCallback(async () => {
     if (!client || !address || !/^\d+$/.test(typed)) return
@@ -272,7 +327,18 @@ export default function MintV3Page() {
         separate from the free cat). Shown greyed out until it is live (JP, 2026-10-26: "build the
         burn button but grey it out"): turn it on after V3 is deployed and setMintOpen(true).
       */}
-      <button type="button" disabled title="Opens October 28" style={{ ...s.burnSoon }}>BURN 500 BUN FOR A CAT · OPENS OCT 28</button>
+      {(() => {
+        const cost = formatUnits(extra?.price ?? terms?.price ?? BigInt("500000000000000000000"), BUN_DECIMALS)
+        const full = extra !== null && extra.count >= extra.max
+        const live = V3_DEPLOYED && mounted && open === true && isConnected && !!terms && !full
+        const label = busy ?? (full ? 'ALL YOUR BUN CATS ARE BOUGHT'
+          : !V3_DEPLOYED || open !== true ? `BURN ${cost} BUN FOR A CAT · OPENS OCT 28`
+          : !mounted || !isConnected ? `CONNECT TO BURN ${cost} BUN FOR A CAT`
+          : `BURN ${cost} BUN FOR A CAT${extra ? ` · ${extra.count}/${extra.max}` : ''}`)
+        return live
+          ? <FxButton style={{ ...s.primaryBtn, maxWidth: 'none', marginBottom: 12, opacity: busy ? 0.6 : 1 }} tone="gold" onClick={buyWithBun} disabled={!!busy} label={label} />
+          : <button type="button" disabled title="Opens October 28" style={{ ...s.burnSoon }}>{label}</button>
+      })()}
 
       {/* This wallet's own cat, once it has one. */}
       {catId !== null && (
@@ -352,7 +418,7 @@ export default function MintV3Page() {
         <div style={s.howHead}>HOW IT WORKS</div>
         <div style={s.howStep}><b style={s.howNum}>1</b> <span><span style={s.howLabel}>Claim.</span> Hold at least 1 BUN on Robinhood Chain and claim one cat free. One per wallet.</span></div>
         <div style={s.howStep}><b style={s.howNum}>2</b> <span><span style={s.howLabel}>Play.</span> Your cat fights in Clanker Cats, right here in the browser. Its stats come from the cat itself and never change.</span></div>
-        <div style={s.howStep}><b style={s.howNum}>3</b> <span><span style={s.howLabel}>Burn (optional).</span> Burn 111 BUN through your cat and it becomes a BunBurner, a trait it keeps for good. 30% goes to the agents, 30% to the creator, 40% is burned.</span></div>
+        <div style={s.howStep}><b style={s.howNum}>3</b> <span><span style={s.howLabel}>Burn (optional).</span> Burn 500 BUN for a cat of your own (up to 4: 500, 750, 1,000, 1,250 BUN), or through a cat you have. It becomes a BunBurner, a trait it keeps for good. 40% goes to the creator, 30% to the agents, 30% is burned.</span></div>
       </div>
 
       </section>
