@@ -98,7 +98,7 @@ export const COLLECTIONS: CollectionDef[] = [
     label:    'Clanker Cats: Robinhood',
     opensea:  `https://opensea.io/assets/robinhood/${V3}`,
     pixelArt: true,
-    metaBase: 'https://ccat-viewer.vercel.app/v3/cat/',
+    metaBase: 'https://clankercats.com/v3/cat/',
     supply:   1111,
   }] : []),
 ]

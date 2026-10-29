@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { APP_URL } from '@/lib/miniapp'
+import { V3_HOST as APP_URL } from '@/lib/mintv3'
 
 /**
  * COLLECTION-LEVEL METADATA — what `contractURI()` is supposed to return.

@@ -3,7 +3,7 @@ import { clientForChain, robinhood } from '@/lib/chains'
 import { V3, V3_DEPLOYED } from '@/lib/mintv3'
 import { readFile } from 'fs/promises'
 import { join } from 'path'
-import { APP_URL } from '@/lib/miniapp'
+import { V3_HOST as APP_URL } from '@/lib/mintv3'
 
 /**
  * Progressive reveal, V3 — the same rule V2 arrived at, on Robinhood Chain.

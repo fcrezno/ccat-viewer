@@ -103,3 +103,9 @@ export const V3_MINT_ERRORS: Record<string, string> = {
   bad_run:        'That run couldn’t be verified. Play it through and try again.',
   bad_wallet:     'That doesn’t look like a wallet address.',
 }
+
+/**
+ * Where V3's metadata, images and collection page live (JP, 2026-10-28: "fix the domain").
+ * Only V3 moves to clankercats.com: the Farcaster mini app is signed for APP_URL, so that stays.
+ */
+export const V3_HOST = 'https://clankercats.com'
