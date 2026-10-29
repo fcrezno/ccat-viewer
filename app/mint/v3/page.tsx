@@ -347,7 +347,7 @@ export default function MintV3Page() {
         </div>
       )}
       {catId !== null && <div style={s.title}>#{String(catId)} is yours</div>}
-      <div ref={actionRef} style={s.subtitle}>Robinhood Chain · your first cat is free</div>
+      <div ref={actionRef} style={s.subtitle}>Robinhood Chain · burn BUN for a cat today · free cat Oct 30</div>
 
       {!V3_DEPLOYED ? (
         <>
