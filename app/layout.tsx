@@ -3,6 +3,7 @@ import { Providers } from '@/lib/providers'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { PageChecker } from '@/components/PageChecker'
 import { SideAds } from '@/components/SideAds'
+import { WalletChip } from '@/components/WalletChip'
 import { embedTags, APP_URL } from '@/lib/miniapp'
 import './globals.css'
 
@@ -73,6 +74,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <SideAds />
           {children}
           {/* After the page, so the page's own loading holds are set before it looks. */}
+          <WalletChip />
           <LoadingScreen />
         </Providers>
       </body>

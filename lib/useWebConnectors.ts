@@ -32,7 +32,16 @@ export function useWebConnectors() {
 
   const web   = connectors.filter(c => c.id !== 'farcaster-frame')
   const named = web.filter(c => c.id !== 'injected')
-  return named.length ? named : web
+  if (!named.length) return web
+  /*
+   * A METAMASK THAT DID NOT ANNOUNCE ITSELF (a holder's Chrome, 2026-10-30): no EIP-6963
+   * button, yet window.ethereum answers as MetaMask. Offer the generic button too, so
+   * there is still something to click besides a download page.
+   */
+  const eth = (globalThis as { ethereum?: { isMetaMask?: boolean } }).ethereum
+  const hasMM = named.some(c => /metamask/i.test(c.name))
+  const generic = web.find(c => c.id === 'injected')
+  return !hasMM && eth?.isMetaMask && generic ? [...named, generic] : named
 }
 
 /**

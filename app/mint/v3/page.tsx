@@ -374,8 +374,8 @@ export default function MintV3Page() {
           {webConnectors.map(c => (
             <FxButton key={c.uid} style={s.secondaryBtn} tone="soft" onClick={() => connectWallet(c)} label={c.name.toUpperCase()} />
           ))}
-          {/* No MetaMask in this browser (a phone, or not installed): open this page inside the MetaMask app instead. */}
-          {!webConnectors.some(c => /metamask/i.test(c.name)) && (
+          {/* On a PHONE with no MetaMask in the browser: open this page inside the MetaMask app. On a computer the same link only reaches a download page, so it is not shown there. */}
+          {!webConnectors.some(c => /metamask/i.test(c.name)) && typeof navigator !== 'undefined' && /Android|iPhone|iPad|Mobi/i.test(navigator.userAgent) && (
             <FxButton href={`https://metamask.app.link/dapp/${typeof window !== 'undefined' ? window.location.host + window.location.pathname + window.location.search : 'clankercats.com/mint/v3'}`} style={s.secondaryBtn} tone="soft" label="OPEN IN METAMASK" />
           )}
           {/* A wallet that does not open (seen with MetaMask next to Phantom, 2026-10-30): say where to look. */}
