@@ -76,6 +76,8 @@ export default function MintV3Page() {
    * fail it. Read once on load; opening it is a wallet transaction by the owner.
    */
   const [open,      setOpen]      = useState<boolean | null>(null)
+  /* The free cat's own switch (mint() needs it as well as mintOpen; the BUN mint does not). */
+  const [freeOpen,  setFreeOpen]  = useState<boolean | null>(null)
 
   /*
    * WALLET STATE EXISTS ONLY IN THE BROWSER. wagmi reconnects a returning wallet
@@ -109,6 +111,9 @@ export default function MintV3Page() {
       .catch(() => {})
     client.readContract({ address: V3, abi: V3_ABI, functionName: 'mintOpen' })
       .then(o => setOpen(o as boolean))
+      .catch(() => {})
+    client.readContract({ address: V3, abi: V3_ABI, functionName: 'freeMintOpen' })
+      .then(o => setFreeOpen(o as boolean))
       .catch(() => {})
   }, [client])
 
@@ -359,9 +364,9 @@ export default function MintV3Page() {
       ) : !isConnected ? (
         <>
           <div style={s.notice}>
-            {open === false
-              ? 'Oct 28: burn BUN for a cat. Oct 30: everyone gets a free cat (win 3 fights). Up to 4 more for BUN.'
-              : 'Free to mint, one per wallet. Connect to claim yours.'}
+            {freeOpen === true
+              ? 'Win 3 fights in the free game for a free cat, one per wallet. Or burn BUN for one. Connect to claim.'
+              : 'Burn BUN for a cat now. The free cat (win 3 fights) opens soon.'}
           </div>
           {webConnectors.map(c => (
             <FxButton key={c.uid} style={s.secondaryBtn} tone="soft" onClick={() => connect({ connector: c })} label={c.name.toUpperCase()} />
@@ -373,10 +378,16 @@ export default function MintV3Page() {
         </>
       ) : (
         <>
-          {hasMinted === false && catId === null && open === false && (
-            <div style={s.notice}>Claiming is not open yet. It opens soon.</div>
+          {hasMinted === false && freeOpen === false && (
+            <div style={s.notice}>The free cat (win 3 fights) is not open yet. It opens soon.</div>
           )}
-          {hasMinted === false && catId === null && open === true && (
+          {hasMinted === false && freeOpen === true && !tag && (
+            <>
+              <div style={s.notice}>Win 3 fights in the free game, then claim your free cat from the results screen.</div>
+              <FxButton href="/" style={s.secondaryBtn} tone="soft" label="Play — win 3 fights" />
+            </>
+          )}
+          {hasMinted === false && freeOpen === true && !!tag && (
             <FxButton style={{ ...s.primaryBtn, opacity: busy ? 0.6 : 1 }} tone="light" onClick={claim} disabled={!!busy} label={busy ?? 'Claim your cat — free'} />
           )}
 
@@ -388,7 +399,7 @@ export default function MintV3Page() {
               {/* Where the BUN goes, said before it is spent rather than after. */}
               <div style={s.splitNote}>
                 Optional. Your cat gets the BunBurner trait for good.
-                <br />30% agents · 30% creator · 40% burned
+                <br />40% creator · 30% agents · 30% burned
               </div>
             </>
           ))}
@@ -416,7 +427,7 @@ export default function MintV3Page() {
       {/* HOW THE CATS WORK — asked for by JP, 2026-09-28. */}
       <div style={s.how}>
         <div style={s.howHead}>HOW IT WORKS</div>
-        <div style={s.howStep}><b style={s.howNum}>1</b> <span><span style={s.howLabel}>Claim.</span> Hold at least 1 BUN on Robinhood Chain and claim one cat free. One per wallet.</span></div>
+        <div style={s.howStep}><b style={s.howNum}>1</b> <span><span style={s.howLabel}>Claim.</span> Win 3 fights in the free game and claim one cat free. One per wallet.</span></div>
         <div style={s.howStep}><b style={s.howNum}>2</b> <span><span style={s.howLabel}>Play.</span> Your cat fights in Clanker Cats, right here in the browser. Its stats come from the cat itself and never change.</span></div>
         <div style={s.howStep}><b style={s.howNum}>3</b> <span><span style={s.howLabel}>Burn (optional).</span> Burn 500 BUN for a cat of your own (up to 4: 500, 750, 1,000, 1,250 BUN), or through a cat you have. It becomes a BunBurner, a trait it keeps for good. 40% goes to the creator, 30% to the agents, 30% is burned.</span></div>
       </div>

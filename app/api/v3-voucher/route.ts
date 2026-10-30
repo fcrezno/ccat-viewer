@@ -195,8 +195,10 @@ export async function POST(req: NextRequest) {
      * endpoint Robinhood's own docs say is not for production.
      */
     ;[openNow, already, supply, cap] = await Promise.all([
-      cached('mintOpen', OPEN_TTL, () =>
-        client.readContract({ address: V3, abi: V3_ABI, functionName: 'mintOpen' }) as Promise<boolean>),
+      // The free cat needs BOTH switches (ClankerCatsV3.mint), so a voucher is only signed when both are on.
+      cached('freeOpen', OPEN_TTL, async () =>
+        (await client.readContract({ address: V3, abi: V3_ABI, functionName: 'mintOpen' }) as boolean)
+        && (await client.readContract({ address: V3, abi: V3_ABI, functionName: 'freeMintOpen' }) as boolean)),
       read(() =>
         client.readContract({ address: V3, abi: V3_ABI, functionName: 'minted', args: [to] }) as Promise<boolean>),
       read(() =>

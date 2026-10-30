@@ -26,10 +26,12 @@ export const V3_DEPLOYED = V3 !== '0x0000000000000000000000000000000000000000'
  * after a run and the copy all still exist and all read this. Set it to true and
  * three wins earns a cat again.
  */
-export const RUN_DOOR = false
+export const RUN_DOOR = true   // ON since 2026-10-30, the free-cat launch: 3 wins earns a cat
 
 export const V3_ABI = [
   { name: 'mintOpen',    type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'bool'    }] },
+  // mint() (the free cat) needs mintOpen AND freeMintOpen; mintWithBun needs only mintOpen.
+  { name: 'freeMintOpen', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'bool'    }] },
   { name: 'signer',      type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
   { name: 'totalSupply', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { name: 'maxSupply',   type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
