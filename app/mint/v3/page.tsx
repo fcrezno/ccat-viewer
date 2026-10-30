@@ -371,6 +371,10 @@ export default function MintV3Page() {
           {webConnectors.map(c => (
             <FxButton key={c.uid} style={s.secondaryBtn} tone="soft" onClick={() => connect({ connector: c })} label={c.name.toUpperCase()} />
           ))}
+          {/* No MetaMask in this browser (a phone, or not installed): open this page inside the MetaMask app instead. */}
+          {!webConnectors.some(c => /metamask/i.test(c.name)) && (
+            <FxButton href={`https://metamask.app.link/dapp/${typeof window !== 'undefined' ? window.location.host + window.location.pathname + window.location.search : 'clankercats.com/mint/v3'}`} style={s.secondaryBtn} tone="soft" label="OPEN IN METAMASK" />
+          )}
           {/* A failed connect used to do nothing visible. Say why. */}
           {connectError && !/rejected|denied/i.test(connectError.message) && (
             <div style={s.error}>Could not connect: {connectError.message.slice(0, 160)}</div>
