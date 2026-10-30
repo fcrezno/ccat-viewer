@@ -1242,6 +1242,12 @@ export function Cradle() {
     ? `/mint/v3?r=${encodeURIComponent(tag)}`
     : null
 
+  /* Keep the won run, so /mint/v3 opened on its own can still claim (JP, 2026-10-30). The server re-checks it. */
+  useEffect(() => {
+    if (!claimHref || !tag) return
+    try { window.localStorage.setItem('ccat.v3run', tag) } catch {}
+  }, [claimHref, tag])
+
   /*
    * THE YARD LIVES ON ITS OWN PAGE NOW (JP, 2026-09-29: "remove the yard and
    * just make it its own page"). Who lives in it is lib/useYardResidents.ts,

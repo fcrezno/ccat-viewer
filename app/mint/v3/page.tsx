@@ -96,7 +96,9 @@ export default function MintV3Page() {
    */
   useEffect(() => {
     if (!RUN_DOOR) return
-    const r = new URLSearchParams(window.location.search).get('r')
+    // From the claim link, or else the last won run this browser kept (components/Cradle.tsx).
+    let r = new URLSearchParams(window.location.search).get('r')
+    if (!r) try { r = window.localStorage.getItem('ccat.v3run') } catch {}
     setTag(r && r.length < 8192 ? r : null)
   }, [])
 
