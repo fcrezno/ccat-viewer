@@ -50,7 +50,7 @@ import {
 const LINE_MS = 850
 import { APP_URL } from '@/lib/miniapp'
 import { V3_DEPLOYED, RUN_DOOR } from '@/lib/mintv3'
-import { useWebConnectors } from '@/lib/useWebConnectors'
+import { useWebConnectors, useConnectWallet } from '@/lib/useWebConnectors'
 
 /*
  * THE COUNTDOWN'S BEATS, taken from the game rather than guessed at.
@@ -746,6 +746,7 @@ export function Cradle() {
   const { address, isConnected } = useAccount()
   const { connect, connectors } = useConnect()
   const webConnectors = useWebConnectors()
+  const connectWallet = useConnectWallet()
 
   const [view, setView] = useState<'home' | 'fight' | 'ranks' | 'adopt'>('home')
   const [found, setFound] = useState<Cat[] | null>(null)
@@ -1999,7 +2000,7 @@ export function Cradle() {
                   </p>
                   {webConnectors
                     .map(c => (
-                      <button className="fx-host" key={c.id} style={s.ghost} onClick={() => connect({ connector: c })}>
+                      <button className="fx-host" key={c.id} style={s.ghost} onClick={() => connectWallet(c)}>
                         <FxLabel text={c.name.toUpperCase()} tone='grey' />
                       </button>
                     ))}

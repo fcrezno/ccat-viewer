@@ -7,7 +7,7 @@ import sdk from '@farcaster/miniapp-sdk'
 import { loadStats, saveStats, feed, pet, play, mood, moodEmoji, catLine, type Stats } from '@/lib/tamagotchi'
 import { COLLECTION_ABI, COLLECTIONS, getCollection, type Cat } from '@/lib/collection'
 import { APP_URL } from '@/lib/miniapp'
-import { useWebConnectors } from '@/lib/useWebConnectors'
+import { useWebConnectors, useConnectWallet } from '@/lib/useWebConnectors'
 import { BitmapText } from '@/components/BitmapText'
 import { FxButton } from '@/components/FxButton'
 import { PageTitle } from '@/components/PageTitle'
@@ -444,6 +444,7 @@ export default function Home() {
   const { address, isConnected } = useAccount()
   const { connect, connectors }  = useConnect()
   const webConnectors = useWebConnectors()
+  const connectWallet = useConnectWallet()
   const [ready, setReady]        = useState(false)
   const [inApp, setInApp]        = useState(false)
   const [selected, setSelected]  = useState<Cat | null>(null)
@@ -500,7 +501,7 @@ export default function Home() {
           <div style={s.emptySubtitle}>Connect a wallet to see your cats.</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
             {webConnectors.map(c => (
-              <FxButton key={c.id} style={s.ghostWide} tone="soft" onClick={() => connect({ connector: c })} label={c.name.toUpperCase()} />
+              <FxButton key={c.id} style={s.ghostWide} tone="soft" onClick={() => connectWallet(c)} label={c.name.toUpperCase()} />
             ))}
           </div>
         </section>

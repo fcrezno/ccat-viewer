@@ -6,7 +6,7 @@ import { base } from 'wagmi/chains'
 import sdk from '@farcaster/miniapp-sdk'
 import { V2, V2_ABI, MINT_ERRORS, type Voucher } from '@/lib/mint'
 import { APP_URL } from '@/lib/miniapp'
-import { useWebConnectors } from '@/lib/useWebConnectors'
+import { useWebConnectors, useConnectWallet } from '@/lib/useWebConnectors'
 import { GameBar } from '@/components/GameBar'
 import { FxButton } from '@/components/FxButton'
 
@@ -27,6 +27,7 @@ export function BaseMint() {
   const { address, isConnected } = useAccount()
   const { connect, connectors }  = useConnect()
   const webConnectors = useWebConnectors()
+  const connectWallet = useConnectWallet()
 
   const [phase,  setPhase]  = useState<Phase>('idle')
   const [error,  setError]  = useState<string | null>(null)
@@ -194,7 +195,7 @@ export function BaseMint() {
             <div style={s.column}>
               <div style={s.notice}>Connect a wallet to mint.</div>
               {webConnectors.map(c => (
-                <FxButton key={c.id} style={s.secondaryBtn} tone="soft" onClick={() => connect({ connector: c })} label={c.name} />
+                <FxButton key={c.id} style={s.secondaryBtn} tone="soft" onClick={() => connectWallet(c)} label={c.name} />
               ))}
             </div>
           ) : open === false ? (

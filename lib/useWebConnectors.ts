@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useConnect } from 'wagmi'
+import { useConfig, useConnect, type Connector } from 'wagmi'
+import { reconnect } from 'wagmi/actions'
 
 /**
  * THE WALLET BUTTONS FOR A WEB PAGE — one list, used everywhere a page offers them.
@@ -32,4 +33,28 @@ export function useWebConnectors() {
   const web   = connectors.filter(c => c.id !== 'farcaster-frame')
   const named = web.filter(c => c.id !== 'injected')
   return named.length ? named : web
+}
+
+/**
+ * CONNECT WITHOUT THE EXTRA "CHOOSE ACCOUNTS" WINDOW WHEN THE WALLET ALREADY TRUSTS US.
+ *
+ * wagmi's connect() always asks for `wallet_requestPermissions` first. MetaMask next to
+ * Rabby and Phantom never opened that window, so the click hung with nothing on screen
+ * (JP and a holder, 2026-10-30). If the wallet already lists accounts for this site, a
+ * reconnect takes them with no window; only a first-time connect still asks.
+ */
+export function useConnectWallet() {
+  const config = useConfig()
+  const { connect } = useConnect()
+  return async (connector: Connector) => {
+    try {
+      const provider = await connector.getProvider() as { request?: (a: { method: string }) => Promise<unknown> } | undefined
+      const accounts = await provider?.request?.({ method: 'eth_accounts' })
+      if (Array.isArray(accounts) && accounts.length) {
+        const done = await reconnect(config, { connectors: [connector] })
+        if (done.length) return
+      }
+    } catch { /* fall through to the normal connect */ }
+    connect({ connector })
+  }
 }

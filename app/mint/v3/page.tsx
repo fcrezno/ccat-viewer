@@ -7,7 +7,7 @@ import { V3, V3_ABI, V3_DEPLOYED, V3_MINT_ERRORS, RUN_DOOR } from '@/lib/mintv3'
 import { robinhood } from '@/lib/chains'
 import { TitleScreen } from '@/components/TitleScreen'
 import { FxButton } from '@/components/FxButton'
-import { useWebConnectors } from '@/lib/useWebConnectors'
+import { useWebConnectors, useConnectWallet } from '@/lib/useWebConnectors'
 
 /**
  * Claim a V3 cat, Robinhood Chain. Rebuilt 2026-09-28 for the rules JP set:
@@ -58,6 +58,7 @@ export default function MintV3Page() {
   const { address, isConnected, chainId } = useAccount()
   const { connect, error: connectError, isPending: connecting } = useConnect()
   const webConnectors = useWebConnectors()
+  const connectWallet = useConnectWallet()
   const { switchChainAsync } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
   const client = usePublicClient({ chainId: robinhood.id })
@@ -371,7 +372,7 @@ export default function MintV3Page() {
               : 'Burn BUN for a cat now. The free cat (win 3 fights) opens soon.'}
           </div>
           {webConnectors.map(c => (
-            <FxButton key={c.uid} style={s.secondaryBtn} tone="soft" onClick={() => connect({ connector: c })} label={c.name.toUpperCase()} />
+            <FxButton key={c.uid} style={s.secondaryBtn} tone="soft" onClick={() => connectWallet(c)} label={c.name.toUpperCase()} />
           ))}
           {/* No MetaMask in this browser (a phone, or not installed): open this page inside the MetaMask app instead. */}
           {!webConnectors.some(c => /metamask/i.test(c.name)) && (
