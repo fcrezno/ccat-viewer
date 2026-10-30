@@ -56,7 +56,7 @@ type BurnTerms = { price: bigint; bun: `0x${string}` }
 
 export default function MintV3Page() {
   const { address, isConnected, chainId } = useAccount()
-  const { connect, error: connectError } = useConnect()
+  const { connect, error: connectError, isPending: connecting } = useConnect()
   const webConnectors = useWebConnectors()
   const { switchChainAsync } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
@@ -374,6 +374,13 @@ export default function MintV3Page() {
           {/* No MetaMask in this browser (a phone, or not installed): open this page inside the MetaMask app instead. */}
           {!webConnectors.some(c => /metamask/i.test(c.name)) && (
             <FxButton href={`https://metamask.app.link/dapp/${typeof window !== 'undefined' ? window.location.host + window.location.pathname + window.location.search : 'clankercats.com/mint/v3'}`} style={s.secondaryBtn} tone="soft" label="OPEN IN METAMASK" />
+          )}
+          {/* A wallet that does not open (seen with MetaMask next to Phantom, 2026-10-30): say where to look. */}
+          {connecting && (
+            <div style={s.notice}>
+              Waiting for your wallet… If nothing opened, click the wallet’s icon in your browser toolbar: the request may be waiting there.
+              If you also have Phantom installed, turn off Phantom’s “default app wallet” setting and reload, or use Phantom.
+            </div>
           )}
           {/* A failed connect used to do nothing visible. Say why. */}
           {connectError && !/rejected|denied/i.test(connectError.message) && (
